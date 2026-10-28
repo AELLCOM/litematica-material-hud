@@ -52,7 +52,7 @@ java {
 }
 
 def sharedUiRoot = file("${rootDir}/aell-ui/src/main/java")
-// 26.2: файлы aell-ui, которые под 26.2 отличаются, лежат в ../aell-ui-26.2 и заменяют общие
+// 26.2: файлы aell-ui, которые под 26.2 отличаются, лежат в aell-ui-26.2 и заменяют общие
 def sharedUiOverrides = file("${rootDir}/aell-ui-26.2/src/main/java")
 def shadedUiPackage = 'com.aell.layerlist.shaded.ui'
 def shadedUiPath = shadedUiPackage.replace('.', '/')

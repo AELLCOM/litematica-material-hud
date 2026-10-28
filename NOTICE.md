@@ -18,7 +18,7 @@ Copyright (c) 2026 Aell_
 
 ## Встроенный код
 
-- **aell-ui** (Aell_) — MIT. Общий модуль экрана настроек, исходники лежат в `../aell-ui`. При сборке он
+- **aell-ui** (Aell_) — MIT. Общий модуль экрана настроек, исходники лежат в `aell-ui/`. При сборке он
   переносится в пакет `com.aell.layerlist.shaded.ui`, чтобы два мода с этим модулем не делили одинаковые классы в
   одинаковом пакете.
 - **VoxyMap LTS** (LTS_Server, https://github.com/raben12paste/3D-maps-Voxy-Addon) — MIT, © 2026 raben12paste.
