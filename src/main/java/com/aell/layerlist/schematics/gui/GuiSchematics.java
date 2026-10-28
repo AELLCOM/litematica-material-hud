@@ -55,7 +55,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -849,7 +848,7 @@ public final class GuiSchematics extends GuiBase
         {
             SelectionHud.enter(Nav.peek());
             Nav.clear();
-            Minecraft.getInstance().gui.setScreen(null);
+            Minecraft.getInstance().setScreen(null);
         }
     }
 
@@ -1443,15 +1442,10 @@ public final class GuiSchematics extends GuiBase
     }
 
     /** Черновик IME (26.3): ваниль отдаёт его экрану, а мы — полю, которое держит ввод текста. */
-    @Override
-    public boolean preeditUpdated(@Nullable PreeditEvent event)
-    {
-        return TextFocus.preedit(event) || super.preeditUpdated(event);
-    }
 
     /** Файлы брошены в окно: копия в текущую папку библиотеки. */
     @Override
-    public boolean onMouseDropFiles(List<Path> paths)
+    public void onFilesDrop(List<Path> paths)
     {
         this.setTab(Tab.LIBRARY);
 
@@ -1461,7 +1455,6 @@ public final class GuiSchematics extends GuiBase
         }
 
         this.files.acceptDropped(paths);
-        return true;
     }
 
     private boolean blurAll()
@@ -2119,7 +2112,7 @@ public final class GuiSchematics extends GuiBase
         {
             if (target != null)
             {
-                Blaze3D.openPath(target);
+                net.minecraft.util.Util.getPlatform().openPath(target);
             }
         }
         catch (RuntimeException e)

@@ -113,7 +113,7 @@ public final class EndPortalGhostTest implements CovJob
             case 1 ->
             {
                 CovOut.log("[endghost] снимок: голограмма портала и шлюза, прозрачная");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 // Для сравнения — без прозрачности: так Litematica рисует их сама, без обёртки голограмм
                 Configs.Visuals.RENDER_BLOCKS_AS_TRANSLUCENT.setBooleanValue(false);
                 this.nextAt = now + 3000L;
@@ -122,7 +122,7 @@ public final class EndPortalGhostTest implements CovJob
             case 2 ->
             {
                 CovOut.log("[endghost] снимок: без прозрачности (сравнение)");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 this.nextAt = now + 1000L;
                 ++this.stage;
             }

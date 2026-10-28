@@ -41,8 +41,10 @@ public abstract class MixinTopViewCamera
     @Shadow
     protected abstract void setRotation(float yRot, float xRot);
 
-    @Inject(method = "alignWithEntity", at = @At("TAIL"), require = 1)
-    private void layerlist$topView(float partialTicks, CallbackInfo ci)
+    // 1.21.11: позу камеры выставляет Camera.setup(level, entity, detached, mirror, partialTick) (в 26.x — alignWithEntity)
+    @Inject(method = "setup", at = @At("TAIL"), require = 1)
+    private void layerlist$topView(net.minecraft.world.level.Level level, net.minecraft.world.entity.Entity entity,
+            boolean detachedView, boolean mirror, float partialTicks, CallbackInfo ci)
     {
         if (TopViewCamera.active())
         {

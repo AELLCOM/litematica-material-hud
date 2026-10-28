@@ -23,7 +23,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.component.DataComponents;
@@ -35,7 +35,6 @@ import net.minecraft.util.Util;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
@@ -50,7 +49,7 @@ import org.jetbrains.annotations.Nullable;
  * Режим N — иконки выгрузок (M25) против настоящего GUI. Набор предметов (блоки с особыми
  * отрисовщиками, неполные блоки, плоские предметы, данные: флаг с узором, ваза с черепками, зелье,
  * крашеная броня, блеск) рисуется дважды: {@link ItemIcons#request} (64×64, наш рендер вне экрана) и
- * ванильным {@code GuiGraphicsExtractor.item} в сетке на экране при масштабе GUI 4 (слот 16 → 64 px),
+ * ванильным {@code GuiGraphics.item} в сетке на экране при масштабе GUI 4 (слот 16 → 64 px),
  * экран снимается. В {@code LL_COVERAGE_OUT/icons}: {@code icons-ours.png} (наши, прозрачный фон),
  * {@code icons-gui.png} (вырез снимка), {@code icons-side-by-side.png}, страницы
  * {@code compare-NN.png} (наша на фоне экрана · GUI · разница ×4, крупно) и {@code icons.csv}
@@ -163,7 +162,7 @@ public final class DumpIcons implements CovJob
                 }
 
                 mc.options.guiScale().set(GUI_SCALE);
-                mc.resizeGui();
+                mc.resizeDisplay();
 
                 // Экран Xvfb 1600×900 даёт не больше 3 (900 / 4 < 240): ставим 4 напрямую — сетке хватает 400×225
                 if (mc.getWindow().getGuiScale() != GUI_SCALE)
@@ -205,7 +204,7 @@ public final class DumpIcons implements CovJob
             }
             case OPEN_SCREEN ->
             {
-                mc.gui.setScreen(new Grid(this.samples));
+                mc.setScreen(new Grid(this.samples));
                 this.enter(Stage.SETTLE);
             }
             case SETTLE ->
@@ -220,7 +219,7 @@ public final class DumpIcons implements CovJob
             case SHOT ->
             {
                 this.shot = null;
-                Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image ->
+                Screenshot.takeScreenshot(mc.getMainRenderTarget(), image ->
                 {
                     try (NativeImage owned = image)
                     {
@@ -276,7 +275,7 @@ public final class DumpIcons implements CovJob
     public void close()
     {
         Minecraft mc = Minecraft.getInstance();
-        mc.gui.setScreen(null);
+        mc.setScreen(null);
 
         if (this.windowWBefore > 0 && this.windowHBefore > 0)
         {
@@ -284,7 +283,7 @@ public final class DumpIcons implements CovJob
         }
 
         mc.options.guiScale().set(this.guiScaleBefore);
-        mc.resizeGui();
+        mc.resizeDisplay();
         CovOut.log("[icons] предметов " + this.samples.size() + ", сбоев " + this.failures + ", выход " + this.out);
     }
 
@@ -327,7 +326,7 @@ public final class DumpIcons implements CovJob
 
         // Данные, по которым строки выгрузки различаются: узор флага, черепки вазы, зелье, краска, блеск
         HolderGetter<BannerPattern> patterns = mc.level.registryAccess().lookupOrThrow(Registries.BANNER_PATTERN);
-        ItemStack banner = new ItemStack(Items.BANNER.pick(DyeColor.RED));
+        ItemStack banner = new ItemStack(Items.RED_BANNER);
         banner.set(DataComponents.BANNER_PATTERNS, new BannerPatternLayers.Builder()
                 .addIfRegistered(patterns, BannerPatterns.CREEPER, DyeColor.BLACK)
                 .addIfRegistered(patterns, BannerPatterns.BORDER, DyeColor.YELLOW)
@@ -350,11 +349,11 @@ public final class DumpIcons implements CovJob
         this.samples.add(new Sample("diamond_sword+glint", shiny));
     }
 
-    private static Optional<ItemStackTemplate> sherd(String id)
+    private static Optional<Item> sherd(String id)
     {
         Item item = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(id));
 
-        return item == Items.AIR ? Optional.empty() : Optional.of(new ItemStackTemplate(item));
+        return item == Items.AIR ? Optional.empty() : Optional.of(item);
     }
 
     // ===== Выход =====
@@ -625,7 +624,7 @@ public final class DumpIcons implements CovJob
                 && (icon[SIZE * SIZE - 1] >>> 24) == 0;
     }
 
-    /** Экран-сетка: те же предметы ванильным путём GUI ({@code GuiGraphicsExtractor.item}) на сером фоне. */
+    /** Экран-сетка: те же предметы ванильным путём GUI ({@code GuiGraphics.item}) на сером фоне. */
     private static final class Grid extends Screen
     {
         private final List<Sample> samples;
@@ -637,19 +636,19 @@ public final class DumpIcons implements CovJob
         }
 
         @Override
-        public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick)
+        public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick)
         {
             graphics.fill(0, 0, this.width, this.height, BACKGROUND);
         }
 
         @Override
-        public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick)
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick)
         {
-            super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+            super.render(graphics, mouseX, mouseY, partialTick);
 
             for (int i = 0; i < this.samples.size(); ++i)
             {
-                graphics.item(this.samples.get(i).stack(), ORIGIN + (i % COLUMNS) * PITCH, ORIGIN + (i / COLUMNS) * PITCH);
+                graphics.renderItem(this.samples.get(i).stack(), ORIGIN + (i % COLUMNS) * PITCH, ORIGIN + (i / COLUMNS) * PITCH);
             }
         }
 

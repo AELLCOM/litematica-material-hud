@@ -4,7 +4,7 @@ import com.aell.layerlist.config.LayerListConfigs;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.BaseRailBlock;
-import net.minecraft.world.level.block.RedstoneWireBlock;
+import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.TripWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -28,7 +28,7 @@ public final class FlatGhosts
 
     static boolean flat(BlockState state)
     {
-        return state.getBlock() instanceof RedstoneWireBlock || state.getBlock() instanceof BaseRailBlock
+        return state.getBlock() instanceof RedStoneWireBlock || state.getBlock() instanceof BaseRailBlock
                 || state.getBlock() instanceof TripWireBlock;
     }
 }

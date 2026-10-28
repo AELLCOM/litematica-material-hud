@@ -20,11 +20,11 @@ import javax.imageio.stream.MemoryCacheImageOutputStream;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.SpecialGuiElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
+import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
@@ -142,12 +142,12 @@ public final class PreviewCapture
 
         registered = true;
 
-        PictureInPictureRendererRegistry.register(context -> new CaptureRenderer());
+        SpecialGuiElementRegistry.register(context -> new CaptureRenderer(context.vertexConsumers()));
         // В мире без экрана; элемент ничего не рисует
         HudElementRegistry.addLast(HUD_HOOK, (graphics, deltaTracker) -> requestFrame());
         // Любой экран — в том числе «Схемы» с окном выгрузки поверх
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) ->
-                ScreenEvents.afterExtract(screen).register((shown, graphics, mouseX, mouseY, delta) -> requestFrame()));
+                ScreenEvents.afterRender(screen).register((shown, graphics, mouseX, mouseY, delta) -> requestFrame()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
@@ -400,13 +400,13 @@ public final class PreviewCapture
             return;
         }
 
-        GuiRenderState frame = Minecraft.getInstance().gameRenderer.gameRenderState().guiRenderState;
+        GuiRenderState frame = ((com.aell.layerlist.mixin.schematics.IMixinGameRendererGui) Minecraft.getInstance().gameRenderer).layerlist$guiRenderState();
         boolean[] present = {false};
         frame.forEachPictureInPicture(state -> present[0] |= state == CaptureRenderer.Pass.INSTANCE);
 
         if (! present[0])
         {
-            frame.addPicturesInPictureState(CaptureRenderer.Pass.INSTANCE);
+            frame.submitPicturesInPictureState(CaptureRenderer.Pass.INSTANCE);
         }
     }
 

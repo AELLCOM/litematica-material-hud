@@ -30,7 +30,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.MerchantResultSlot;
 import net.minecraft.world.inventory.ResultContainer;
@@ -401,7 +401,7 @@ public final class TransferButton
         // Включили в открытом сундуке — пусть сразу и заберёт
         autoSeen = null;
         autoWait = 0;
-        Minecraft.getInstance().gui.hud.setOverlayMessage(Chat.paint(Component.translatable(on
+        Minecraft.getInstance().gui.setOverlayMessage(Chat.paint(Component.translatable(on
                 ? "layerlist.message.transfer_auto_on" : "layerlist.message.transfer_auto_off"),
                 on ? Chat.OK : Chat.DIM), false);
     }
@@ -422,9 +422,9 @@ public final class TransferButton
     }
 
     /** Щелчок по слоту; {@code home} — куда вернуть курсор, если окно закроют посреди цепочки ({@code -1} — сам слот). */
-    private record Click(int slot, int button, ContainerInput input, int home)
+    private record Click(int slot, int button, ClickType input, int home)
     {
-        Click(int slot, int button, ContainerInput input)
+        Click(int slot, int button, ClickType input)
         {
             this(slot, button, input, -1);
         }
@@ -745,7 +745,7 @@ public final class TransferButton
     /** Автоперенос: открылось хранилище, сервер прислал содержимое, панель с кнопкой на экране. */
     private static void autoTick(Minecraft mc)
     {
-        Screen screen = mc.gui.screen();
+        Screen screen = mc.screen;
 
         if (screen == null)
         {
@@ -810,7 +810,7 @@ public final class TransferButton
 
         LocalPlayer player = mc.player;
 
-        if (player == null || mc.gameMode == null || mc.gui.screen() != current.screen
+        if (player == null || mc.gameMode == null || mc.screen != current.screen
                 || current.screen.getMenu().containerId != current.containerId)
         {
             finish(current, true);
@@ -844,7 +844,7 @@ public final class TransferButton
             if (! current.clicks.isEmpty())
             {
                 Click click = current.clicks.poll();
-                mc.gameMode.handleContainerInput(current.containerId, click.slot(), click.button(), click.input(), player);
+                mc.gameMode.handleInventoryMouseClick(current.containerId, click.slot(), click.button(), click.input(), player);
                 ++current.sent;
                 --budget;
                 current.home = current.screen.getMenu().getCarried().isEmpty() ? -1
@@ -880,7 +880,7 @@ public final class TransferButton
 
         if (stack.getCount() <= need)
         {
-            mc.gameMode.handleContainerInput(current.containerId, move.slot().index, 0, ContainerInput.QUICK_MOVE, player);
+            mc.gameMode.handleInventoryMouseClick(current.containerId, move.slot().index, 0, ClickType.QUICK_MOVE, player);
             ++current.sent;
 
             // Клиент применяет Shift+клик сразу; что осталось в слоте — не влезло
@@ -914,27 +914,27 @@ public final class TransferButton
         }
 
         int excess = stack.getCount() - need;
-        current.clicks.add(new Click(source, 0, ContainerInput.PICKUP));
+        current.clicks.add(new Click(source, 0, ClickType.PICKUP));
 
         if (need <= excess)
         {
             // По одному в инвентарь, остаток — обратно в тот же слот
             for (int i = 0; i < need; ++i)
             {
-                current.clicks.add(new Click(target.index, 1, ContainerInput.PICKUP));
+                current.clicks.add(new Click(target.index, 1, ClickType.PICKUP));
             }
 
-            current.clicks.add(new Click(source, 0, ContainerInput.PICKUP));
+            current.clicks.add(new Click(source, 0, ClickType.PICKUP));
         }
         else
         {
             // Лишнее по одному обратно, нужное разом в инвентарь
             for (int i = 0; i < excess; ++i)
             {
-                current.clicks.add(new Click(source, 1, ContainerInput.PICKUP));
+                current.clicks.add(new Click(source, 1, ClickType.PICKUP));
             }
 
-            current.clicks.add(new Click(target.index, 0, ContainerInput.PICKUP));
+            current.clicks.add(new Click(target.index, 0, ClickType.PICKUP));
         }
 
         move.need().left = 0;
@@ -944,7 +944,7 @@ public final class TransferButton
     private static void takeBox(Job current, Move move, Minecraft mc, LocalPlayer player)
     {
         ItemStack box = move.slot().getItem().copy();
-        mc.gameMode.handleContainerInput(current.containerId, move.slot().index, 0, ContainerInput.QUICK_MOVE, player);
+        mc.gameMode.handleInventoryMouseClick(current.containerId, move.slot().index, 0, ClickType.QUICK_MOVE, player);
         ++current.sent;
 
         // Клиент применяет Shift+клик сразу; шалкер остался в слоте — в инвентаре нет места
@@ -1025,7 +1025,7 @@ public final class TransferButton
             return false;
         }
 
-        mc.gameMode.handleContainerInput(current.containerId, current.home, 0, ContainerInput.PICKUP, player);
+        mc.gameMode.handleInventoryMouseClick(current.containerId, current.home, 0, ClickType.PICKUP, player);
         ++current.sent;
         LOGGER.info("[layerlist] перенос: курсор возвращён в слот {}", current.home);
         current.home = -1;
@@ -1075,7 +1075,7 @@ public final class TransferButton
                 for (int at = state; from[at] >= 0; at = from[at])
                 {
                     int move = how[at];
-                    path.addFirst(new Click((move & 2) == 0 ? source : target, move & 1, ContainerInput.PICKUP, source));
+                    path.addFirst(new Click((move & 2) == 0 ? source : target, move & 1, ClickType.PICKUP, source));
                 }
 
                 return new ArrayList<>(path);
@@ -1254,16 +1254,16 @@ public final class TransferButton
             }
 
             int count = Math.min(Math.min(amount - queued, stack.getCount()), room);
-            job.clicks.add(new Click(from.index, 0, ContainerInput.PICKUP));
+            job.clicks.add(new Click(from.index, 0, ClickType.PICKUP));
 
             for (int k = 0; k < count; ++k)
             {
-                job.clicks.add(new Click(into.index, 1, ContainerInput.PICKUP));
+                job.clicks.add(new Click(into.index, 1, ClickType.PICKUP));
             }
 
             if (count < stack.getCount())
             {
-                job.clicks.add(new Click(from.index, 0, ContainerInput.PICKUP));
+                job.clicks.add(new Click(from.index, 0, ClickType.PICKUP));
             }
 
             queued += count;
@@ -1319,7 +1319,7 @@ public final class TransferButton
         }
 
         // Окно просили закрыть во время переноса — закрываем теперь, когда счёт сведён
-        if (done.closing >= 0 && mc.gui.screen() == done.screen
+        if (done.closing >= 0 && mc.screen == done.screen
                 && mc.player.containerMenu.containerId == done.containerId)
         {
             returnCursor(done, mc, mc.player);
@@ -1408,7 +1408,7 @@ public final class TransferButton
         // Автоперенос забрал своё, а нужного в хранилище больше нет — выйти из него (опция, по умолчанию выкл.).
         // Хранилище, где для списка ничего не было, сюда не доходит (итог пустой) — его можно спокойно открыть и положить
         if (done.auto && ! aborted && ! done.full && done.closing < 0 && LayerListConfigs.HUD_TRANSFER_AUTO_CLOSE.getBooleanValue()
-                && mc.gui.screen() == done.screen && mc.player.containerMenu.containerId == done.containerId
+                && mc.screen == done.screen && mc.player.containerMenu.containerId == done.containerId
                 && done.screen.getMenu().getCarried().isEmpty() && plan(done.screen, null).isEmpty())
         {
             LOGGER.info("[layerlist] перенос: нужного в хранилище больше нет — закрываю");
@@ -1451,7 +1451,7 @@ public final class TransferButton
             shown = Chat.paint(shown, color);
         }
 
-        mc.gui.hud.setOverlayMessage(shown, false);
+        mc.gui.setOverlayMessage(shown, false);
         Chat.send(shown);
     }
 }

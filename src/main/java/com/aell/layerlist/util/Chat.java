@@ -65,7 +65,7 @@ public final class Chat
             return;
         }
 
-        mc.player.sendSystemMessage(text(PREFIX, BRAND).append(body));
+        mc.player.displayClientMessage(text(PREFIX, BRAND).append(body), false);
     }
 
     /**
@@ -87,7 +87,7 @@ public final class Chat
         }
         else
         {
-            mc.gui.hud.setOverlayMessage(body, false);
+            mc.gui.setOverlayMessage(body, false);
         }
     }
 }

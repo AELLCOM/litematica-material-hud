@@ -18,7 +18,7 @@ import fi.dy.masa.litematica.world.SchematicWorldHandler;
 import fi.dy.masa.litematica.world.WorldSchematic;
 import fi.dy.masa.malilib.util.GuiUtils;
 import fi.dy.masa.malilib.util.LayerMode;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -394,7 +394,7 @@ public final class SupportTest implements CovJob
             case 16 ->
             {
                 // Инвентарь игрока (экран с книгой рецептов): подсказка предмета поверх панели
-                mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
+                mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
                 wait = 1500L;
             }
             case 17 ->
@@ -420,7 +420,7 @@ public final class SupportTest implements CovJob
             }
             case 19 ->
             {
-                mc.gui.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null));
+                mc.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null));
                 com.aell.layerlist.hud.LayerHudRenderer.takeDrawStats();
                 wait = 1500L;
             }
@@ -429,7 +429,7 @@ public final class SupportTest implements CovJob
                 int[] draws = com.aell.layerlist.hud.LayerHudRenderer.takeDrawStats();
                 this.check("меню мода: панель скрыта", draws[0] == 0, "кадров с панелью " + draws[0]);
                 shot(mc, "меню мода без панели");
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 com.aell.layerlist.hud.LayerHudRenderer.takeDrawStats();
                 wait = 1500L;
             }
@@ -602,7 +602,7 @@ public final class SupportTest implements CovJob
                 mc.player.closeContainer();
                 LayerListConfigs.HUD_TRANSFER_AUTO.setBooleanValue(false);
                 LayerListConfigs.HUD_ENABLED = true;
-                mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
+                mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
                 wait = 1500L;
             }
             case 39 ->
@@ -610,22 +610,22 @@ public final class SupportTest implements CovJob
                 // Клавиша панели в открытом инвентаре — настоящим путём клавиатуры (KeyboardHandler)
                 int key = LayerListConfigs.TOGGLE_HUD.getKeybind().getKeys().get(0);
                 var event = new net.minecraft.client.input.KeyEvent(key, 0, 0);
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
                 boolean hidden = ! LayerListConfigs.HUD_ENABLED;
-                boolean stillOpen = mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
+                boolean stillOpen = mc.screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
                 this.check("Y в инвентаре спрятала панель, инвентарь открыт", hidden && stillOpen,
-                        "HUD " + LayerListConfigs.HUD_ENABLED + ", экран " + mc.gui.screen());
+                        "HUD " + LayerListConfigs.HUD_ENABLED + ", экран " + mc.screen);
                 shot(mc, "инвентарь — панель скрыта клавишей");
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
                 this.check("второе нажатие Y вернуло панель", LayerListConfigs.HUD_ENABLED, "");
                 wait = 1500L;
             }
             case 40 ->
             {
                 shot(mc, "инвентарь — панель снова видна");
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 wait = 500L;
             }
             default ->
@@ -749,8 +749,8 @@ public final class SupportTest implements CovJob
 
         var window = mc.getWindow();
         int left = com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT;
-        mc.mouseHandler.onButton(window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.PRESS);
-        mc.mouseHandler.onButton(window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.RELEASE);
+        DevInput.onButton(mc.mouseHandler, window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.PRESS);
+        DevInput.onButton(mc.mouseHandler, window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.RELEASE);
     }
 
     /** Курсор в точку экрана (координаты GUI). */
@@ -811,7 +811,7 @@ public final class SupportTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[support] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

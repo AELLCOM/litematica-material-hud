@@ -43,7 +43,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.decoration.Cushion;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.decoration.painting.Painting;
@@ -74,7 +73,7 @@ public final class DumpEntities implements CovJob
     private static final BlockPos REF = new BlockPos(200, Y, 0);
     private static final BlockPos TARGET = new BlockPos(200, Y, 24);
     private static final BlockPos ROTATED = new BlockPos(200, Y, 48);
-    private static final int ENTITIES = 14;
+    private static final int ENTITIES = 11; // 26.2: без трёх подушек
     private static final long STABLE_MS = 3000L;
     private static final long PER_GHOST_MS = 7000L;
     /** Свободное место для вставки схемы в мир: дальше размещений REF/TARGET/ROTATED. */
@@ -347,9 +346,6 @@ public final class DumpEntities implements CovJob
         String phase = after ? "list_after" : "list_before";
         Map<String, Integer> expected = new LinkedHashMap<>();
         expected.put(id(Items.ARMOR_STAND), 3);
-        expected.put(id(Items.CUSHION.pick(DyeColor.RED)), 1);
-        expected.put(id(Items.CUSHION.pick(DyeColor.BLUE)), 1);
-        expected.put(id(Items.CUSHION.pick(DyeColor.GREEN)), 1);
         expected.put(id(Items.ITEM_FRAME), 3);
         expected.put(id(Items.GLOW_ITEM_FRAME), 1);
         expected.put(id(Items.DIAMOND), 1);
@@ -389,9 +385,6 @@ public final class DumpEntities implements CovJob
             for (ServerPlayer player : server.getPlayerList().getPlayers())
             {
                 give(player, Items.ARMOR_STAND, 3);
-                give(player, Items.CUSHION.pick(DyeColor.RED), 1);
-                give(player, Items.CUSHION.pick(DyeColor.BLUE), 1);
-                give(player, Items.CUSHION.pick(DyeColor.GREEN), 1);
                 give(player, Items.ITEM_FRAME, 3);
                 give(player, Items.GLOW_ITEM_FRAME, 1);
                 give(player, Items.DIAMOND, 1);
@@ -740,9 +733,7 @@ public final class DumpEntities implements CovJob
     {
         Map<String, Integer> expected = new LinkedHashMap<>();
         expected.put(id(Items.ARMOR_STAND), 3);
-        expected.put(id(Items.CUSHION.pick(DyeColor.RED)), 1);
-        expected.put(id(Items.CUSHION.pick(DyeColor.BLUE)), 1);
-        expected.put(id(Items.CUSHION.pick(DyeColor.GREEN)), 1);
+        // 26.2: подушек нет
         expected.put(id(Items.ITEM_FRAME), 3);
         expected.put(id(Items.GLOW_ITEM_FRAME), 1);
         expected.put(id(Items.DIAMOND), 1);
@@ -1168,7 +1159,7 @@ public final class DumpEntities implements CovJob
 
         level.setBlockAndUpdate(origin.offset(8, 0, 7), Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(origin.offset(4, 0, 2), Blocks.STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM));
-        level.setBlockAndUpdate(origin.offset(6, 0, 2), Blocks.CARPET.pick(DyeColor.GREEN).defaultBlockState());
+        level.setBlockAndUpdate(origin.offset(6, 0, 2), Blocks.GREEN_CARPET.defaultBlockState());
         level.setBlockAndUpdate(origin.offset(6, -1, 6), Blocks.OBSIDIAN.defaultBlockState());
         level.setBlockAndUpdate(origin.offset(2, 0, 6), Blocks.RAIL.defaultBlockState());
     }
@@ -1180,9 +1171,7 @@ public final class DumpEntities implements CovJob
         summon(server, "armor_stand", x + 0.5, Y, z + 0.5, "{Rotation:[45f,0f]}");
         summon(server, "armor_stand", x + 2.5, Y, z + 0.5, "{Rotation:[180f,0f]}");
         summon(server, "armor_stand", x + 4.5, Y + 0.5, z + 2.5, "{Rotation:[90f,0f]}");
-        summon(server, "cushion", x + 0.5, Y, z + 2.5, "{color:\"red\",Rotation:[270f,0f],block_pos:[I;" + x + "," + Y + "," + (z + 2) + "]}");
-        summon(server, "cushion", x + 2.5, Y, z + 2.5, "{color:\"blue\",Rotation:[0f,0f],block_pos:[I;" + (x + 2) + "," + Y + "," + (z + 2) + "]}");
-        summon(server, "cushion", x + 6.5, Y + 0.0625, z + 2.5, "{color:\"green\",Rotation:[90f,0f],block_pos:[I;" + (x + 6) + "," + Y + "," + (z + 2) + "]}");
+        // 26.2: подушек нет
         summon(server, "item_frame", x + 7.5, Y + 1.5, z + 1.5, "{Facing:4b,block_pos:[I;" + (x + 7) + "," + (Y + 1) + "," + (z + 1) + "]}");
         summon(server, "item_frame", x + 7.5, Y + 1.5, z + 3.5, "{Facing:4b,block_pos:[I;" + (x + 7) + "," + (Y + 1) + "," + (z + 3)
                 + "],Item:{id:\"minecraft:diamond\",count:1},ItemRotation:3b}");
@@ -1381,19 +1370,6 @@ public final class DumpEntities implements CovJob
             diff.add("поворот " + want.getYRot() + "→" + have.getYRot());
         }
 
-        if (want instanceof Cushion w && have instanceof Cushion h)
-        {
-            if (w.getColor() != h.getColor())
-            {
-                diff.add("цвет " + h.getColor());
-            }
-
-            if (Direction.fromYRot(w.getYRot()) != Direction.fromYRot(h.getYRot()))
-            {
-                diff.add("сторона " + Direction.fromYRot(h.getYRot()));
-            }
-        }
-
         if (want instanceof HangingEntity w && have instanceof HangingEntity h && w.getDirection() != h.getDirection())
         {
             diff.add("грань " + h.getDirection());
@@ -1427,11 +1403,7 @@ public final class DumpEntities implements CovJob
     {
         String extra = "";
 
-        if (entity instanceof Cushion cushion)
-        {
-            extra = " " + cushion.getColor().getName();
-        }
-        else if (entity instanceof ItemFrame frame && ! frame.getItem().isEmpty())
+        if (entity instanceof ItemFrame frame && ! frame.getItem().isEmpty())
         {
             extra = " с " + id(frame.getItem().getItem()) + " r" + frame.getRotation();
         }

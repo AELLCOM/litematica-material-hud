@@ -79,7 +79,7 @@ public final class TopViewCamera
 
         Minecraft mc = Minecraft.getInstance();
 
-        if (mc.gui.screen() != owner || mc.level == null || mc.player == null)
+        if (mc.screen != owner || mc.level == null || mc.player == null)
         {
             owner = null;
 
@@ -275,7 +275,7 @@ public final class TopViewCamera
 
     private static double tanHalfFov()
     {
-        return Math.tan(Math.toRadians(Minecraft.getInstance().gameRenderer.mainCamera().getFov() * 0.5));
+        return Math.tan(Math.toRadians(CursorRay.fovDegrees() * 0.5));
     }
 
     private static double aspect()

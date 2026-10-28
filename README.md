@@ -8,13 +8,13 @@ and adds Easy Place fixes, a schematics library and more.
 [CurseForge](https://www.curseforge.com/minecraft/mc-mods/litematica-material-hud-chest-finder) ·
 [Discord](https://discord.gg/jTU2yawThv)
 
-This branch (`main`) is the source of **1.0.22+26.3** for **Minecraft 26.3**.
+This branch (`mc/1.21.11`) is the source of **1.0.22+1.21.11** for **Minecraft 1.21.11**.
 Other Minecraft versions live in their own branches: `main` (26.3), `mc/26.2`, `mc/1.21.11`.
 Release history is in [CHANGELOG.md](CHANGELOG.md) (Russian).
 
 ## Building
 
-You need JDK 25+ (Gradle comes with the wrapper).
+You need JDK 21+ (Gradle comes with the wrapper).
 
 ```sh
 ./libs/fetch-libs.sh   # Litematica, malilib, Syncmatica, Sodium, Voxy from Modrinth, SHA-1 checked

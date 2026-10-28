@@ -21,8 +21,7 @@ import net.minecraft.network.chat.Component;
 @Environment(EnvType.CLIENT)
 public final class LayerListApi
 {
-    /** 6 — превью участка из нескольких размещений, срез и вид сбоку в 3D, проекция точек, мир Voxy под голограммой. */
-    public static final int API_VERSION = 6;
+    public static final int API_VERSION = 5;
 
     /** Ключ вкладки Zone Focus — по нему сосед открывает экран сразу на ней. */
     public static final String TAB_ZONE_FOCUS = "layerlist.gui.tab_zone_focus";

@@ -217,7 +217,7 @@ public final class TourShots implements CovJob
                 mc.player.getRecipeBook().setOpen(RecipeBookType.CRAFTING, false);
                 this.gameMode(mc, "creative");
                 this.scale(mc, 0);
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 CovOut.log("[tour] итог: " + (this.failed ? "есть провалы" : "все проверки прошли"));
                 return true;
             }
@@ -233,7 +233,7 @@ public final class TourShots implements CovJob
 
     private void open(Minecraft mc, Screen screen)
     {
-        mc.gui.setScreen(screen);
+        mc.setScreen(screen);
     }
 
     private void key(int key)
@@ -258,7 +258,7 @@ public final class TourShots implements CovJob
         {
             for (int i = 0; i < text.length(); ++i)
             {
-                gui.onCharTyped(new CharacterEvent(text.charAt(i)));
+                gui.onCharTyped(new CharacterEvent(text.charAt(i), 0));
             }
         }
     }
@@ -266,7 +266,7 @@ public final class TourShots implements CovJob
     private void scale(Minecraft mc, int value)
     {
         mc.options.guiScale().set(value);
-        mc.resizeGui();
+        mc.resizeDisplay();
         CovOut.log("[tour] масштаб GUI " + value + " → экран "
                 + mc.getWindow().getGuiScaledWidth() + "×" + mc.getWindow().getGuiScaledHeight());
     }
@@ -360,7 +360,7 @@ public final class TourShots implements CovJob
     private void shot(Minecraft mc, String name)
     {
         CovOut.log("[tour] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok)

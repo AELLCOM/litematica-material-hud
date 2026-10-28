@@ -18,7 +18,7 @@ import fi.dy.masa.litematica.schematic.LitematicaSchematic;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.malilib.render.GuiContext;
 import fi.dy.masa.malilib.util.LayerMode;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntConsumer;

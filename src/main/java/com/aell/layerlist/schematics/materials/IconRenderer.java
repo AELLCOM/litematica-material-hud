@@ -4,14 +4,14 @@ import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.renderpearl.api.commands.CommandEncoder;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,22 +22,18 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
-import net.minecraft.client.renderer.Projection;
-import net.minecraft.client.renderer.ProjectionMatrixBuffer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.SubmitNodeStorage;
+import net.minecraft.client.renderer.CachedOrthoProjectionMatrixBuffer;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
-import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.gui.render.state.pip.PictureInPictureRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.util.Util;
 import net.minecraft.world.item.ItemDisplayContext;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4fStack;
-import org.joml.Vector4f;
-import org.joml.Vector4fc;
 
 /**
  * Рисует иконки {@link ItemIcons} игрой — тем же путём, каким инвентарь рисует предмет в слот: модель
@@ -63,14 +59,19 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
     /** Сторона текстуры-сетки не больше этого; клеток в ряд — не больше {@link #MAX_COLUMNS}. */
     private static final int MAX_SIDE = 1024;
     private static final int MAX_COLUMNS = 8;
-    private static final Vector4fc TRANSPARENT = new Vector4f(0.0F);
+    private static final int TRANSPARENT = 0;
     /** Глубина ортопроекции — как у предметов инвентаря и «картинки в картинке» (±1000). */
     private static final float DEPTH_RANGE = 1000.0F;
     private static final int RGBA = 4;
 
-    private final Projection projection = new Projection();
-    private final ProjectionMatrixBuffer projectionBuffer = new ProjectionMatrixBuffer("layerlist item icons");
-    private SubmitNodeStorage submits = new SubmitNodeStorage();
+    /** 1.21.11: ортопроекция ±1000 по глубине, как у предметов инвентаря. */
+    private final CachedOrthoProjectionMatrixBuffer projectionBuffer =
+            new CachedOrthoProjectionMatrixBuffer("layerlist item icons", -DEPTH_RANGE, DEPTH_RANGE, true);
+
+    IconRenderer(MultiBufferSource.BufferSource buffers)
+    {
+        super(buffers);
+    }
 
     private @Nullable Targets targets;
 
@@ -91,10 +92,10 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
         {
             GpuDevice device = RenderSystem.getDevice();
             GpuTexture color = device.createTexture(() -> "layerlist item icons",
-                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC | GpuTexture.USAGE_RENDER_ATTACHMENT,
-                    GpuFormat.RGBA8_UNORM, side, side, 1, 1);
+                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC | GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING,
+                    TextureFormat.RGBA8, side, side, 1, 1);
             GpuTexture depth = device.createTexture(() -> "layerlist item icons depth",
-                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_RENDER_ATTACHMENT, GpuFormat.D32_FLOAT, side, side, 1, 1);
+                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_RENDER_ATTACHMENT, TextureFormat.DEPTH32, side, side, 1, 1);
 
             return new Targets(side, color, device.createTextureView(color), depth, device.createTextureView(depth));
         }
@@ -122,14 +123,15 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
     }
 
     @Override
-    protected void renderToTexture(Pass state, PoseStack poseStack, SubmitNodeCollector collector)
+    protected void renderToTexture(Pass state, PoseStack poseStack)
     {
         // Не зовётся: prepare переопределён целиком (своя текстура-сетка, на экран ничего)
     }
 
     @Override
-    public void prepare(Pass state, GuiRenderState guiState, FeatureRenderDispatcher dispatcher, int guiScale)
+    public void prepare(Pass state, GuiRenderState guiState, int guiScale)
     {
+        FeatureRenderDispatcher dispatcher = Minecraft.getInstance().gameRenderer.getFeatureRenderDispatcher();
         ItemIcons.prepared();
         ItemIcons.Job first = ItemIcons.poll(0);
 
@@ -188,7 +190,8 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
 
         GpuDevice device = RenderSystem.getDevice();
         CommandEncoder encoder = device.createCommandEncoder();
-        encoder.clearColorAndDepthTextures(grid.color(), TRANSPARENT, grid.depth(), 0.0);
+        // 1.21.11: глубина прямая (дальше — 1.0)
+        encoder.clearColorAndDepthTextures(grid.color(), TRANSPARENT, grid.depth(), 1.0);
 
         // Проекцию, свет и вид модели меняем только на время сетки — дальше кадр GUI рисует как рисовал
         GpuBufferSlice projectionBefore = RenderSystem.getProjectionMatrixBuffer();
@@ -197,8 +200,8 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
         Matrix4fStack modelView = RenderSystem.getModelViewStack();
         modelView.pushMatrix().identity();
 
-        this.projection.setupOrtho(-DEPTH_RANGE, DEPTH_RANGE, textureSide, textureSide, true);
-        RenderSystem.setProjectionMatrix(this.projectionBuffer.getBuffer(this.projection), ProjectionType.ORTHOGRAPHIC);
+
+        RenderSystem.setProjectionMatrix(this.projectionBuffer.getBuffer(textureSide, textureSide), ProjectionType.ORTHOGRAPHIC);
 
         List<Cell> cells = new ArrayList<>();
         long start = Util.getMillis();
@@ -283,15 +286,24 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
 
             // Ножницы считаются от нижнего края текстуры
             RenderSystem.enableScissorForRenderTypeDraws(left, grid.side() - top - size, size, size);
-            mc.gameRenderer.lighting().setupFor(item.usesBlockLight() ? Lighting.Entry.ITEMS_3D : Lighting.Entry.ITEMS_FLAT);
-            item.submit(pose, this.submits, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
+            mc.gameRenderer.getLighting().setupFor(item.usesBlockLight() ? Lighting.Entry.ITEMS_3D : Lighting.Entry.ITEMS_FLAT);
+            item.submit(pose, dispatcher.getSubmitNodeStorage(), LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
 
-            try (FeatureRenderDispatcher.PreparedFrame frame = dispatcher.prepareFrame(this.submits);
-                 RenderPass pass = encoder.createRenderPass(() -> "layerlist item icon", grid.colorView(), Optional.empty(),
-                         grid.depthView(), OptionalDouble.empty()))
+            // 26.2: проходов нет — вывод в свою текстуру через подмену цели, как в ванильном PIP
+            GpuTextureView colorBefore = RenderSystem.outputColorTextureOverride;
+            GpuTextureView depthBefore = RenderSystem.outputDepthTextureOverride;
+            RenderSystem.outputColorTextureOverride = grid.colorView();
+            RenderSystem.outputDepthTextureOverride = grid.depthView();
+
+            try
             {
-                RenderSystem.bindDefaultUniforms(pass);
-                FeatureRenderDispatcher.renderAllFeatures(pass, frame);
+                dispatcher.renderAllFeatures();
+                this.bufferSource.endBatch();
+            }
+            finally
+            {
+                RenderSystem.outputColorTextureOverride = colorBefore;
+                RenderSystem.outputDepthTextureOverride = depthBefore;
             }
 
             return true;
@@ -299,7 +311,7 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
         catch (RuntimeException | LinkageError e)
         {
             // Недоотправленное в хранилище не должно попасть в следующую клетку
-            this.submits = new SubmitNodeStorage();
+            dispatcher.getSubmitNodeStorage().clear();
             ItemIcons.failed(job, e, true);
             return false;
         }
@@ -328,7 +340,7 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
         List<int[]> pictures = new ArrayList<>(cells.size());
         Throwable failure = null;
 
-        try (GpuBufferSlice.MappedView view = buffer.map(true, false))
+        try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder().mapBuffer(buffer, true, false))
         {
             ByteBuffer data = view.data();
 

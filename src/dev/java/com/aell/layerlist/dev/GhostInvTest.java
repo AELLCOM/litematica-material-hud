@@ -64,15 +64,6 @@ public final class GhostInvTest implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         Path path = FabricLoader.getInstance().getGameDir().resolve("schematics").resolve("Портал.litematic");
 
         if (mc.player == null || ! Files.isRegularFile(path))
@@ -457,13 +448,13 @@ public final class GhostInvTest implements CovJob
                 LayerVerifier.getInstance().toggle();
                 zoneClear();
             }
-            case 17 -> mc.gui.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null).showTab("layerlist.gui.tab_highlight"));
-            case 18 -> net.minecraft.client.Screenshot.grab(mc, false);
-            case 19 -> mc.gui.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null).showTab("layerlist.gui.tab_hotkeys"));
-            case 20 -> net.minecraft.client.Screenshot.grab(mc, false);
+            case 17 -> mc.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null).showTab("layerlist.gui.tab_highlight"));
+            case 18 -> net.minecraft.client.Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
+            case 19 -> mc.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null).showTab("layerlist.gui.tab_hotkeys"));
+            case 20 -> net.minecraft.client.Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
             case 21 ->
             {
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 CovOut.log("[ghostinv] итог: " + (this.failed ? "FAIL" : "OK"));
                 return true;
             }

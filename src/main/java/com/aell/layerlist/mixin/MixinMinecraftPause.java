@@ -17,7 +17,7 @@ public abstract class MixinMinecraftPause
     @Inject(method = "pauseGame", at = @At("HEAD"), cancellable = true, require = 0)
     private void layerlist$noPauseAfterContainer(boolean pauseOnly, CallbackInfo ci)
     {
-        if (EscGuard.blockPause() && ((Minecraft) (Object) this).gui.screen() == null)
+        if (EscGuard.blockPause() && ((Minecraft) (Object) this).screen == null)
         {
             ci.cancel();
         }

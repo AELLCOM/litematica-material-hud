@@ -13,11 +13,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.components.IMEPreeditOverlay;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,7 +43,7 @@ public final class TextInput extends Widget implements TextFocus.Target
     private boolean focused;
     private boolean dragging;
     private long blinkFrom;
-    private @Nullable IMEPreeditOverlay preedit;
+    private @Nullable TextFocus.Overlay preedit;
 
     private String hint = "";
     private int maxLength = 256;
@@ -188,7 +186,7 @@ public final class TextInput extends Widget implements TextFocus.Target
     }
 
     @Override
-    public void preedit(@Nullable PreeditEvent event)
+    public void preedit(@Nullable TextFocus.PreeditEvent event)
     {
         this.preedit = this.focused ? TextFocus.overlay(event, this.h) : null;
     }

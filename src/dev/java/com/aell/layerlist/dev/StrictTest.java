@@ -225,8 +225,8 @@ public final class StrictTest implements CovJob
                 if (p.empty() && p.block())
                 {
                     this.check(p.name() + ": клик камнем по сундуку открыл сундук",
-                            mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.ContainerScreen,
-                            String.valueOf(mc.gui.screen()));
+                            mc.screen instanceof net.minecraft.client.gui.screens.inventory.ContainerScreen,
+                            String.valueOf(mc.screen));
                     mc.player.closeContainer();
                 }
 

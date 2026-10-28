@@ -89,9 +89,9 @@ public abstract class MixinMultiPlayerGameMode
      * Клик по инвентарю игрока (обмен Litematica, автопополнение Inventory Profiles Next…): пока сервер его не
      * подтвердил, установки Easy Place ждут ({@code InventorySync}).
      */
-    @Inject(method = "handleContainerInput", at = @At("HEAD"))
+    @Inject(method = "handleInventoryMouseClick", at = @At("HEAD"))
     private void layerlist$inventoryClick(int containerId, int slot, int button,
-            net.minecraft.world.inventory.ContainerInput input, Player player, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci)
+            net.minecraft.world.inventory.ClickType input, Player player, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci)
     {
         if (player != null && player.inventoryMenu != null && containerId == player.inventoryMenu.containerId)
         {

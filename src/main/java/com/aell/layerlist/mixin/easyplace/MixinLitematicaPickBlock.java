@@ -143,8 +143,8 @@ public abstract class MixinLitematicaPickBlock
 
         try
         {
-            mc.gameMode.handleContainerInput(player.inventoryMenu.containerId, slot, inventory.getSelectedSlot(),
-                    net.minecraft.world.inventory.ContainerInput.SWAP, player);
+            mc.gameMode.handleInventoryMouseClick(player.inventoryMenu.containerId, slot, inventory.getSelectedSlot(),
+                    net.minecraft.world.inventory.ClickType.SWAP, player);
         }
         finally
         {

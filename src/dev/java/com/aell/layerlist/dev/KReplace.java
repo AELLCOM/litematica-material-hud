@@ -2274,7 +2274,7 @@ final class KReplace
     /** Включить Litematica «один слой» по Y на выбранном слое схемы (или вернуть прежний режим). */
     private boolean singleLayerHere(boolean on)
     {
-        fi.dy.masa.malilib.util.position.LayerRange range = fi.dy.masa.litematica.data.DataManager.getRenderLayerRange();
+        fi.dy.masa.malilib.util.LayerRange range = fi.dy.masa.litematica.data.DataManager.getRenderLayerRange();
 
         if (! on)
         {
@@ -3620,7 +3620,7 @@ final class KReplace
         Window window = mc.getWindow();
         double x = guiX * window.getScreenWidth() / window.getGuiScaledWidth();
         double y = guiY * window.getScreenHeight() / window.getGuiScaledHeight();
-        mc.mouseHandler.onMove(handle(), x, y, 0.0, 0.0);
+        DevInput.onMove(mc.mouseHandler, handle(), x, y, 0.0, 0.0);
     }
 
     private static void press(int scancode)
@@ -3633,8 +3633,8 @@ final class KReplace
             default -> scancode | SCANCODE_MASK;
         };
         KeyEvent event = new KeyEvent(scancode, keycode, 0);
-        Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.PRESS, event);
-        Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.RELEASE, event);
+        DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.PRESS, event);
+        DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.RELEASE, event);
     }
 
     /** Набор строки, как его даёт SDL: нажатие клавиши, событие текста, отпускание; кириллица — на клавишах ЙЦУКЕН. */
@@ -3647,14 +3647,14 @@ final class KReplace
 
             if (key == null)
             {
-                Minecraft.getInstance().keyboardHandler.textInput(handle(), piece);
+                DevInput.textInput(Minecraft.getInstance().keyboardHandler, handle(), piece);
                 return;
             }
 
             KeyEvent event = new KeyEvent(key[0], key[1], key[2]);
-            Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.PRESS, event);
-            Minecraft.getInstance().keyboardHandler.textInput(handle(), piece);
-            Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.RELEASE, event);
+            DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.PRESS, event);
+            DevInput.textInput(Minecraft.getInstance().keyboardHandler, handle(), piece);
+            DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.RELEASE, event);
         });
     }
 
@@ -3683,30 +3683,9 @@ final class KReplace
     }
 
     /** Кто держит ввод текста SDL ({@code TextInputManager.owner}, закрытое поле — только харнесс). */
+    /** 1.21.11: ввода текста SDL с владельцем нет — владельца ведёт наш TextFocus. */
     private static @Nullable Object owner()
     {
-        Object manager = Minecraft.getInstance().textInputManager();
-
-        for (Class<?> c = manager.getClass(); c != null && c != Object.class; c = c.getSuperclass())
-        {
-            try
-            {
-                Field enabled = c.getDeclaredField("textInputEnabled");
-                Field owner = c.getDeclaredField("owner");
-                enabled.setAccessible(true);
-                owner.setAccessible(true);
-                return Boolean.TRUE.equals(enabled.get(manager)) ? owner.get(manager) : null;
-            }
-            catch (NoSuchFieldException e)
-            {
-                // выше по иерархии
-            }
-            catch (ReflectiveOperationException | RuntimeException e)
-            {
-                return null;
-            }
-        }
-
         return null;
     }
 }

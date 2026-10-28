@@ -11,8 +11,8 @@ import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo;
 import fi.dy.masa.malilib.config.HudAlignment;
 import fi.dy.masa.malilib.interfaces.IRangeChangeListener;
 import fi.dy.masa.malilib.util.LayerMode;
-import fi.dy.masa.malilib.util.position.IntBoundingBox;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.IntBoundingBox;
+import fi.dy.masa.malilib.util.LayerRange;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -823,8 +823,8 @@ public final class DumpLegacy implements CovJob
                 boxes.append(' ');
             }
 
-            row("d1|" + String.join(":", spec) + "|all=" + everything + "|lo" + range.getMinLayerBoundary() + "|hi"
-                    + range.getMaxLayerBoundary(), boxes.toString().trim());
+            row("d1|" + String.join(":", spec) + "|all=" + everything + "|lo" + range.getLayerMin() + "|hi"
+                    + range.getLayerMax(), boxes.toString().trim());
             return false;
         }
 
@@ -1098,7 +1098,7 @@ public final class DumpLegacy implements CovJob
         private static void setGui(Minecraft mc, int value)
         {
             mc.options.guiScale().set(value);
-            mc.resizeGui();
+            mc.resizeDisplay();
         }
     }
 
@@ -1194,7 +1194,7 @@ public final class DumpLegacy implements CovJob
 
             BlockState[] specials = { Blocks.WATER.defaultBlockState(), Blocks.LAVA.defaultBlockState(),
                     Blocks.OAK_SLAB.defaultBlockState(), Blocks.OAK_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.TOP),
-                    Blocks.OAK_LEAVES.defaultBlockState(), Blocks.STAINED_GLASS.white().defaultBlockState(),
+                    Blocks.OAK_LEAVES.defaultBlockState(), Blocks.WHITE_STAINED_GLASS.defaultBlockState(),
                     Blocks.ICE.defaultBlockState(), Blocks.SNOW.defaultBlockState() };
 
             for (BlockState background : new BlockState[] { air, stone })
@@ -1219,7 +1219,7 @@ public final class DumpLegacy implements CovJob
 
             this.schematics.add(stone);
             this.schematics.add(glass);
-            this.schematics.add(Blocks.STAINED_GLASS.white().defaultBlockState());
+            this.schematics.add(Blocks.WHITE_STAINED_GLASS.defaultBlockState());
             this.schematics.add(Blocks.OAK_SLAB.defaultBlockState());
             this.schematics.add(Blocks.WATER.defaultBlockState());
             this.schematics.add(Blocks.LAVA.defaultBlockState());
@@ -1389,7 +1389,7 @@ public final class DumpLegacy implements CovJob
                 Blocks.OBSIDIAN, Blocks.IRON_ORE, Blocks.DIAMOND_ORE, Blocks.ANCIENT_DEBRIS, Blocks.NETHERRACK,
                 Blocks.END_STONE, Blocks.IRON_BLOCK, Blocks.DIRT, Blocks.GRASS_BLOCK, Blocks.SAND, Blocks.GRAVEL,
                 Blocks.CLAY, Blocks.SNOW_BLOCK, Blocks.OAK_LOG, Blocks.OAK_PLANKS, Blocks.CRAFTING_TABLE, Blocks.GLASS,
-                Blocks.OAK_LEAVES, Blocks.WOOL.white(), Blocks.COBWEB, Blocks.MELON, Blocks.PUMPKIN, Blocks.HAY_BLOCK,
+                Blocks.OAK_LEAVES, Blocks.WHITE_WOOL, Blocks.COBWEB, Blocks.MELON, Blocks.PUMPKIN, Blocks.HAY_BLOCK,
                 Blocks.MOSS_BLOCK, Blocks.SCULK, Blocks.PACKED_ICE, Blocks.GLOWSTONE, Blocks.BAMBOO_BLOCK);
         private final List<Layout> layouts = new ArrayList<>();
         private Method pick;

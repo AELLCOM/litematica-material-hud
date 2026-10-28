@@ -55,8 +55,8 @@ public final class EpDebug
 
         if (mc.player != null)
         {
-            mc.player.sendSystemMessage(
-                    Component.literal("[EP] " + message).withStyle(ChatFormatting.GRAY));
+            mc.player.displayClientMessage(
+                    Component.literal("[EP] " + message).withStyle(ChatFormatting.GRAY), false);
         }
     }
 

@@ -33,8 +33,7 @@ import net.minecraft.tags.PaintingVariantTags;
 import net.minecraft.util.Util;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityTypes;
-import net.minecraft.world.entity.decoration.Cushion;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.GlowItemFrame;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
@@ -42,7 +41,6 @@ import net.minecraft.world.entity.decoration.painting.Painting;
 import net.minecraft.world.entity.decoration.painting.PaintingVariant;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SnowLayerBlock;
@@ -209,7 +207,15 @@ public final class EntityPlace
             {
                 Entity entity = action.entity();
                 EntityHitResult hit = new EntityHitResult(entity, entity.getBoundingBox().getCenter());
-                return mc.gameMode.interact(player, entity, hit, hand).consumesAction();
+                // 1.21.11: как ваниль — сначала клик в точку сущности, потом обычный (в 26.x это один вызов)
+                net.minecraft.world.InteractionResult result = mc.gameMode.interactAt(player, entity, hit, hand);
+
+                if (! result.consumesAction())
+                {
+                    result = mc.gameMode.interact(player, entity, hand);
+                }
+
+                return result.consumesAction();
             }
 
             return mc.gameMode.useItemOn(player, hand, action.hit()).consumesAction();
@@ -225,7 +231,7 @@ public final class EntityPlace
 
         if (done && Configs.Generic.EASY_PLACE_SWING_HAND.getBooleanValue())
         {
-            player.swing(hand, SwingAnimation.DEFAULT, false);
+            player.swing(hand);
         }
 
         return true;
@@ -362,7 +368,7 @@ public final class EntityPlace
         return switch (target.kind())
         {
             case ARMOR_STAND -> stand(level, ghost);
-            case CUSHION -> cushion(level, player, (Cushion) ghost);
+            case CUSHION -> null; // 26.2: подушек в игре нет
             case PAINTING -> painting(level, player, (Painting) ghost);
             case END_CRYSTAL -> crystal(level, ghost);
             case MINECART -> minecart(level, ghost);
@@ -379,7 +385,7 @@ public final class EntityPlace
     {
         Vec3 p = ghost.position();
         BlockPos at = BlockPos.containing(p.x, Math.ceil(p.y - 1.0E-4D), p.z);
-        AABB box = EntityTypes.ARMOR_STAND.getDimensions().makeBoundingBox(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D);
+        AABB box = EntityType.ARMOR_STAND.getDimensions().makeBoundingBox(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D);
 
         if (! level.noCollision(null, box) || ! level.getEntities((Entity) null, box).isEmpty())
         {
@@ -396,78 +402,6 @@ public final class EntityPlace
         // Поворот стойки = взгляд игрока − 180°, с шагом 45°
         return new Action("стойка", stack -> stack.is(Items.ARMOR_STAND), new ItemStack(Items.ARMOR_STAND),
                 ghost.getYRot() + 180.0F, hit, null, needsSneak(level, hit), SPAWN_WAIT_MS);
-    }
-
-    /**
-     * Подушка: клик сверху ровно в точку, где она лежит, поворот — сторона взгляда игрока.
-     *
-     * <p>Кликаем по клетке под самой точкой, что бы в ней ни было: снег, люк, плита, пол под калиткой. Сервер кладёт
-     * подушку в середину столбца на высоту клика, а клик дальше блока от середины кликнутого блока молча отбрасывает.
-     * Так терялись подушки на снегу в 5–8 слоёв: снег «заменяемый», и клик уходил в блок под ним.
-     */
-    private static @Nullable Object cushion(ClientLevel level, LocalPlayer player, Cushion ghost)
-    {
-        Vec3 p = ghost.position();
-        AABB spawn = EntityTypes.CUSHION.getSpawnAABB(p);
-
-        if (! Cushion.canBePlacedAt(level, spawn) || ! level.getEntitiesOfClass(Cushion.class, spawn).isEmpty())
-        {
-            return null;
-        }
-
-        BlockPos support = BlockPos.containing(p.x, p.y - 1.0E-3D, p.z);
-        Vec3 click = p;
-
-        if (level.getBlockState(support).is(BlockTags.CUSHION_USES_COLLISION_SHAPE))
-        {
-            click = seenTop(level, player, support, p.y);
-
-            if (click == null)
-            {
-                return new Skip("cushion_view");
-            }
-        }
-
-        ItemStack item = new ItemStack(Items.CUSHION.pick(ghost.getColor()));
-        BlockHitResult hit = new BlockHitResult(click, Direction.UP, support, false);
-
-        return new Action("подушка", stack -> stack.is(item.getItem()), item,
-                Direction.fromYRot(ghost.getYRot()).toYRot(), hit, null, needsSneak(level, hit), SPAWN_WAIT_MS);
-    }
-
-    /**
-     * Котёл, воронка, компостер: сервер заново ведёт луч от глаз игрока по форме столкновений и кладёт подушку туда,
-     * где луч упёрся. Нужна точка верхней грани на высоте подушки, которую глаз видит: середина видимого куска, чтобы
-     * небольшой сдвиг игрока не увёл луч на край. Не видно ни одной — подушка встала бы на край или не встала вовсе.
-     */
-    private static @Nullable Vec3 seenTop(ClientLevel level, LocalPlayer player, BlockPos pos, double y)
-    {
-        VoxelShape shape = level.getBlockState(pos).getCollisionShape(level, pos);
-        Vec3 eye = player.getEyePosition();
-        List<Vec3> seen = new ArrayList<>();
-
-        for (int i = 0; i < 16; ++i)
-        {
-            for (int j = 0; j < 16; ++j)
-            {
-                Vec3 at = new Vec3(pos.getX() + (i + 0.5D) / 16.0D, y, pos.getZ() + (j + 0.5D) / 16.0D);
-                BlockHitResult hit = shape.clip(eye, at.add(at.subtract(eye).normalize().scale(1.0E-3D)), pos);
-
-                if (hit != null && hit.getDirection() == Direction.UP && Math.abs(hit.getLocation().y - y) < 1.0E-4D)
-                {
-                    seen.add(at);
-                }
-            }
-        }
-
-        if (seen.isEmpty())
-        {
-            return null;
-        }
-
-        Vec3 middle = seen.stream().reduce(Vec3.ZERO, Vec3::add).scale(1.0D / seen.size());
-
-        return seen.stream().min(Comparator.comparingDouble(at -> at.distanceToSqr(middle))).orElseThrow();
     }
 
     private static @Nullable Action hanging(ClientLevel level, HangingEntity ghost, ItemStack item, String what)

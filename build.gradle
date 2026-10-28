@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'fabric-loom' version "${loom_version}"
 }
 
 version = project.mod_version
@@ -11,26 +11,29 @@ base {
 
 repositories {
     mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
     maven { url = 'https://maven.terraformersmc.com/releases' }
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-
-    compileOnly files("libs/malilib-fabric-${project.minecraft_version}-${project.malilib_version}.jar")
-    compileOnly files("libs/litematica-fabric-${project.minecraft_version}-${project.litematica_version}.jar")
-
     // Syncmatica — по желанию: классы с её типами грузятся, только если мод стоит (compat/SyncmaticaImpl)
-    compileOnly files("libs/syncmatica-fabric-26.3-0.3.20.jar")
+    modCompileOnly files("libs/syncmatica-fabric-1.21.11-0.3.20.jar")
 
     // Voxy — по желанию, для 3D-превью «Выделения»: только для компиляции, в jar не входит (лицензия Voxy — All Rights
-    // Reserved). Классы с типами Voxy грузятся, только если Voxy стоит отдельно (compat/voxy/VoxyViewImpl)
-    compileOnly files("libs/voxy-0.2.20-beta.jar")
-    compileOnly files("libs/sodium-fabric-0.9.3-alpha.1+mc26.3.jar")
+    // Reserved). Классы с типами Voxy грузятся, только если Voxy стоит отдельно (compat/VoxyPreviewImpl)
+    modCompileOnly files("libs/voxy-0.2.16-beta+1.21.11.jar")
+    modCompileOnly files("libs/sodium-fabric-0.8.12+mc1.21.11.jar")
 
-    compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    // 1.21.11 ещё обфусцирована: имена Mojang через маппинги, моды — через mod*-конфигурации (перемаппинг)
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    modCompileOnly files("libs/malilib-fabric-${project.minecraft_version}-${project.malilib_version}.jar")
+    modCompileOnly files("libs/litematica-fabric-${project.minecraft_version}-${project.litematica_version}.jar")
+
+    modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
 
 processResources {
@@ -42,15 +45,18 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
+    it.options.release = 21
+    it.options.compilerArgs += ['-Xmaxerrs', '5000']
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 def sharedUiRoot = file("${rootDir}/aell-ui/src/main/java")
+// 1.21.11: файлы aell-ui, которые под 1.21.11 отличаются, лежат в ../aell-ui-1.21.11 и заменяют общие
+def sharedUiOverrides = file("${rootDir}/aell-ui-1.21.11/src/main/java")
 def shadedUiPackage = 'com.aell.layerlist.shaded.ui'
 def shadedUiPath = shadedUiPackage.replace('.', '/')
 
@@ -59,7 +65,10 @@ tasks.register('generateSharedUi', Copy) {
         throw new GradleException("aell-ui not found at ${sharedUiRoot}; it ships inside this repository")
     }
 
-    from(sharedUiRoot) { include 'com/aell/ui/**/*.java' }
+    def overridden = fileTree(sharedUiOverrides).matching { include 'com/aell/ui/**/*.java' }.files
+            .collect { sharedUiOverrides.toPath().relativize(it.toPath()).toString().replace('\\', '/') }
+    from(sharedUiRoot) { include 'com/aell/ui/**/*.java'; exclude overridden }
+    from(sharedUiOverrides) { include 'com/aell/ui/**/*.java' }
     into layout.buildDirectory.dir('generated/shared-ui')
     includeEmptyDirs = false
     eachFile { it.path = it.path.replace('com/aell/ui', shadedUiPath) }
@@ -75,6 +84,8 @@ tasks.named('compileJava') { dependsOn tasks.named('generateSharedUi') }
 // только из sourceSets.main. Включается переменной окружения LL_COVERAGE.
 sourceSets {
     dev {
+        // 1.21.11 (как 26.2): тесты на SDL (ввод текста, горячие клавиши, щелчки событиями SDL) и подушки — только в 26.3
+        java { exclude '**/CushionTest.java', '**/DumpTyping.java', '**/TransferClickTest.java' }
         compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
         runtimeClasspath = files()
     }

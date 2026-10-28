@@ -9,7 +9,7 @@ import java.util.Locale;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -84,9 +84,9 @@ public final class Coverage
         ClientTickEvents.END_CLIENT_TICK.register(Coverage::tick);
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) ->
-                dispatcher.register(ClientCommands.literal("ephud")
-                        .then(ClientCommands.literal("coverage")
-                                .then(ClientCommands.argument("mode", StringArgumentType.word())
+                dispatcher.register(ClientCommandManager.literal("ephud")
+                        .then(ClientCommandManager.literal("coverage")
+                                .then(ClientCommandManager.argument("mode", StringArgumentType.word())
                                         .executes(context ->
                                         {
                                             String mode = StringArgumentType.getString(context, "mode");
@@ -150,6 +150,18 @@ public final class Coverage
                 case "q", "storagepot" -> JOBS.add(new StoragePotTest());
                 case "o", "ghostinv" -> JOBS.add(new GhostInvTest());
                 case "u", "support" -> JOBS.add(new SupportTest());
+                case "transferclose" -> JOBS.add(new TransferCloseTest());
+                case "nestedsearch" -> JOBS.add(new NestedSearchTest());
+                case "stockhud" -> JOBS.add(new StockHudTest());
+                case "countformat" -> JOBS.add(new CountFormatTest());
+                case "escguard" -> JOBS.add(new EscGuardTest());
+                case "transferbox" -> JOBS.add(new TransferBoxTest());
+                case "selworld" -> JOBS.add(new SelWorldTest());
+                case "selperf" -> JOBS.add(new SelPerfTest());
+                case "selslice" -> JOBS.add(new SelSliceTest());
+                case "endghost" -> JOBS.add(new EndPortalGhostTest());
+                case "fixes" -> JOBS.add(new FixesTest());
+                case "verifyfix" -> JOBS.add(new VerifyFixTest());
                 case "listsupport" -> JOBS.add(new ListSupportTest());
                 case "listcache" -> JOBS.add(new ListCacheTest());
                 case "listbobby" -> JOBS.add(new ListBobbyTest());
@@ -158,7 +170,6 @@ public final class Coverage
                 case "finish" -> JOBS.add(new FinishTest());
                 case "zfverify" -> JOBS.add(new ZfVerifyTest());
                 case "zonelib" -> JOBS.add(new ZoneLibTest());
-                case "zfsections" -> JOBS.add(new ZfSectionsTest());
                 case "zoneplace" -> JOBS.add(new ZonePlaceTest());
                 case "chestsweep" -> JOBS.add(new SearchAllTest());
                 case "syncmatica" -> JOBS.add(new SyncTest());
@@ -169,35 +180,19 @@ public final class Coverage
                 case "build" -> JOBS.add(new BuildTest());
                 case "frames" -> JOBS.add(new SupportFrameTest());
                 case "entghost" -> JOBS.add(new EntityGhostShot());
-                case "cushion" -> JOBS.add(new CushionTest());
                 case "refuse" -> JOBS.add(new RefuseTest());
+                case "glow" -> JOBS.add(new GlowShot());
+                case "dig" -> JOBS.add(new DigGuardTest());
                 case "toggles" -> JOBS.add(new ToggleKeysTest());
                 case "longlines" -> JOBS.add(new LongLinesTest());
                 case "light" -> JOBS.add(new LightTest());
-                case "fixes" -> JOBS.add(new FixesTest());
-                case "verifyfix" -> JOBS.add(new VerifyFixTest());
-                case "glow" -> JOBS.add(new GlowShot());
-                case "dig" -> JOBS.add(new DigGuardTest());
                 case "zfviews" -> JOBS.add(new ZfViewsTest());
                 case "zftab" -> JOBS.add(new ZfTabShot());
-                case "selworld" -> JOBS.add(new SelWorldTest());
-                case "placeworld" -> JOBS.add(new PlaceWorldTest());
-                case "selperf" -> JOBS.add(new SelPerfTest());
-                case "selslice" -> JOBS.add(new SelSliceTest());
-                case "endghost" -> JOBS.add(new EndPortalGhostTest());
-                case "y", "click" -> JOBS.add(new TransferClickTest());
-                case "transferclose" -> JOBS.add(new TransferCloseTest());
-                case "nestedsearch" -> JOBS.add(new NestedSearchTest());
-                case "stockhud" -> JOBS.add(new StockHudTest());
-                case "countformat" -> JOBS.add(new CountFormatTest());
-                case "escguard" -> JOBS.add(new EscGuardTest());
-                case "transferbox" -> JOBS.add(new TransferBoxTest());
                 case "s", "epfsupport" -> JOBS.add(new EpfSupportTest());
                 case "m", "settingsshot" -> JOBS.add(new SettingsShot());
                 case "l", "zonesshot" -> JOBS.add(new ZonesShot());
                 case "n", "icons" -> JOBS.add(new DumpIcons());
                 case "t", "legacy" -> JOBS.add(new DumpLegacy());
-                case "w", "typing" -> JOBS.add(new DumpTyping());
                 default -> CovOut.log("неизвестный режим: " + mode);
             }
         }
@@ -272,7 +267,7 @@ public final class Coverage
         }
 
         CovOut.log("открываю мир " + WORLD);
-        mc.gui.setScreen(null);
+        mc.setScreen(null);
 
         // Открытие существующего мира упирается в экраны подтверждения (бэкап,
         // экспериментальные настройки), а нажать в них некому: мир всегда создаём заново.
@@ -281,8 +276,9 @@ public final class Coverage
             drop(mc);
         }
 
-        LevelSettings settings = new LevelSettings(WORLD, GameType.CREATIVE,
-                new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true,
+        // 1.21.11: свои правила игры в настройках мира, плоский мир — createFlatWorldDimensions
+        LevelSettings settings = new LevelSettings(WORLD, GameType.CREATIVE, false, Difficulty.PEACEFUL, true,
+                new net.minecraft.world.level.gamerules.GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures()),
                 WorldDataConfiguration.DEFAULT);
 
         // LL_COVERAGE_TERRAIN=1 — обычный рельеф с постоянным сидом (замеры превью области на настоящей местности)
@@ -294,7 +290,7 @@ public final class Coverage
         else
         {
             mc.createWorldOpenFlows().createFreshLevel(WORLD, settings,
-                    WorldOptions.testWorldWithRandomSeed(), WorldPresets::createTestWorldDimensions,
+                    WorldOptions.testWorldWithRandomSeed(), WorldPresets::createFlatWorldDimensions,
                     null);
         }
 
@@ -357,7 +353,7 @@ public final class Coverage
             return;
         }
 
-        mc.gui.setScreen(null);
+        mc.setScreen(null);
         // Площадку CovArena готовит встроенный сервер — на настоящем её нет, режимы готовят своё сами
         enter(remote ? Stage.RUN : Stage.PREPARE);
     }

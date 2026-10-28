@@ -159,7 +159,7 @@ public final class SearchAllTest implements CovJob
                 this.check("клавиша поиска страницы не сбивает «все сундуки»", StorageSearch.getInstance().isActive()
                         && StorageSearch.getInstance().markedItems().size() == before, "");
                 AllChestsSearch.toggleFromHotkey();
-                this.check("клавиша выключает без окна", ! AllChestsSearch.enabled() && mc.gui.screen() == null, "");
+                this.check("клавиша выключает без окна", ! AllChestsSearch.enabled() && mc.screen == null, "");
             }
             case 5 ->
             {
@@ -171,7 +171,7 @@ public final class SearchAllTest implements CovJob
                         search.markedItems().size() + " / " + StorageSearch.countSearchable(page));
                 this.check("выключили — сундук без материалов не отмечен", ! search.getMatches().containsKey(B), "");
                 AllChestsSearch.toggleFromHotkey();
-                this.check("клавиша включает без окна", AllChestsSearch.enabled() && mc.gui.screen() == null, "");
+                this.check("клавиша включает без окна", AllChestsSearch.enabled() && mc.screen == null, "");
                 LayerListConfigs.SEARCH_ALL_CHESTS.setBooleanValue(false);
             }
             default ->
@@ -188,7 +188,7 @@ public final class SearchAllTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         java.nio.file.Path path = FabricLoader.getInstance().getGameDir().resolve("screenshots").resolve(name + ".png");
-        net.minecraft.client.Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image ->
+        net.minecraft.client.Screenshot.takeScreenshot(mc.getMainRenderTarget(), image ->
         {
             try (image)
             {

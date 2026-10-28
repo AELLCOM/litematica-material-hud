@@ -140,7 +140,7 @@ public final class SupportFrameTest implements CovJob
                 this.check("рамка: клетка потолка обведена", frames(TARGET.offset(CEILING)), framesText());
                 this.check("рамка: на самой табличке рамки нет", ! frames(TARGET.offset(SIGN)), framesText());
                 CovOut.log("[frames] снимок: рамка опоры");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 server.execute(() -> command(server, set(TARGET, CEILING, "minecraft:stone")));
                 wait = 3500L;
             }

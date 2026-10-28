@@ -246,7 +246,7 @@ public final class ZoneFocusTab
     {
         if (SHARED.flag("startMarking"))
         {
-            Minecraft.getInstance().gui.setScreen(null);
+            Minecraft.getInstance().setScreen(null);
         }
     }
 

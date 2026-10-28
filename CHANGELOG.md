@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.22+26.3 — 26.10.2026
+## 1.0.22+1.21.11 — 26.10.2026
 
 **RU**
 
@@ -70,7 +70,7 @@
 
 **new — redstone, rails and string are visible in holograms.** The "missing block" overlay used to cover them with a solid blue square, so you could not see where the line goes. Now they get only the cell frame and the pattern itself is visible. Settings → Ghost Alpha → "Redstone, rails and string without fill" (on by default; turn it off for the Litematica look).
 
-## 1.0.21+26.3 — 24.10.2026
+## 1.0.21+1.21.11 — 24.10.2026
 
 **RU**
 
@@ -92,7 +92,8 @@
 
 **fix — menus and dropdowns grew to fit the longest schematic name.** For example the schematic picker in the Materials tab or "Source" in the export window. A very long name is now shown with an ellipsis and scrolls in full under the cursor.
 
-## 1.0.20+26.3 — 23.10.2026
+
+## 1.0.20+1.21.11 — 23.10.2026
 
 **RU**
 
@@ -110,7 +111,7 @@
 
 **fix — the "In chests" column tooltip said shulker box contents in chests are not seen.** Shulker boxes and bundles inside chests have been counted for a while; the text is fixed.
 
-## 1.0.19+26.3 — 22.10.2026
+## 1.0.19+1.21.11 — 22.10.2026
 
 **RU**
 
@@ -124,35 +125,27 @@
 
 **new — "Count up to Y".** Settings → HUD → "Count up to a height": the materials list counts everything at or below Y (−60 to 321) while the world still shows only the current layer. The same toggle is in the Materials tab of the schematics window; for a library schematic the height uses the schematic's own coordinates.
 
-## 1.0.18+26.3 — 21.10.2026
+## 1.0.18+1.21.11 — 21.10.2026
 
 **RU**
 
 **new — воду и лаву можно отключить.** Строка ведра воды или лавы по-прежнему не заменяется на другой блок (теперь так и написано), зато «Отключить блок» работает: вода пропадает из схемы, а плиты, ступени и другие блоки «в воде» высыхают. Золотая кнопка возвращает всё как было.
 
-**new — можно отключить сущности схемы.** Рамки, стойки для брони, подушки, картины, вагонетки, лодки и кристаллы Энда: «Отключить блок» убирает их из голограмм, HUD, таблицы, выгрузки и Easy Place. Строка предмета в рамке снимает только предмет, рамки остаются; строка рамки убирает рамку вместе с содержимым. Золотая кнопка возвращает всё в точности, отключение переживает перезапуск игры.
+**new — можно отключить сущности схемы.** Рамки, стойки для брони, картины, вагонетки, лодки и кристаллы Энда: «Отключить блок» убирает их из голограмм, HUD, таблицы, выгрузки и Easy Place. Строка предмета в рамке снимает только предмет, рамки остаются; строка рамки убирает рамку вместе с содержимым. Золотая кнопка возвращает всё в точности, отключение переживает перезапуск игры.
 
 **new — «Отключить блок» в «Списке HUD».** Блок отключается сразу во всех включённых размещениях, где он есть, и так же возвращается обратно.
 
 **new — в выгрузке отключённые блоки в таблицу не идут**, окно выгрузки об этом предупреждает; вернуть блоки можно во вкладке «Материалы».
 
-**new — превью участка для Zone Focus (API 6).** `ZonePreview.setPlacements` строит 3D-модель по одному или нескольким размещениям: снимок снимается с мира схем Litematica по их общему габариту (`WorldSnapshotJob`, кусками по кадрам), поэтому повороты, отражения и наложения схем уже на месте. Готовность «блок в блок» сверяется по тому же снимку. Новое: `worldMin`, `size`, `scale`, `project` (точка в блоках → экран, для плоскостей разреза), `pickBlock` / `rightClicked` (блок под правым щелчком), `setLayerCut` (срез по высоте в любом виде), `setMapView` (карта сверху, спереди, сбоку в осях мира). Старые методы API 5 не менялись.
-
 **fix — «Только недостающее» в списке схемы ничего не делало.** Источник «Схема: …» считал файл целиком и с миром не сверялся. Теперь размещённая схема сверяется с миром по всему размещению (слои Litematica не важны), лишнее из таблицы и выгрузки уходит. Слои Litematica и голограмма не важны: размещение можно и выключить. С включённой кнопкой колонка «Всего» становится «Осталось» — сколько ещё поставить, как в «Списке HUD»; строки идут по остатку. Неразмещённая схема — кнопка неактивна и объясняет почему.
 
 **fix — пропадала голограмма сущности, если схема размещена дважды.** Litematica перестраивает голограммы в нескольких потоках, а у двух размещений одной схемы сущности с одинаковыми id: изредка поток затирал сущность соседнего, и одна рамка или стойка пропадала из голограммы насовсем. Теперь сущности в мир схемы добавляются по одной.
-
-**new — вид «Сбоку»** у превью: кнопка в библиотеке рядом с «Изометрия / Сверху / Спереди» и в 3D Zone Focus.
-
-**new — мир Voxy под моделью участка.** Если Voxy готов (как во вкладке «Выделение»), под 3D Zone Focus рисуется кадр Voxy той же ортографической камерой (`VoxyPreview.renderOrtho`) — мир ложится ровно под голограмму. Без Voxy — превью как раньше.
 
 **EN**
 
 **fix — «Only missing» did nothing in a schematic's list:** a placed schematic is now compared with the world over the whole placement (Litematica layers do not matter); an unplaced one has the toggle disabled with an explanation. **fix — an entity hologram could vanish when a schematic was placed twice** (a race between Litematica's rebuild threads); entities now enter the schematic world one at a time.
 
 **new — water and lava can be disabled** (waterlogged blocks are dried), **entities of a schematic can be disabled too** (item frames, armor stands, paintings, minecarts, boats; a frame-content row strips the item and leaves the frames), **«Disable block» works in the HUD list** (in every enabled placement's schematic), and the export window says that disabled blocks are left out of the table.
-
-**new — section preview for Zone Focus (API 6):** a 3D model of one or several placements taken from Litematica's schematic world, plus point projection, block picking, height cut in any view and top/front/side map views. **new — «Side» view** in the library preview. **new — Voxy world under the section model** when Voxy is ready.
 
 ## 1.0.7+26.3 / 1.0.7+26.2 — 12.10.2026 (beta)
 

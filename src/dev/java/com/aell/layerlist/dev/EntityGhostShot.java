@@ -114,14 +114,14 @@ public final class EntityGhostShot implements CovJob
             case 1 ->
             {
                 CovOut.log("[entghost] снимок: голограммы прозрачные");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 Configs.Visuals.RENDER_BLOCKS_AS_TRANSLUCENT.setBooleanValue(false);
                 this.nextAt = now + 2500L;
             }
             case 2 ->
             {
                 CovOut.log("[entghost] снимок: прозрачность выключена");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 Configs.Visuals.RENDER_BLOCKS_AS_TRANSLUCENT.setBooleanValue(true);
                 // Второй вид: сундуки на полу (блок-сущности) и стойки для брони
                 MinecraftServer server = mc.getSingleplayerServer();
@@ -133,14 +133,14 @@ public final class EntityGhostShot implements CovJob
             case 3 ->
             {
                 CovOut.log("[entghost] снимок: сундуки и стойки, прозрачно");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 Configs.Visuals.RENDER_BLOCKS_AS_TRANSLUCENT.setBooleanValue(false);
                 this.nextAt = now + 2500L;
             }
             case 4 ->
             {
                 CovOut.log("[entghost] снимок: сундуки и стойки, непрозрачно");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 Configs.Visuals.RENDER_BLOCKS_AS_TRANSLUCENT.setBooleanValue(true);
                 this.nextAt = now + 1500L;
             }

@@ -4,12 +4,11 @@ import com.mojang.blaze3d.platform.NativeImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.color.block.BlockTintSource;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.BlockModelShaper;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -49,7 +48,7 @@ public final class MapColors {
     private static final Map<BlockState, Face> FACES = new ConcurrentHashMap<>();
     private static final Map<Identifier, Integer> SPRITES = new ConcurrentHashMap<>();
     private static final Map<Biome, Map<BlockState, Integer>> TINTED = new ConcurrentHashMap<>();
-    private static volatile BlockStateModelSet models;
+    private static volatile BlockModelShaper models;
 
     /** Сбросить всё — после перезагрузки ресурсов. */
     public static void clear() {
@@ -90,13 +89,11 @@ public final class MapColors {
     }
 
     private static int tint(BlockState state, Face face, Biome biome) {
-        BlockTintSource src = Minecraft.getInstance().getBlockColors().getTintSource(state, face.tintIndex);
-        if (src == null) return face.argb;
         int t;
         try {
-            t = src.colorInWorld(state, new MapBiomeTint(biome, state), BlockPos.ZERO);
+            t = Minecraft.getInstance().getBlockColors().getColor(state, new MapBiomeTint(biome, state), BlockPos.ZERO, face.tintIndex);
         } catch (RuntimeException e) {
-            t = src.color(state);
+            t = Minecraft.getInstance().getBlockColors().getColor(state, null, null, face.tintIndex);
         }
         if (t == -1) return face.argb;
         return multiply(face.argb, t);
@@ -109,19 +106,19 @@ public final class MapColors {
             if (lava != null) return new Face(lava, -1);
         }
         try {
-            BlockStateModelSet set = models;
+            BlockModelShaper set = models;
             if (set == null) {
-                set = Minecraft.getInstance().getModelManager().getBlockStateModelSet();
+                set = Minecraft.getInstance().getBlockRenderer().getBlockModelShaper();
                 models = set;
             }
-            BlockStateModel model = set.get(state);
-            List<BlockStateModelPart> parts = new ArrayList<>();
+            BlockStateModel model = set.getBlockModel(state);
+            List<BlockModelPart> parts = new ArrayList<>();
             model.collectParts(RandomSource.create(42L), parts);
             BakedQuad quad = pick(parts);
             if (quad != null) {
-                Integer avg = average(quad.materialInfo().sprite());
+                Integer avg = average(quad.sprite());
                 if (avg != null) {
-                    return new Face(avg, quad.materialInfo().isTinted() ? quad.materialInfo().tintIndex() : -1);
+                    return new Face(avg, quad.isTinted() ? quad.tintIndex() : -1);
                 }
             }
         } catch (RuntimeException e) {
@@ -132,20 +129,20 @@ public final class MapColors {
     }
 
     /** Грань, которую видно сверху: обращённая вверх, иначе любая (цветы, лозы). */
-    private static BakedQuad pick(List<BlockStateModelPart> parts) {
-        for (BlockStateModelPart p : parts) {
+    private static BakedQuad pick(List<BlockModelPart> parts) {
+        for (BlockModelPart p : parts) {
             List<BakedQuad> up = p.getQuads(Direction.UP);
             if (!up.isEmpty()) return up.get(0);
         }
         BakedQuad any = null;
-        for (BlockStateModelPart p : parts) {
+        for (BlockModelPart p : parts) {
             for (BakedQuad q : p.getQuads(null)) {
                 if (q.direction() == Direction.UP) return q;
                 if (any == null) any = q;
             }
         }
         if (any != null) return any;
-        for (BlockStateModelPart p : parts) {
+        for (BlockModelPart p : parts) {
             for (Direction d : Direction.values()) {
                 List<BakedQuad> qs = p.getQuads(d);
                 if (!qs.isEmpty()) return qs.get(0);

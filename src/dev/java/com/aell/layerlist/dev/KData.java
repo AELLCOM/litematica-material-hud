@@ -76,7 +76,7 @@ final class KData
 
         // Лиана над воздухом прорастает вниз от случайного такта — успей он до сохранения схемы, в ней
         // выйдет 86 блоков и три лианы вместо двух (так упал прогон 07.10, RU). Образец не должен расти
-        server.getGameRules().set(GameRules.SPREAD_VINES, false, server);
+        server.overworld().getGameRules().set(GameRules.SPREAD_VINES, false, server);
 
         command(server, String.format(Locale.ROOT, "fill %d %d %d %d %d %d minecraft:air", x - 4, y, z - 4, x + 10, y + 12, z + 10));
         command(server, String.format(Locale.ROOT, "fill %d %d %d %d %d %d minecraft:stone_bricks", x, y, z, x + 6, y, z + 6));

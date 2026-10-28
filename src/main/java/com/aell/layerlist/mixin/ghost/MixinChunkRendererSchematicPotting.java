@@ -7,17 +7,16 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import fi.dy.masa.litematica.render.IWorldSchematicRenderer;
-import fi.dy.masa.litematica.render.schematic.BlockModelRendererSchematic;
 import fi.dy.masa.litematica.render.schematic.ChunkCacheSchematic;
 import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo;
-import fi.dy.masa.litematica.render.schematic.IBlockOutputSchematic;
 import fi.dy.masa.litematica.util.OverlayType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -54,22 +53,21 @@ public abstract class MixinChunkRendererSchematicPotting
     // (PotPlantRender): растение в ней уже стоит в горшке и нужного размера
     @WrapOperation(method = "renderBlocksAndOverlay",
             at = @At(value = "INVOKE",
-                    target = "Lfi/dy/masa/litematica/render/IWorldSchematicRenderer;renderBlock(Lfi/dy/masa/litematica/render/schematic/BlockModelRendererSchematic;Lnet/minecraft/client/renderer/block/BlockAndTintGetter;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/Vec3;Lfi/dy/masa/litematica/render/schematic/IBlockOutputSchematic;)Z"),
+                    target = "Lfi/dy/masa/litematica/render/IWorldSchematicRenderer;renderBlock(Lnet/minecraft/world/level/BlockAndTintGetter;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/BufferBuilder;)Z"),
             require = 0, allow = 1)
-    private boolean layerlist$plantWithoutPot(IWorldSchematicRenderer renderer, BlockModelRendererSchematic modelRenderer,
-            BlockAndTintGetter world, BlockState schematic, BlockPos pos, Vec3 offset, IBlockOutputSchematic output,
-            Operation<Boolean> original)
+    private boolean layerlist$plantWithoutPot(IWorldSchematicRenderer renderer, BlockAndTintGetter world,
+            BlockState schematic, BlockPos pos, PoseStack poseStack, BufferBuilder buffer, Operation<Boolean> original)
     {
         if (! Potting.needsPlant(schematic, this.clientWorldView.getBlockState(pos)))
         {
-            return original.call(renderer, modelRenderer, world, schematic, pos, offset, output);
+            return original.call(renderer, world, schematic, pos, poseStack, buffer);
         }
 
         PotPlantRender.begin();
 
         try
         {
-            return original.call(renderer, modelRenderer, world, schematic, pos, offset, output);
+            return original.call(renderer, world, schematic, pos, poseStack, buffer);
         }
         finally
         {

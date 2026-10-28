@@ -4,12 +4,12 @@ import com.aell.layerlist.skin.LitematicaSkin;
 import com.aell.layerlist.skin.SkinPaint;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import fi.dy.masa.malilib.gui.GuiTextFieldGeneric;
 import fi.dy.masa.malilib.render.GuiContext;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,10 +24,10 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(EditBox.class)
 public abstract class MixinEditBoxSkin
 {
-    @WrapOperation(method = "extractWidgetRenderState", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
+    @WrapOperation(method = "renderWidget", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
             require = 0)
-    private void layerlist$skinField(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite, int x, int y, int w,
+    private void layerlist$skinField(GuiGraphics graphics, RenderPipeline pipeline, Identifier sprite, int x, int y, int w,
             int h, Operation<Void> original)
     {
         EditBox self = (EditBox) (Object) this;

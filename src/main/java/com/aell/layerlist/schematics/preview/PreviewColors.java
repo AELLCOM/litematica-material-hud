@@ -10,13 +10,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.color.block.BlockTintSource;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
-import net.minecraft.client.renderer.block.FluidModel;
-import net.minecraft.client.renderer.block.FluidStateModelSet;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.BlockModelShaper;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -42,7 +39,7 @@ final class PreviewColors
     private static final int NEUTRAL = 0xFF808080;
 
     private static final Map<TextureAtlasSprite, Integer> SPRITES = new IdentityHashMap<>();
-    private static @Nullable BlockStateModelSet spritesFor;
+    private static @Nullable BlockModelShaper spritesFor;
 
     private PreviewColors() {}
 
@@ -61,7 +58,7 @@ final class PreviewColors
         int[] colors = new int[context.snapshot.paletteSize()];
         PreviewBlockView view = new PreviewBlockView(context.snapshot, Integer.MAX_VALUE, context.tint);
         RandomSource random = RandomSource.create(42L);
-        List<BlockStateModelPart> parts = new ArrayList<>();
+        List<BlockModelPart> parts = new ArrayList<>();
 
         for (int id : ids)
         {
@@ -75,7 +72,7 @@ final class PreviewColors
     }
 
     private static int colorOf(PreviewMesher.Context context, PreviewBlockView view, BlockState state,
-            RandomSource random, List<BlockStateModelPart> parts)
+            RandomSource random, List<BlockModelPart> parts)
     {
         int fromModel = 0;
 
@@ -85,7 +82,7 @@ final class PreviewColors
 
             if (fromModel == 0)
             {
-                fromModel = fluidColor(context.fluids, view, state);
+                fromModel = fluidColor(context.models, context.colors, view, state);
             }
         }
         catch (RuntimeException e)
@@ -111,16 +108,16 @@ final class PreviewColors
     }
 
     // Верхние грани модели: в изометрии и сверху именно они задают цвет пятна
-    private static int modelColor(BlockStateModelSet models, BlockColors blockColors, PreviewBlockView view,
-            BlockState state, RandomSource random, List<BlockStateModelPart> parts)
+    private static int modelColor(BlockModelShaper models, BlockColors blockColors, PreviewBlockView view,
+            BlockState state, RandomSource random, List<BlockModelPart> parts)
     {
         parts.clear();
         random.setSeed(42L);
-        models.get(state).collectParts(random, parts);
+        models.getBlockModel(state).collectParts(random, parts);
 
         List<BakedQuad> chosen = new ArrayList<>();
 
-        for (BlockStateModelPart part : parts)
+        for (BlockModelPart part : parts)
         {
             chosen.addAll(part.getQuads(Direction.UP));
 
@@ -135,7 +132,7 @@ final class PreviewColors
 
         if (chosen.isEmpty())
         {
-            for (BlockStateModelPart part : parts)
+            for (BlockModelPart part : parts)
             {
                 for (Direction direction : Direction.values())
                 {
@@ -153,23 +150,18 @@ final class PreviewColors
 
         for (BakedQuad quad : chosen)
         {
-            int base = spriteAverage(quad.materialInfo().sprite());
+            int base = spriteAverage(quad.sprite());
 
             if (base == 0)
             {
                 continue;
             }
 
-            int tintIndex = quad.materialInfo().tintIndex();
+            int tintIndex = quad.tintIndex();
 
             if (tintIndex != -1)
             {
-                BlockTintSource source = blockColors.getTintSource(state, tintIndex);
-
-                if (source != null)
-                {
-                    base = multiply(base, source.colorInWorld(state, view, BlockPos.ZERO));
-                }
+                base = multiply(base, blockColors.getColor(state, view, BlockPos.ZERO, tintIndex));
             }
 
             r += (base >> 16) & 0xFF;
@@ -188,7 +180,8 @@ final class PreviewColors
         return (int) (r / n) << 16 | (int) (g / n) << 8 | (int) (b / n);
     }
 
-    private static int fluidColor(FluidStateModelSet fluids, PreviewBlockView view, BlockState state)
+    // 1.21.11: моделей жидкостей нет — берём частицу блока жидкости (вода — still) и оттенок блока по слою 0
+    private static int fluidColor(BlockModelShaper models, BlockColors blockColors, PreviewBlockView view, BlockState state)
     {
         FluidState fluid = state.getFluidState();
 
@@ -197,17 +190,15 @@ final class PreviewColors
             return 0;
         }
 
-        FluidModel model = fluids.get(fluid);
-        int base = spriteAverage(model.stillMaterial().sprite());
+        BlockState legacy = fluid.createLegacyBlock();
+        int base = spriteAverage(models.getBlockModel(legacy).particleIcon());
 
         if (base == 0)
         {
             return 0;
         }
 
-        BlockTintSource tint = model.tintSource();
-
-        return tint != null ? multiply(base, tint.colorInWorld(state, view, BlockPos.ZERO)) : base;
+        return multiply(base, blockColors.getColor(legacy, view, BlockPos.ZERO, 0));
     }
 
     /** Средний цвет непрозрачных пикселей спрайта, RGB; 0 — прочитать не вышло. */

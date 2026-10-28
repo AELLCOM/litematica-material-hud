@@ -15,8 +15,6 @@ import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.components.IMEPreeditOverlay;
-import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Util;
@@ -459,7 +457,7 @@ final class EditorControls
         private String text = "";
         private boolean fresh;
         private long errorUntil;
-        private @Nullable IMEPreeditOverlay preedit;
+        private @Nullable TextFocus.Overlay preedit;
 
         NumberField(String label, IntSupplier value, IntConsumer commit)
         {
@@ -525,7 +523,7 @@ final class EditorControls
         }
 
         @Override
-        public void preedit(@Nullable PreeditEvent event)
+        public void preedit(@Nullable TextFocus.PreeditEvent event)
         {
             this.preedit = this.editing ? TextFocus.overlay(event, this.h) : null;
         }

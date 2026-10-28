@@ -31,20 +31,20 @@ public abstract class MixinMouseHandlerTransfer
         {
             MouseHandler self = (MouseHandler) (Object) this;
             org.slf4j.LoggerFactory.getLogger("layerlist").info("[layerlist] onButton окно {} (наше {}), кнопка {}, действие {}, экран {}, мышь {}×{}",
-                    handle, mc.getWindow().handle(), input.button(), action, mc.gui.screen(),
+                    handle, mc.getWindow().handle(), input.button(), action, mc.screen,
                     self.getScaledXPos(mc.getWindow()), self.getScaledYPos(mc.getWindow()));
         }
 
         // Как у самой игры: SDL отдаёт окно 0, если событие ни к какому окну не привязано, — такой
         // щелчок тоже наш (иначе он уходил мимо кнопки к экрану, где его забирают чужие оверлеи)
-        if ((handle != 0L && handle != mc.getWindow().handle()) || mc.gui.screen() == null)
+        if ((handle != 0L && handle != mc.getWindow().handle()) || mc.screen == null)
         {
             return;
         }
 
         MouseHandler self = (MouseHandler) (Object) this;
 
-        if (TransferButton.onMouseButton(mc.gui.screen(), self.getScaledXPos(mc.getWindow()),
+        if (TransferButton.onMouseButton(mc.screen, self.getScaledXPos(mc.getWindow()),
                 self.getScaledYPos(mc.getWindow()), input.button(), action))
         {
             ci.cancel();

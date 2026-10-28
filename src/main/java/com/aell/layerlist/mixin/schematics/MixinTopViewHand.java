@@ -2,12 +2,10 @@ package com.aell.layerlist.mixin.schematics;
 
 import com.aell.layerlist.schematics.place.OrbitCamera;
 import com.aell.layerlist.schematics.place.TopViewCamera;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.state.level.PlayerRenderState;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,9 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GameRenderer.class)
 public abstract class MixinTopViewHand
 {
+    // 1.21.11: renderItemInHand(float, boolean, Matrix4f) — без CameraRenderState из 26.x
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true, require = 0)
-    private void layerlist$hideHand(CameraRenderState cameraState, PlayerRenderState playerState,
-            GpuTextureView depthTextureView, CallbackInfo ci)
+    private void layerlist$hideHand(float partialTick, boolean sleeping, Matrix4f projection, CallbackInfo ci)
     {
         if (TopViewCamera.active() || OrbitCamera.active())
         {

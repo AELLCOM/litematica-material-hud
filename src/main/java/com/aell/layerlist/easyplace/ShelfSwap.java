@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.ShelfBlock;
@@ -139,14 +139,14 @@ public final class ShelfSwap
             if (! want.isEmpty() && ItemStack.isSameItemSameComponents(have, want) && have.getCount() > want.getCount())
             {
                 // Нужного больше, чем просит полка: берём стопку, кладём сколько нужно, остаток — в свободную ячейку
-                click(mc, player, MENU_HOTBAR + hotbar, 0, ContainerInput.PICKUP);
+                click(mc, player, MENU_HOTBAR + hotbar, 0, ClickType.PICKUP);
 
                 for (int i = 0; i < want.getCount(); ++i)
                 {
-                    click(mc, player, MENU_HOTBAR + hotbar, 1, ContainerInput.PICKUP);
+                    click(mc, player, MENU_HOTBAR + hotbar, 1, ClickType.PICKUP);
                 }
 
-                click(mc, player, free, 0, ContainerInput.PICKUP);
+                click(mc, player, free, 0, ClickType.PICKUP);
             }
             else if (hotbar == inventory.getSelectedSlot() && ! want.isEmpty())
             {
@@ -160,23 +160,23 @@ public final class ShelfSwap
                 }
 
                 int menuSource = source < 9 ? MENU_HOTBAR + source : source;
-                click(mc, player, MENU_HOTBAR + hotbar, 0, ContainerInput.PICKUP);
-                click(mc, player, free, 0, ContainerInput.PICKUP);
-                click(mc, player, menuSource, 0, ContainerInput.PICKUP);
+                click(mc, player, MENU_HOTBAR + hotbar, 0, ClickType.PICKUP);
+                click(mc, player, free, 0, ClickType.PICKUP);
+                click(mc, player, menuSource, 0, ClickType.PICKUP);
 
                 for (int i = 0; i < want.getCount(); ++i)
                 {
-                    click(mc, player, MENU_HOTBAR + hotbar, 1, ContainerInput.PICKUP);
+                    click(mc, player, MENU_HOTBAR + hotbar, 1, ClickType.PICKUP);
                 }
 
-                click(mc, player, menuSource, 0, ContainerInput.PICKUP);
+                click(mc, player, menuSource, 0, ClickType.PICKUP);
                 EpDebug.say("полка " + EpDebug.at(pos) + ": в руке (слот хотбара " + (hotbar + 1) + ") — "
                         + want.getHoverName().getString() + " ×" + want.getCount());
                 return true;
             }
             else
             {
-                click(mc, player, free, hotbar, ContainerInput.SWAP);
+                click(mc, player, free, hotbar, ClickType.SWAP);
             }
 
             EpDebug.say("полка " + EpDebug.at(pos) + ": освободил слот хотбара " + (hotbar + 1));
@@ -213,18 +213,18 @@ public final class ShelfSwap
 
             if (stack.getCount() == want.getCount())
             {
-                click(mc, player, menuSource, hotbar, ContainerInput.SWAP);
+                click(mc, player, menuSource, hotbar, ClickType.SWAP);
             }
             else
             {
-                click(mc, player, menuSource, 0, ContainerInput.PICKUP);
+                click(mc, player, menuSource, 0, ClickType.PICKUP);
 
                 for (int i = 0; i < want.getCount(); ++i)
                 {
-                    click(mc, player, MENU_HOTBAR + hotbar, 1, ContainerInput.PICKUP);
+                    click(mc, player, MENU_HOTBAR + hotbar, 1, ClickType.PICKUP);
                 }
 
-                click(mc, player, menuSource, 0, ContainerInput.PICKUP);
+                click(mc, player, menuSource, 0, ClickType.PICKUP);
             }
 
             EpDebug.say("полка " + EpDebug.at(pos) + ": положил в слот хотбара " + (hotbar + 1) + " "
@@ -307,21 +307,21 @@ public final class ShelfSwap
 
                 if (ItemStack.isSameItemSameComponents(have, want) && have.getCount() > want.getCount())
                 {
-                    click(mc, player, MENU_HOTBAR + hotbar, 0, ContainerInput.PICKUP);
+                    click(mc, player, MENU_HOTBAR + hotbar, 0, ClickType.PICKUP);
 
                     for (int i = 0; i < want.getCount(); ++i)
                     {
-                        click(mc, player, MENU_HOTBAR + hotbar, 1, ContainerInput.PICKUP);
+                        click(mc, player, MENU_HOTBAR + hotbar, 1, ClickType.PICKUP);
                     }
 
-                    click(mc, player, free, 0, ContainerInput.PICKUP);
+                    click(mc, player, free, 0, ClickType.PICKUP);
                     EpDebug.say("полка " + EpDebug.at(pos) + ": отложил лишнее из слота хотбара " + (hotbar + 1));
                     return true;
                 }
             }
 
             int spare = (inventory.getSelectedSlot() + 1) % 9;
-            click(mc, player, free, spare, ContainerInput.SWAP);
+            click(mc, player, free, spare, ClickType.SWAP);
             EpDebug.say("полка " + EpDebug.at(pos) + ": освободил слот хотбара " + (spare + 1));
             return true;
         }
@@ -358,18 +358,18 @@ public final class ShelfSwap
 
         if (stack.getCount() == want.getCount())
         {
-            click(mc, player, menuSource, empty, ContainerInput.SWAP);
+            click(mc, player, menuSource, empty, ClickType.SWAP);
         }
         else
         {
-            click(mc, player, menuSource, 0, ContainerInput.PICKUP);
+            click(mc, player, menuSource, 0, ClickType.PICKUP);
 
             for (int i = 0; i < want.getCount(); ++i)
             {
-                click(mc, player, MENU_HOTBAR + empty, 1, ContainerInput.PICKUP);
+                click(mc, player, MENU_HOTBAR + empty, 1, ClickType.PICKUP);
             }
 
-            click(mc, player, menuSource, 0, ContainerInput.PICKUP);
+            click(mc, player, menuSource, 0, ClickType.PICKUP);
         }
 
         inventory.setSelectedSlot(empty);
@@ -493,14 +493,14 @@ public final class ShelfSwap
         return -1;
     }
 
-    private static void click(Minecraft mc, LocalPlayer player, int menuSlot, int button, ContainerInput input)
+    private static void click(Minecraft mc, LocalPlayer player, int menuSlot, int button, ClickType input)
     {
         // Свой клик уходит на сервер до установки и по порядку — ждать его подтверждения ей незачем
         InventorySync.ownSwap(true);
 
         try
         {
-            mc.gameMode.handleContainerInput(player.inventoryMenu.containerId, menuSlot, button, input, player);
+            mc.gameMode.handleInventoryMouseClick(player.inventoryMenu.containerId, menuSlot, button, input, player);
         }
         finally
         {

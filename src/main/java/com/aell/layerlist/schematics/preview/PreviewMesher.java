@@ -3,7 +3,7 @@ package com.aell.layerlist.schematics.preview;
 import com.aell.layerlist.schematics.PreviewLimits;
 import com.aell.layerlist.schematics.SchematicsConfig;
 import com.aell.layerlist.schematics.library.VoxelSnapshot;
-import com.mojang.blaze3d.vertex.QuadInstance;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.util.ArrayList;
@@ -21,26 +21,19 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.model.geom.builders.UVPair;
-import net.minecraft.client.renderer.block.BlockModelLighter;
-import net.minecraft.client.renderer.block.BlockModelSet;
-import net.minecraft.client.renderer.block.BlockQuadOutput;
-import net.minecraft.client.renderer.block.BlockStateModelSet;
-import net.minecraft.client.renderer.block.FluidRenderer;
-import net.minecraft.client.renderer.block.FluidStateModelSet;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.block.BlockModelShaper;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.block.model.BlockModel;
-import net.minecraft.client.renderer.block.model.BlockStateModelWrapper;
-import net.minecraft.client.renderer.block.model.EmptyBlockModel;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.ModelManager;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
@@ -198,9 +191,10 @@ final class PreviewMesher
     static final class Context
     {
         final VoxelSnapshot snapshot;
-        final BlockStateModelSet models;
-        final FluidStateModelSet fluids;
-        final BlockModelSet blockModels;
+        /** 1.21.11: модели блоков — {@link BlockModelShaper} (при перезагрузке ресурсов тот же объект; устаревание — по поколению). */
+        final BlockModelShaper models;
+        /** Жидкости тесселирует сам диспетчер блоков ({@code renderLiquid}) — наборов моделей жидкостей в 1.21.11 нет. */
+        final BlockRenderDispatcher dispatcher;
         final BlockColors colors;
         final boolean ambientOcclusion;
         final boolean cutoutLeaves;
@@ -228,9 +222,8 @@ final class PreviewMesher
             ModelManager manager = mc.getModelManager();
 
             this.snapshot = snapshot;
-            this.models = manager.getBlockStateModelSet();
-            this.fluids = manager.getFluidStateModelSet();
-            this.blockModels = manager.getBlockModelSet();
+            this.models = manager.getBlockModelShaper();
+            this.dispatcher = mc.getBlockRenderer();
             this.colors = mc.getBlockColors();
             this.ambientOcclusion = mc.options.ambientOcclusion().get();
             this.cutoutLeaves = mc.options.cutoutLeaves().get();
@@ -256,7 +249,7 @@ final class PreviewMesher
         {
             Minecraft mc = Minecraft.getInstance();
 
-            return mc.getModelManager().getBlockStateModelSet() != this.models
+            return mc.getModelManager().getBlockModelShaper() != this.models
                     || PreviewModule.generation() != this.generation
                     || mc.options.ambientOcclusion().get() != this.ambientOcclusion
                     || mc.options.cutoutLeaves().get() != this.cutoutLeaves;
@@ -267,14 +260,14 @@ final class PreviewMesher
          * руки. Нужна, чтобы кубы упрощённого вида закручивались так же (иначе отсечение задних граней
          * спрятало бы лицевые) и чтобы отбрасывать повёрнутые от зрителя грани до записи вершин.
          */
-        private static int windingSign(BlockStateModelSet models)
+        private static int windingSign(BlockModelShaper models)
         {
             try
             {
-                List<BlockStateModelPart> parts = new ArrayList<>();
-                models.get(Blocks.STONE.defaultBlockState()).collectParts(RandomSource.create(42L), parts);
+                List<BlockModelPart> parts = new ArrayList<>();
+                models.getBlockModel(Blocks.STONE.defaultBlockState()).collectParts(RandomSource.create(42L), parts);
 
-                for (BlockStateModelPart part : parts)
+                for (BlockModelPart part : parts)
                 {
                     for (BakedQuad quad : part.getQuads(Direction.UP))
                     {
@@ -334,9 +327,9 @@ final class PreviewMesher
         private final VoxelSnapshot snapshot;
         private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         private final RandomSource random = RandomSource.create(42L);
-        private final List<BlockStateModelPart> parts = new ArrayList<>();
+        private final List<BlockModelPart> parts = new ArrayList<>();
+        private final PoseStack poseStack = new PoseStack();
         private @Nullable ModelBlockRenderer blockRenderer;
-        private @Nullable FluidRenderer fluidRenderer;
         private int failures;
 
         private Builder(Context context, Job job)
@@ -426,10 +419,7 @@ final class PreviewMesher
                     flags |= F_MODEL;
                 }
 
-                if (ModelBlockRenderer.forceOpaque(this.context.cutoutLeaves, state))
-                {
-                    flags |= F_FORCE_SOLID;
-                }
+                // 1.21.11: «листва без прозрачности» решает сам ItemBlockRenderTypes (слой блока), отдельного признака нет
 
                 if (this.isSpecial(state))
                 {
@@ -452,20 +442,19 @@ final class PreviewMesher
          */
         private boolean isSpecial(BlockState state)
         {
-            BlockModel blockModel = this.context.blockModels.get(state);
-
-            if (blockModel instanceof BlockStateModelWrapper || blockModel instanceof EmptyBlockModel)
+            // 1.21.11: особый вид есть только у блоков с блок-сущностью (сундук, шалкер, флаг, голова, ваза)
+            if (! state.hasBlockEntity())
             {
                 return false;
             }
 
             this.parts.clear();
             this.random.setSeed(42L);
-            this.context.models.get(state).collectParts(this.random, this.parts);
+            this.context.models.getBlockModel(state).collectParts(this.random, this.parts);
 
             try
             {
-                for (BlockStateModelPart part : this.parts)
+                for (BlockModelPart part : this.parts)
                 {
                     if (! part.getQuads(null).isEmpty())
                     {
@@ -576,9 +565,8 @@ final class PreviewMesher
             Sink sink = new Sink(this.context.windingSign, ox, oy, oz);
             IntArrayList specials = new IntArrayList();
             ModelBlockRenderer blocks = this.blockRenderer();
-            FluidRenderer fluids = this.fluidRenderer();
 
-            BlockModelLighter.enableCaching();
+            ModelBlockRenderer.enableCaching();
 
             try
             {
@@ -600,13 +588,15 @@ final class PreviewMesher
                             this.pos.set(x, y, z);
                             // Недописанный квад жидкости — ещё прошлого блока, его цвет по прошлому статусу
                             sink.vertices.commit();
+                            sink.blocks.commit();
                             sink.status = BuildStatus.statusAt(this.context.status, x, y, z);
 
                             try
                             {
                                 if ((f & F_FLUID) != 0)
                                 {
-                                    fluids.tesselate(view, this.pos, sink.fluids, state, state.getFluidState());
+                                    sink.vertices.target(Sink.layerOf(ItemBlockRenderTypes.getRenderLayer(state.getFluidState())));
+                                    this.context.dispatcher.renderLiquid(this.pos, view, sink.vertices, state, state.getFluidState());
                                 }
 
                                 if ((f & F_SPECIAL) != 0)
@@ -618,9 +608,19 @@ final class PreviewMesher
                                 }
                                 else if ((f & F_MODEL) != 0)
                                 {
-                                    BlockStateModel model = this.context.models.get(state);
-                                    blocks.tesselateBlock((f & F_FORCE_SOLID) != 0 ? sink.solid : sink.layered,
-                                            x, y, z, view, this.pos, state, model, state.getSeed(this.pos));
+                                    BlockStateModel model = this.context.models.getBlockModel(state);
+                                    this.parts.clear();
+                                    this.random.setSeed(state.getSeed(this.pos));
+                                    model.collectParts(this.random, this.parts);
+                                    // 1.21.11: слой — у блока целиком; вершины уже в координатах схемы (сдвиг PoseStack)
+                                    sink.blocks.target(Sink.layerOf(ItemBlockRenderTypes.getChunkRenderType(state)));
+                                    this.poseStack.pushPose();
+                                    this.poseStack.translate(x, y, z);
+                                    blocks.tesselateBlock(view, this.parts, state, this.pos, this.poseStack, sink.blocks,
+                                            true, OverlayTexture.NO_OVERLAY);
+                                    this.poseStack.popPose();
+                                    sink.blocks.commit();
+                                    this.parts.clear();
                                 }
                             }
                             catch (RuntimeException e)
@@ -637,7 +637,7 @@ final class PreviewMesher
             }
             finally
             {
-                BlockModelLighter.clearCache();
+                ModelBlockRenderer.clearCache();
                 sink.flush();
             }
 
@@ -666,22 +666,11 @@ final class PreviewMesher
             if (this.blockRenderer == null)
             {
                 // Свой экземпляр на поток сборки: внутри у тесселятора изменяемые буферы
-                this.blockRenderer = new ModelBlockRenderer(this.context.ambientOcclusion, true, this.context.colors);
+                this.blockRenderer = new ModelBlockRenderer(this.context.colors);
             }
 
             return this.blockRenderer;
         }
-
-        private FluidRenderer fluidRenderer()
-        {
-            if (this.fluidRenderer == null)
-            {
-                this.fluidRenderer = new FluidRenderer(this.context.fluids);
-            }
-
-            return this.fluidRenderer;
-        }
-
 
         // ---- упрощённый вид ----
 
@@ -1093,7 +1082,7 @@ final class PreviewMesher
 
         private static int shade(int argb, Direction direction)
         {
-            float k = CardinalLighting.DEFAULT.byFace(direction);
+            float k = PreviewBlockView.faceShade(direction);
             int r = Math.round(((argb >> 16) & 0xFF) * k);
             int g = Math.round(((argb >> 8) & 0xFF) * k);
             int b = Math.round((argb & 0xFF) * k);
@@ -1164,33 +1153,25 @@ final class PreviewMesher
     }
 
     /**
-     * Приёмник одной секции: квады блоков по слоям из {@code BlockQuadOutput} и вершины жидкостей из
-     * {@code FluidRenderer} (у них координаты внутри секции — прибавляем угол секции).
+     * Приёмник одной секции. 1.21.11: и блоки ({@code ModelBlockRenderer}), и жидкости ({@code renderLiquid}) пишут
+     * вершины по одной в {@link VertexConsumer}; квад собирается из четырёх. У блоков координаты уже в схеме
+     * (сдвиг {@code PoseStack}), у жидкостей — внутри секции, к ним прибавляется угол секции.
      */
     private static final class Sink
     {
         private final @Nullable PreviewModel.Quads[] layers = new PreviewModel.Quads[PreviewModel.LAYERS];
         private final int windingSign;
-        private final float[] p = new float[12];
-        private final float[] t = new float[8];
-        private final int[] c = new int[4];
         /** Статус блока, который сейчас тесселируется: его цвета — с поправкой {@link BuildStatus#tint}. */
         byte status;
 
-        final BlockQuadOutput layered = (x, y, z, quad, instance) -> this.put(layerOf(quad.materialInfo().layer()), x, y, z, quad, instance);
-        final BlockQuadOutput solid = (x, y, z, quad, instance) -> this.put(PreviewModel.SOLID, x, y, z, quad, instance);
+        final FluidVertices blocks;
         final FluidVertices vertices;
-        final FluidRenderer.Output fluids;
 
         Sink(int windingSign, int ox, int oy, int oz)
         {
             this.windingSign = windingSign;
+            this.blocks = new FluidVertices(0, 0, 0);
             this.vertices = new FluidVertices(ox, oy, oz);
-            this.fluids = layer ->
-            {
-                this.vertices.target(layerOf(layer));
-                return this.vertices;
-            };
         }
 
         private PreviewModel.Quads quads(int layer)
@@ -1206,26 +1187,9 @@ final class PreviewMesher
             return quads;
         }
 
-        private void put(int layer, float x, float y, float z, BakedQuad quad, QuadInstance instance)
-        {
-            for (int v = 0; v < 4; ++v)
-            {
-                Vector3fc corner = quad.position(v);
-                long uv = quad.packedUV(v);
-
-                this.p[v * 3] = corner.x() + x;
-                this.p[v * 3 + 1] = corner.y() + y;
-                this.p[v * 3 + 2] = corner.z() + z;
-                this.t[v * 2] = UVPair.unpackU(uv);
-                this.t[v * 2 + 1] = UVPair.unpackV(uv);
-                this.c[v] = BuildStatus.tint(this.status, instance.getColor(v));
-            }
-
-            this.quads(layer).put(this.p, this.t, this.c);
-        }
-
         void flush()
         {
+            this.blocks.commit();
             this.vertices.commit();
         }
 
@@ -1242,7 +1206,7 @@ final class PreviewMesher
             return this.layers;
         }
 
-        private static int layerOf(ChunkSectionLayer layer)
+        static int layerOf(ChunkSectionLayer layer)
         {
             return switch (layer)
             {
@@ -1355,12 +1319,6 @@ final class PreviewMesher
 
             @Override
             public VertexConsumer setUv2(int u, int v)
-            {
-                return this;
-            }
-
-            @Override
-            public VertexConsumer setUv3(float u, float v)
             {
                 return this;
             }

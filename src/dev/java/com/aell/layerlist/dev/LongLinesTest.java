@@ -235,7 +235,7 @@ public final class LongLinesTest implements CovJob
             case 9 ->
             {
                 shot(mc, "long-7-menu-hover-running-2");
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 wait = 800L;
             }
             default ->
@@ -252,7 +252,7 @@ public final class LongLinesTest implements CovJob
 
     private ContextMenu menu(Minecraft mc)
     {
-        Layers layers = mc.gui.screen() instanceof GuiSchematics gui ? (Layers) field(gui, "layers") : null;
+        Layers layers = mc.screen instanceof GuiSchematics gui ? (Layers) field(gui, "layers") : null;
         return layers != null && layers.top() instanceof ContextMenu menu ? menu : null;
     }
 
@@ -276,7 +276,7 @@ public final class LongLinesTest implements CovJob
 
     private static Object pane(Minecraft mc)
     {
-        return mc.gui.screen() instanceof GuiSchematics gui ? KProbe.fieldNamedType(gui, "MaterialsPane") : null;
+        return mc.screen instanceof GuiSchematics gui ? KProbe.fieldNamedType(gui, "MaterialsPane") : null;
     }
 
     private static Object field(Object owner, String name)
@@ -318,7 +318,7 @@ public final class LongLinesTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[long] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private static String fill(BlockPos o, int x1, int y1, int z1, int x2, int y2, int z2, String block)

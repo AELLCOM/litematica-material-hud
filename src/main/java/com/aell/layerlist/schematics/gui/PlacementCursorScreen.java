@@ -12,7 +12,6 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.PreeditEvent;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -85,7 +84,7 @@ public final class PlacementCursorScreen extends GuiBase
     private void toGame()
     {
         this.card.commitAll();
-        this.mc.gui.setScreen(null);
+        this.mc.setScreen(null);
     }
 
     /** Esc: редактор целиком — тот же экземпляр, со всем сеансом. */
@@ -156,13 +155,6 @@ public final class PlacementCursorScreen extends GuiBase
     public boolean onCharTyped(CharacterEvent input)
     {
         return this.card.charTyped(input);
-    }
-
-    /** Черновик IME (26.3): ваниль отдаёт его экрану, а мы — полю, которое держит ввод текста. */
-    @Override
-    public boolean preeditUpdated(@Nullable PreeditEvent event)
-    {
-        return TextFocus.preedit(event) || super.preeditUpdated(event);
     }
 
     @Override

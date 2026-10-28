@@ -1,49 +1,48 @@
 package com.aell.layerlist.schematics.preview;
 
+import com.aell.layerlist.mixin.schematics.IMixinRenderType;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import com.mojang.renderpearl.api.textures.FilterMode;
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.blaze3d.textures.TextureFormat;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
-import net.minecraft.client.renderer.Projection;
-import net.minecraft.client.renderer.ProjectionMatrixBuffer;
+import net.minecraft.client.renderer.CachedOrthoProjectionMatrixBuffer;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.StagedVertexBuffer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
-import net.minecraft.client.renderer.state.gui.BlitRenderState;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
-import net.minecraft.client.renderer.block.BlockModelRenderState;
-import net.minecraft.client.renderer.rendertype.PreparedRenderType;
+import net.minecraft.client.gui.render.state.BlitRenderState;
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.client.renderer.LightTexture;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4fStack;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,12 +82,16 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
     /** Отбрасывать задние грани ещё до записи вершин; выключить, если на глаз пропадут лицевые. */
     private static final boolean CULL_BACK_FACES = true;
 
-    private static final String[] TEXTURE_FIELDS = { "texture", "textureView", "depthTexture", "depthTextureView" };
-
     private static boolean releaseFailed;
     private static boolean renderFailed;
 
     private long drawnModel = -1L;
+
+    PreviewPipRenderer(net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers)
+    {
+        super(buffers);
+    }
+
     private PreviewCamera.@Nullable Key drawnCamera;
 
     @Override
@@ -116,8 +119,14 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
     }
 
     @Override
-    protected void renderToTexture(PreviewRenderState state, PoseStack poseStack, SubmitNodeCollector collector)
+    protected void renderToTexture(PreviewRenderState state, PoseStack poseStack)
     {
+        // 1.21.11: коллектора в аргументах нет — как ванильный GuiEntityRenderer, пишем в хранилище
+        // FeatureRenderDispatcher и сразу рисуем всё накопленное
+        net.minecraft.client.renderer.feature.FeatureRenderDispatcher features =
+                Minecraft.getInstance().gameRenderer.getFeatureRenderDispatcher();
+        SubmitNodeCollector collector = features.getSubmitNodeStorage();
+
         PreviewModel model = state.model();
         PreviewCamera.Key camera = state.camera();
 
@@ -130,6 +139,7 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
         try
         {
             submitModel(model, camera, poseStack, collector);
+            features.renderAllFeatures();
         }
         catch (RuntimeException | LinkageError e)
         {
@@ -151,9 +161,8 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
     private static final int GPU_FLAT = PreviewModel.LAYERS;
 
     private final Map<Long, GpuModel> gpuModels = new LinkedHashMap<>(4, 0.75F, true);
-    private final Projection gpuProjection = new Projection();
-    private @Nullable ProjectionMatrixBuffer gpuProjectionBuffer;
-    private final SubmitNodeStorage gpuSubmits = new SubmitNodeStorage();
+    private final CachedOrthoProjectionMatrixBuffer gpuProjection = new CachedOrthoProjectionMatrixBuffer("PIP - layerlist preview",
+            -1000.0F, 1000.0F, true);
     private @Nullable GpuTexture gpuColor;
     private @Nullable GpuTextureView gpuColorView;
     private @Nullable GpuTexture gpuDepth;
@@ -199,14 +208,14 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
     }
 
     @Override
-    public void prepare(PreviewRenderState state, GuiRenderState gui, FeatureRenderDispatcher features, int guiScale)
+    public void prepare(PreviewRenderState state, GuiRenderState gui, int guiScale)
     {
         long started = System.nanoTime();
         this.redrawn = false;
 
         try
         {
-            this.prepareAny(state, gui, features, guiScale);
+            this.prepareAny(state, gui, guiScale);
         }
         finally
         {
@@ -218,29 +227,35 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
         }
     }
 
-    private void prepareAny(PreviewRenderState state, GuiRenderState gui, FeatureRenderDispatcher features, int guiScale)
+    private void prepareAny(PreviewRenderState state, GuiRenderState gui, int guiScale)
     {
         if (gpuFailed || forceCpu || state.camera().perspective())
         {
-            super.prepare(state, gui, features, guiScale);
+            super.prepare(state, gui, guiScale);
             return;
         }
 
         try
         {
-            this.prepareGpu(state, gui, features, guiScale);
+            this.prepareGpu(state, gui, guiScale);
         }
         catch (RuntimeException | LinkageError e)
         {
             gpuFailed = true;
             LOGGER.warn("Preview: drawing from video memory failed; falling back to per-frame vertices", e);
+            RenderSystem.outputColorTextureOverride = null;
+            RenderSystem.outputDepthTextureOverride = null;
             this.releaseGpu();
-            super.prepare(state, gui, features, guiScale);
+            super.prepare(state, gui, guiScale);
         }
     }
 
-    /** Как {@code PictureInPictureRenderer.prepare}, только свои текстуры и вершины уже на GPU. */
-    private void prepareGpu(PreviewRenderState state, GuiRenderState gui, FeatureRenderDispatcher features, int guiScale)
+    /**
+     * Как {@code PictureInPictureRenderer.prepare}, только свои текстуры и вершины уже на GPU. 1.21.11: готового
+     * «нарисовать из своего буфера» у типа рендера нет — проход собирается как в {@code RenderType.draw}: конвейер,
+     * матрица вида в униформу, текстуры типа, свой вершинный буфер вместо разового.
+     */
+    private void prepareGpu(PreviewRenderState state, GuiRenderState gui, int guiScale)
     {
         int width = (state.x1() - state.x0()) * guiScale;
         int height = (state.y1() - state.y0()) * guiScale;
@@ -265,23 +280,16 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
         {
             this.closeGpuTextures();
             this.gpuColor = device.createTexture(() -> "UI layerlist preview texture",
-                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT, GpuFormat.RGBA8_UNORM,
+                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT, TextureFormat.RGBA8,
                     width, height, 1, 1);
             this.gpuColorView = device.createTextureView(this.gpuColor);
-            this.gpuDepth = device.createTexture(() -> "UI layerlist preview depth", GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_RENDER_ATTACHMENT,
-                    GpuFormat.D32_FLOAT, width, height, 1, 1);
+            this.gpuDepth = device.createTexture(() -> "UI layerlist preview depth", GpuTexture.USAGE_RENDER_ATTACHMENT,
+                    TextureFormat.DEPTH32, width, height, 1, 1);
             this.gpuDepthView = device.createTextureView(this.gpuDepth);
         }
 
-        device.createCommandEncoder().clearColorAndDepthTextures(this.gpuColor, GuiRenderer.CLEAR_COLOR, this.gpuDepth, 0.0);
-
-        if (this.gpuProjectionBuffer == null)
-        {
-            this.gpuProjectionBuffer = new ProjectionMatrixBuffer("PIP - layerlist preview");
-        }
-
-        this.gpuProjection.setupOrtho(-1000.0F, 1000.0F, width, height, true);
-        RenderSystem.setProjectionMatrix(this.gpuProjectionBuffer.getBuffer(this.gpuProjection), ProjectionType.ORTHOGRAPHIC);
+        device.createCommandEncoder().clearColorAndDepthTextures(this.gpuColor, 0, this.gpuDepth, 1.0);
+        RenderSystem.setProjectionMatrix(this.gpuProjection.getBuffer(width, height), ProjectionType.ORTHOGRAPHIC);
 
         PoseStack pose = new PoseStack();
         pose.translate(width / 2.0F, this.getTranslateY(height, guiScale), 0.0F);
@@ -297,53 +305,59 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
             maxQuads = Math.max(maxQuads, count);
         }
 
-        // Матрица вида — в униформы типов рендера (их снимок берёт prepare()); вершины остаются в координатах схемы
-        Matrix4fStack modelView = RenderSystem.getModelViewStack();
-        PreparedRenderType[] types = new PreparedRenderType[GPU_FLAT + 1];
-        modelView.pushMatrix();
-
-        try
-        {
-            modelView.mul(pose.last().pose());
-
-            for (int layer = 0; layer <= GPU_FLAT; ++layer)
-            {
-                if (gpu.quads[layer] > 0)
-                {
-                    types[layer] = layerType(layer).prepare();
-                }
-            }
-        }
-        finally
-        {
-            modelView.popMatrix();
-        }
-
-        // Сундуки, флаги, головы — особыми моделями, как раньше, в тот же проход
-        submitSpecials(model, pose, this.gpuSubmits);
-        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+        // Вершины остаются в координатах схемы; поворот и масштаб — матрицей вида в униформе
+        GpuBufferSlice transforms = RenderSystem.getDynamicUniforms().writeTransform(pose.last().pose(),
+                new Vector4f(1.0F, 1.0F, 1.0F, 1.0F), new Vector3f(), new Matrix4f());
+        RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         GpuBuffer indexBuffer = indices.getBuffer(Math.max(1, maxQuads) * 6);
-        FeatureRenderDispatcher.PreparedFrame frame = features.prepareFrame(this.gpuSubmits);
 
-        try (frame; RenderPass pass = device.createCommandEncoder().createRenderPass(() -> "Material HUD preview", this.gpuColorView,
-                Optional.empty(), this.gpuDepthView, OptionalDouble.empty()))
+        for (int layer : new int[] { PreviewModel.SOLID, PreviewModel.CUTOUT, GPU_FLAT, PreviewModel.TRANSLUCENT })
         {
-            RenderSystem.bindDefaultUniforms(pass);
+            GpuBuffer vertices = gpu.layers[layer];
 
-            for (int layer : new int[] { PreviewModel.SOLID, PreviewModel.CUTOUT, GPU_FLAT, PreviewModel.TRANSLUCENT })
+            if (vertices == null || gpu.quads[layer] == 0)
             {
-                PreparedRenderType type = types[layer];
-                GpuBuffer vertices = gpu.layers[layer];
-
-                if (type != null && vertices != null)
-                {
-                    int count = gpu.quads[layer] * 6;
-                    type.drawFromBuffer(new StagedVertexBuffer.ExecuteInfo(vertices, indexBuffer, indices.type(), 0, 0, count,
-                            PrimitiveTopology.QUADS), pass);
-                }
+                continue;
             }
 
-            FeatureRenderDispatcher.renderAllFeatures(pass, frame);
+            RenderType type = layerType(layer);
+            RenderSetup setup = ((IMixinRenderType) (Object) type).layerlist$state();
+
+            try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> "Material HUD preview", this.gpuColorView,
+                    OptionalInt.empty(), this.gpuDepthView, OptionalDouble.empty()))
+            {
+                pass.setPipeline(type.pipeline());
+                RenderSystem.bindDefaultUniforms(pass);
+                pass.setUniform("DynamicTransforms", transforms);
+                pass.setVertexBuffer(0, vertices);
+
+                for (Map.Entry<String, RenderSetup.TextureAndSampler> texture : setup.getTextures().entrySet())
+                {
+                    pass.bindTexture(texture.getKey(), texture.getValue().textureView(), texture.getValue().sampler());
+                }
+
+                pass.setIndexBuffer(indexBuffer, indices.type());
+                pass.drawIndexed(0, 0, gpu.quads[layer] * 6, 1);
+            }
+        }
+
+        // Сундуки, флаги, головы — особыми моделями, как раньше, в ту же текстуру
+        if (model.specialCount > 0)
+        {
+            FeatureRenderDispatcher features = Minecraft.getInstance().gameRenderer.getFeatureRenderDispatcher();
+            RenderSystem.outputColorTextureOverride = this.gpuColorView;
+            RenderSystem.outputDepthTextureOverride = this.gpuDepthView;
+
+            try
+            {
+                submitSpecials(model, pose, features.getSubmitNodeStorage());
+                features.renderAllFeatures();
+            }
+            finally
+            {
+                RenderSystem.outputColorTextureOverride = null;
+                RenderSystem.outputDepthTextureOverride = null;
+            }
         }
 
         this.blitGpu(state, gui);
@@ -466,7 +480,7 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
     {
         float u0 = state.flipX() ? 1.0F : 0.0F;
         float v0 = state.flipY() ? 0.0F : 1.0F;
-        gui.addBlitToCurrentLayer(new BlitRenderState(RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA,
+        gui.submitBlitToCurrentLayer(new BlitRenderState(RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA,
                 TextureSetup.singleTexture(this.gpuColorView, RenderSystem.getSamplerCache().getRepeat(FilterMode.NEAREST)),
                 state.pose(), state.x0(), state.y0(), state.x1(), state.y1(), u0, 1.0F - u0, v0, 1.0F - v0, -1,
                 state.scissorArea(), null));
@@ -587,28 +601,19 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
 
         float u0 = state.flipX() ? 1.0F : 0.0F;
         float v0 = state.flipY() ? 0.0F : 1.0F;
-        gui.addBlitToCurrentLayer(new BlitRenderState(RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA,
+        gui.submitBlitToCurrentLayer(new BlitRenderState(RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA,
                 TextureSetup.singleTexture(view, RenderSystem.getSamplerCache().getRepeat(FilterMode.NEAREST)),
                 state.pose(), state.x0(), state.y0(), state.x1(), state.y1(), u0, 1.0F - u0, v0, 1.0F - v0, -1,
                 state.scissorArea(), null));
     }
 
-    private static @Nullable Field textureViewField;
-
     private static @Nullable GpuTextureView textureView(PictureInPictureRenderer<?> renderer)
     {
         try
         {
-            if (textureViewField == null)
-            {
-                Field field = PictureInPictureRenderer.class.getDeclaredField("textureView");
-                field.setAccessible(true);
-                textureViewField = field;
-            }
-
-            return textureViewField.get(renderer) instanceof GpuTextureView view ? view : null;
+            return ((com.aell.layerlist.mixin.schematics.IMixinPictureInPictureRenderer) renderer).layerlist$textureView();
         }
-        catch (ReflectiveOperationException | RuntimeException e)
+        catch (RuntimeException | LinkageError e)
         {
             return null;
         }
@@ -616,8 +621,8 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
 
     /**
      * Освободить текстуры PIP, когда превью закрыто: базовый класс держит их до следующего кадра с
-     * этим рендерером, а он может не наступить до выхода из игры. Поля приватные — отражением; если
-     * их переименуют, текстура просто останется до следующего показа (тихо, одно предупреждение в лог).
+     * этим рендерером, а он может не наступить до выхода из игры. Поля приватные — аксессором
+     * ({@code IMixinPictureInPictureRenderer}: 1.21.11 обфусцирована, отражение по именам Mojang не сработало бы).
      * Следующий показ создаст текстуры заново: при {@code texture == null} базовый класс считает,
      * что нужен новый размер.
      */
@@ -634,20 +639,36 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
 
         try
         {
-            for (String name : TEXTURE_FIELDS)
+            com.aell.layerlist.mixin.schematics.IMixinPictureInPictureRenderer self =
+                    (com.aell.layerlist.mixin.schematics.IMixinPictureInPictureRenderer) (Object) this;
+
+            // Виды — раньше своих текстур
+            if (self.layerlist$textureView() != null)
             {
-                Field field = PictureInPictureRenderer.class.getDeclaredField(name);
-                field.setAccessible(true);
-
-                if (field.get(this) instanceof AutoCloseable resource)
-                {
-                    resource.close();
-                }
-
-                field.set(this, null);
+                self.layerlist$textureView().close();
             }
+
+            if (self.layerlist$depthTextureView() != null)
+            {
+                self.layerlist$depthTextureView().close();
+            }
+
+            if (self.layerlist$texture() != null)
+            {
+                self.layerlist$texture().close();
+            }
+
+            if (self.layerlist$depthTexture() != null)
+            {
+                self.layerlist$depthTexture().close();
+            }
+
+            self.layerlist$setTextureView(null);
+            self.layerlist$setDepthTextureView(null);
+            self.layerlist$setTexture(null);
+            self.layerlist$setDepthTexture(null);
         }
-        catch (Exception e)
+        catch (RuntimeException | LinkageError e)
         {
             releaseFailed = true;
             LOGGER.warn("Preview: could not release the picture-in-picture texture early; it stays until next use", e);
@@ -687,7 +708,7 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
             return;
         }
 
-        Minecraft.getInstance().gameRenderer.lighting().setupFor(Lighting.Entry.ENTITY_IN_UI);
+        Minecraft.getInstance().gameRenderer.getLighting().setupFor(Lighting.Entry.ENTITY_IN_UI);
 
         int left = PreviewMesher.SPECIAL_CAP;
 
@@ -697,7 +718,7 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
 
             for (int i = 0; i + 3 < specials.length && left > 0; i += 4, --left)
             {
-                BlockModelRenderState special = model.specialState(specials[i + 3]);
+                PreviewModel.Special special = model.specialState(specials[i + 3]);
 
                 if (special == null)
                 {
@@ -709,7 +730,17 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
                 try
                 {
                     poseStack.translate(specials[i], specials[i + 1], specials[i + 2]);
-                    special.submit(poseStack, collector, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
+
+                    if (special.yRot() != 0.0F)
+                    {
+                        poseStack.translate(0.5F, 0.0F, 0.5F);
+                        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(special.yRot()));
+                        poseStack.translate(-0.5F, 0.0F, -0.5F);
+                    }
+
+                    Minecraft.getInstance().getModelManager().specialBlockModelRenderer().renderByBlock(special.block(),
+                            net.minecraft.world.item.ItemDisplayContext.NONE, poseStack, collector,
+                            LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
                 }
                 finally
                 {
@@ -941,7 +972,7 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
                     m.m01() * x + m.m11() * y + m.m21() * z + m.m31(),
                     m.m02() * x + m.m12() * y + m.m22() * z + m.m32(),
                     color[q * 4 + v], uv[q * 8 + v * 2], uv[q * 8 + v * 2 + 1],
-                    OverlayTexture.NO_OVERLAY, LightCoordsUtil.FULL_BRIGHT, 0.0F, 1.0F, 0.0F);
+                    OverlayTexture.NO_OVERLAY, LightTexture.FULL_BRIGHT, 0.0F, 1.0F, 0.0F);
         }
     }
 
@@ -1037,7 +1068,7 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
                     m.m01() * x + m.m11() * y + m.m21() * z + m.m31(),
                     m.m02() * x + m.m12() * y + m.m22() * z + m.m32(),
                     color[q * 4 + v], uv[q * 8 + v * 2], uv[q * 8 + v * 2 + 1],
-                    OverlayTexture.NO_OVERLAY, LightCoordsUtil.FULL_BRIGHT, 0.0F, 1.0F, 0.0F);
+                    OverlayTexture.NO_OVERLAY, LightTexture.FULL_BRIGHT, 0.0F, 1.0F, 0.0F);
         }
     }
 

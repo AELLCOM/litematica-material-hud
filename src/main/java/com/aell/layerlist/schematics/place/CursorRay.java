@@ -92,7 +92,7 @@ public final class CursorRay
             return new Pose(OrbitCamera.position(), OrbitCamera.forward(), OrbitCamera.up(), OrbitCamera.left());
         }
 
-        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
 
         return new Pose(camera.position(), vec(camera.forwardVector()), vec(camera.upVector()), vec(camera.leftVector()));
     }
@@ -104,7 +104,7 @@ public final class CursorRay
 
     private static double tanHalfFov()
     {
-        return Math.tan(Math.toRadians(Minecraft.getInstance().gameRenderer.mainCamera().getFov() * 0.5));
+        return Math.tan(Math.toRadians(CursorRay.fovDegrees() * 0.5));
     }
 
     private static double aspect()
@@ -155,6 +155,22 @@ public final class CursorRay
             }
 
             return this.origin.add(this.direction.scale(t));
+        }
+    }
+
+    /** Угол обзора кадра, градусы (1.21.11: его считает закрытый GameRenderer.getFov — достаём invoker-ом). */
+    static double fovDegrees()
+    {
+        Minecraft mc = Minecraft.getInstance();
+
+        try
+        {
+            return ((com.aell.layerlist.mixin.schematics.IMixinGameRendererFov) mc.gameRenderer)
+                    .layerlist$getFov(mc.gameRenderer.getMainCamera(), 1.0F, true);
+        }
+        catch (RuntimeException | LinkageError e)
+        {
+            return mc.options.fov().get();
         }
     }
 }

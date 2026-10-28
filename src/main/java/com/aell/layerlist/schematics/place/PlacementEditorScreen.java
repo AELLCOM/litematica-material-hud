@@ -27,12 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.BlockPos;
@@ -388,11 +386,10 @@ public final class PlacementEditorScreen extends GuiBase
         // только мешают: на время редактора HUD прячется, как по F1, и возвращается в removed(). Каждый показ
         // экрана заново: из «Смотреть на мир» редактор возвращается тем же экземпляром, а HUD к тому времени
         // уже вернули; смена размера окна его не трогает — он и так спрятан
-        Hud hud = this.mc.gui.hud;
-
-        if (! hud.isHidden())
+        // 1.21.11: F1 — это флаг options.hideGui (в 26.x — Hud.toggle)
+        if (! this.mc.options.hideGui)
         {
-            hud.toggle();
+            this.mc.options.hideGui = true;
             this.hidHud = true;
         }
 
@@ -616,9 +613,9 @@ public final class PlacementEditorScreen extends GuiBase
             {
                 this.hidHud = false;
 
-                if (this.mc.gui.hud.isHidden())
+                if (this.mc.options.hideGui)
                 {
-                    this.mc.gui.hud.toggle();
+                    this.mc.options.hideGui = false;
                 }
             }
 
@@ -824,7 +821,7 @@ public final class PlacementEditorScreen extends GuiBase
         return 1;
     }
 
-    private static fi.dy.masa.malilib.util.position.LayerRange layerRange()
+    private static fi.dy.masa.malilib.util.LayerRange layerRange()
     {
         return fi.dy.masa.litematica.data.DataManager.getRenderLayerRange();
     }
@@ -1758,7 +1755,7 @@ public final class PlacementEditorScreen extends GuiBase
         this.worldParent = Nav.peek();
         PlacementHud.enter(this);
         Nav.clear();
-        this.mc.gui.setScreen(null);
+        this.mc.setScreen(null);
     }
 
     /**
@@ -2401,11 +2398,6 @@ public final class PlacementEditorScreen extends GuiBase
     }
 
     /** Черновик IME (26.3): ваниль отдаёт его экрану, а мы — полю, которое сейчас в вводе. */
-    @Override
-    public boolean preeditUpdated(@Nullable PreeditEvent event)
-    {
-        return TextFocus.preedit(event) || super.preeditUpdated(event);
-    }
 
     /**
      * Сообщения Litematica и malilib, пока открыт редактор, — строкой в панели, а не плашкой malilib

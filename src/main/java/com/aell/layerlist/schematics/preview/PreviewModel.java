@@ -9,9 +9,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.block.BlockModelRenderState;
-import net.minecraft.client.renderer.block.BlockModelResolver;
-import net.minecraft.client.renderer.block.model.BlockDisplayContext;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -64,8 +61,7 @@ public final class PreviewModel
     final int[] packedQuads = new int[LAYERS + 1];
 
     // Только клиентский поток: состояния особых моделей по номеру палитры, создаются при первом показе
-    private final Map<Integer, BlockModelRenderState> specialStates = new HashMap<>();
-    private @Nullable BlockModelResolver resolver;
+    private final Map<Integer, Special> specialStates = new HashMap<>();
 
     PreviewModel(VoxelSnapshot snapshot, List<Section> sections, @Nullable Quads flat, int lodFactor,
             int specialCount, int cut, int budget, Empty empty)
@@ -187,13 +183,13 @@ public final class PreviewModel
     /** Квады — вершинами формата блоков (позиция, цвет, UV, свет) в обычный прямой буфер (его забирает сборщик мусора). */
     static java.nio.ByteBuffer packVertices(List<Quads> parts, int total)
     {
-        com.mojang.renderpearl.api.vertex.VertexFormat format = com.mojang.blaze3d.vertex.DefaultVertexFormat.BLOCK;
+        com.mojang.blaze3d.vertex.VertexFormat format = com.mojang.blaze3d.vertex.DefaultVertexFormat.BLOCK;
 
         try (com.mojang.blaze3d.vertex.ByteBufferBuilder bytes = com.mojang.blaze3d.vertex.ByteBufferBuilder.exactlySized(
                 total * 4 * format.getVertexSize()))
         {
             com.mojang.blaze3d.vertex.BufferBuilder builder = new com.mojang.blaze3d.vertex.BufferBuilder(bytes,
-                    com.mojang.renderpearl.api.pipeline.PrimitiveTopology.QUADS, format);
+                    com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, format);
 
             for (Quads quads : parts)
             {
@@ -204,7 +200,7 @@ public final class PreviewModel
                 for (int v = 0, n = quads.count * 4; v < n; ++v)
                 {
                     builder.addVertex(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2], color[v], uv[v * 2], uv[v * 2 + 1],
-                            net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, net.minecraft.util.LightCoordsUtil.FULL_BRIGHT,
+                            net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, net.minecraft.client.renderer.LightTexture.FULL_BRIGHT,
                             0.0F, 1.0F, 0.0F);
                 }
             }
@@ -219,33 +215,45 @@ public final class PreviewModel
         }
     }
 
-    /** Состояние особой модели для номера палитры; только с клиентского потока (рендер PIP). */
-    @Nullable BlockModelRenderState specialState(int paletteId)
+    /**
+     * Особый блок для рисования (1.21.11): сам блок и поворот вокруг вертикали. Особые модели 1.21.11 знают
+     * только блок ({@code SpecialBlockModelRenderer.renderByBlock}), а не состояние, — сторону задаём поворотом.
+     */
+    record Special(net.minecraft.world.level.block.Block block, float yRot) {}
+
+    /** Особая модель для номера палитры; только с клиентского потока (рендер PIP). */
+    @Nullable Special specialState(int paletteId)
     {
-        BlockModelRenderState known = this.specialStates.get(paletteId);
+        Special known = this.specialStates.get(paletteId);
 
         if (known != null || this.specialStates.containsKey(paletteId))
         {
             return known;
         }
 
-        BlockModelRenderState state = new BlockModelRenderState();
+        Special result = null;
 
         try
         {
-            if (this.resolver == null)
+            net.minecraft.world.level.block.state.BlockState state = this.snapshot.palette(paletteId);
+            float yRot = 0.0F;
+
+            if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING))
             {
-                this.resolver = new BlockModelResolver(Minecraft.getInstance().getModelManager());
+                yRot = 180.0F - state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING).toYRot();
+            }
+            else if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.ROTATION_16))
+            {
+                yRot = 180.0F - state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.ROTATION_16) * 22.5F;
             }
 
-            this.resolver.update(state, this.snapshot.palette(paletteId), BlockDisplayContext.create());
+            result = new Special(state.getBlock(), yRot);
         }
         catch (RuntimeException e)
         {
-            state = null;
+            result = null;
         }
 
-        BlockModelRenderState result = state != null && ! state.isEmpty() ? state : null;
         this.specialStates.put(paletteId, result);
 
         return result;

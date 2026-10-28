@@ -76,7 +76,7 @@ public class InputHandler implements IKeybindProvider, IHotkeyCallback
         var message = enabled ? Chat.tr("layerlist.message.hud_on", Chat.OK) : Chat.tr("layerlist.message.hud_off", Chat.DIM);
         Chat.send(message);
         // В открытом инвентаре чат не виден — над хотбаром
-        net.minecraft.client.Minecraft.getInstance().gui.hud.setOverlayMessage(message, false);
+        net.minecraft.client.Minecraft.getInstance().gui.setOverlayMessage(message, false);
     }
 
     /**
@@ -96,7 +96,7 @@ public class InputHandler implements IKeybindProvider, IHotkeyCallback
 
         for (int i = 0; i < keys.size() - 1; ++i)
         {
-            if (! com.mojang.blaze3d.platform.InputConstants.isKeyDown(keys.get(i)))
+            if (! com.mojang.blaze3d.platform.InputConstants.isKeyDown(net.minecraft.client.Minecraft.getInstance().getWindow(), keys.get(i)))
             {
                 return false;
             }
@@ -301,7 +301,7 @@ public class InputHandler implements IKeybindProvider, IHotkeyCallback
 
         if (mc.player != null && LayerListConfigs.CHAT_MESSAGES.getBooleanValue())
         {
-            mc.player.sendSystemMessage(Component.literal(text));
+            mc.player.displayClientMessage(Component.literal(text), false);
         }
     }
 

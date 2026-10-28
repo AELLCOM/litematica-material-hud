@@ -59,10 +59,10 @@ public final class PlacementHud
 
     public static void register()
     {
-        RenderEventHandler.getInstance().registerInGameGuiRenderer(new IRenderer()
+        RenderEventHandler.getInstance().registerGameOverlayRenderer(new IRenderer()
         {
             @Override
-            public void onExtractGuiOverlayPost(GuiContext ctx, float partialTicks, net.minecraft.util.profiling.ProfilerFiller profiler)
+            public void onRenderGameOverlayPostAdvanced(GuiContext ctx, float partialTicks, net.minecraft.util.profiling.ProfilerFiller profiler)
             {
                 PlacementHud.render(ctx);
             }
@@ -101,7 +101,7 @@ public final class PlacementHud
         Minecraft mc = Minecraft.getInstance();
         PlacementEditorScreen back = editor;
 
-        if (! active || back == null || mc.gui.screen() != null)
+        if (! active || back == null || mc.screen != null)
         {
             return false;
         }
@@ -126,12 +126,12 @@ public final class PlacementHud
         Minecraft mc = Minecraft.getInstance();
         PlacementEditorScreen owner = editor;
 
-        if (! active || owner == null || mc.gui.screen() != null || mc.level == null)
+        if (! active || owner == null || mc.screen != null || mc.level == null)
         {
             return false;
         }
 
-        mc.gui.setScreen(new PlacementCursorScreen(owner));
+        mc.setScreen(new PlacementCursorScreen(owner));
         return true;
     }
 
@@ -153,9 +153,9 @@ public final class PlacementHud
             return;
         }
 
-        Screen screen = mc.gui.screen();
+        Screen screen = mc.screen;
 
-        if (mc.gui.hud.isHidden() || (screen != null && ! (screen instanceof ChatScreen)))
+        if (mc.options.hideGui || (screen != null && ! (screen instanceof ChatScreen)))
         {
             return;
         }

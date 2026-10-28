@@ -71,12 +71,12 @@ public final class PaletteTest implements CovJob
                 this.check("панель у контейнера справа — по умолчанию",
                         com.aell.layerlist.config.LayerListConfigs.HUD_DOCK_RIGHT.getDefaultBooleanValue());
                 com.aell.layerlist.config.LayerListConfigs.SETTINGS_FULLSCREEN.setBooleanValue(true);
-                mc.gui.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null).showTab(0));
+                mc.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null).showTab(0));
             }
             case 2 -> this.click(mc.getWindow().getGuiScaledWidth() - 18, 13);
             case 3 -> this.chars("dock");
-            case 4 -> net.minecraft.client.Screenshot.grab(mc, false);
-            case 5 -> mc.gui.setScreen(com.aell.layerlist.schematics.gui.GuiSchematics.create());
+            case 4 -> net.minecraft.client.Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
+            case 5 -> mc.setScreen(com.aell.layerlist.schematics.gui.GuiSchematics.create());
             case 6 ->
             {
                 try
@@ -91,7 +91,7 @@ public final class PaletteTest implements CovJob
                     this.check("окно настроек «Схем» открылось: " + e, false);
                 }
             }
-            case 7 -> net.minecraft.client.Screenshot.grab(mc, false);
+            case 7 -> net.minecraft.client.Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
             case 8 -> this.openExportWindow();
             case 9 ->
             {
@@ -116,7 +116,7 @@ public final class PaletteTest implements CovJob
                 this.check("клик по первой карточке выбрал светлую серую",
                         SchematicsConfig.sheetsPalette() == SchematicsConfig.SheetsPalette.LIGHT_GRAY);
             }
-            case 11 -> net.minecraft.client.Screenshot.grab(mc, false);
+            case 11 -> net.minecraft.client.Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
             case 12 ->
             {
                 this.exportsBefore = this.newestExport();
@@ -136,12 +136,12 @@ public final class PaletteTest implements CovJob
                             styles.contains(LIGHT_CANVAS) && ! styles.contains(DARK_CANVAS));
                 }
 
-                net.minecraft.client.Screenshot.grab(mc, false);
+                net.minecraft.client.Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
             }
             case 14 ->
             {
                 // Панели нужна схема: «Портал» рядом с игроком, как в туре экранов
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 var path = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("schematics").resolve("Портал.litematic");
                 var schematic = fi.dy.masa.litematica.data.SchematicHolder.getInstance().getOrLoad(path);
 
@@ -174,7 +174,7 @@ public final class PaletteTest implements CovJob
                     chest.setItem(i, new ItemStack(i % 2 == 0 ? Items.DIAMOND_BLOCK : Items.TUFF, 64));
                 }
 
-                mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.ContainerScreen(
+                mc.setScreen(new net.minecraft.client.gui.screens.inventory.ContainerScreen(
                         net.minecraft.world.inventory.ChestMenu.sixRows(0, inventory, chest), inventory,
                         net.minecraft.network.chat.Component.literal("Сундук")));
             }
@@ -207,11 +207,11 @@ public final class PaletteTest implements CovJob
             case 17 ->
             {
                 CovOut.log("[palette]   снимок: подсказка над панелью у сундука");
-                net.minecraft.client.Screenshot.grab(mc, false);
+                net.minecraft.client.Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
             }
             default ->
             {
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 CovOut.log("[palette] итог: " + (this.failed ? "FAIL" : "OK"));
                 return true;
             }
@@ -319,7 +319,7 @@ public final class PaletteTest implements CovJob
         {
             for (int i = 0; i < text.length(); ++i)
             {
-                gui.onCharTyped(new net.minecraft.client.input.CharacterEvent(text.charAt(i)));
+                gui.onCharTyped(new net.minecraft.client.input.CharacterEvent(text.charAt(i), 0));
             }
         }
     }

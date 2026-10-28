@@ -159,7 +159,7 @@ public final class DumpListItems implements CovJob
                     return false;
                 }
 
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 CovOut.log("снимок HUD снят (run/screenshots), страница " + (manager.getPage() + 1));
                 this.shotAt = System.currentTimeMillis() + 1500L;
             }

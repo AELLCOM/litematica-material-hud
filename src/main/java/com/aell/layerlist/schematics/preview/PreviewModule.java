@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendering.v1.InvalidateRenderStateCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.SpecialGuiElementRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -58,9 +58,9 @@ public final class PreviewModule
 
         registered = true;
 
-        PictureInPictureRendererRegistry.register(context ->
+        SpecialGuiElementRegistry.register(context ->
         {
-            PreviewPipRenderer renderer = new PreviewPipRenderer();
+            PreviewPipRenderer renderer = new PreviewPipRenderer(context.vertexConsumers());
             RENDERERS.add(renderer);
 
             return renderer;

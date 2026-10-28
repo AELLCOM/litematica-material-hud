@@ -4,7 +4,7 @@ import com.aell.layerlist.config.LayerListConfigs;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.malilib.interfaces.IRangeChangeListener;
 import fi.dy.masa.malilib.util.LayerMode;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import net.minecraft.core.Direction;
 
 /**

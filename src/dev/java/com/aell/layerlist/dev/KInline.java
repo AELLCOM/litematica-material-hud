@@ -358,7 +358,7 @@ final class KInline
     boolean mouseAside()
     {
         Minecraft mc = Minecraft.getInstance();
-        mc.mouseHandler.onMove(mc.getWindow().handle(), 2.0, mc.getWindow().getScreenHeight() / 2.0, 0.0, 0.0);
+        DevInput.onMove(mc.mouseHandler, mc.getWindow().handle(), 2.0, mc.getWindow().getScreenHeight() / 2.0, 0.0, 0.0);
         return true;
     }
 
@@ -373,9 +373,9 @@ final class KInline
         double y = guiY * window.getScreenHeight() / window.getGuiScaledHeight();
         MouseButtonInfo left = new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0);
 
-        mc.mouseHandler.onMove(window.handle(), x, y, 0.0, 0.0);
-        mc.mouseHandler.onButton(window.handle(), left, InputConstants.PRESS);
-        mc.mouseHandler.onButton(window.handle(), left, InputConstants.RELEASE);
+        DevInput.onMove(mc.mouseHandler, window.handle(), x, y, 0.0, 0.0);
+        DevInput.onButton(mc.mouseHandler, window.handle(), left, InputConstants.PRESS);
+        DevInput.onButton(mc.mouseHandler, window.handle(), left, InputConstants.RELEASE);
     }
 
     /** Тост, как его разложила стопка: текст, прямоугольник, подписи и места кнопок. */

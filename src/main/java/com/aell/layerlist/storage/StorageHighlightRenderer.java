@@ -164,8 +164,7 @@ public class StorageHighlightRenderer
         for (int i = 0; i < count; ++i)
         {
             AABB band = new AABB(box.minX, box.minY + height * i, box.minZ, box.maxX, box.minY + height * (i + 1), box.maxZ);
-            Gizmos.cuboid(band.deflate(0.002), GizmoStyle.fill(withAlpha(soft(colors.get(Math.min(i, colors.size() - 1))), fillAlpha)))
-                    .setAlwaysOnTop();
+            fillBox(band.deflate(0.002), withAlpha(soft(colors.get(Math.min(i, colors.size() - 1))), fillAlpha));
         }
 
         // Ореол: несколько раздвинутых контуров, прозрачнее наружу
@@ -179,6 +178,27 @@ public class StorageHighlightRenderer
         // Чистый тонкий контур по самой форме
         Gizmos.cuboid(box.inflate(0.004), GizmoStyle.stroke(withAlpha(lighten(halo, 0.25F), 0.75F + 0.25F * strength), 1.5F))
                 .setAlwaysOnTop();
+    }
+
+    /**
+     * Заливка коробки. 1.21.11: кубоид-гизмо выводит грани в одном обходе, и половина их отсекается как задние —
+     * рисуем каждую грань прямоугольником в обоих обходах (так же рисовались ромбы).
+     */
+    private static void fillBox(AABB box, int color)
+    {
+        Vec3[] c = {
+                new Vec3(box.minX, box.minY, box.minZ), new Vec3(box.maxX, box.minY, box.minZ),
+                new Vec3(box.maxX, box.minY, box.maxZ), new Vec3(box.minX, box.minY, box.maxZ),
+                new Vec3(box.minX, box.maxY, box.minZ), new Vec3(box.maxX, box.maxY, box.minZ),
+                new Vec3(box.maxX, box.maxY, box.maxZ), new Vec3(box.minX, box.maxY, box.maxZ)};
+        int[][] faces = {{0, 1, 2, 3}, {4, 5, 6, 7}, {0, 1, 5, 4}, {3, 2, 6, 7}, {0, 3, 7, 4}, {1, 2, 6, 5}};
+        GizmoStyle style = GizmoStyle.fill(color);
+
+        for (int[] f : faces)
+        {
+            Gizmos.rect(c[f[0]], c[f[1]], c[f[2]], c[f[3]], style).setAlwaysOnTop();
+            Gizmos.rect(c[f[0]], c[f[3]], c[f[2]], c[f[1]], style).setAlwaysOnTop();
+        }
     }
 
     /** Чуть светлее и мягче: цвет строки, смешанный с белым. */

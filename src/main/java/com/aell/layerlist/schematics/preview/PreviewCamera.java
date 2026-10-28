@@ -36,9 +36,7 @@ public final class PreviewCamera
         /** Строго вниз, север сверху. */
         TOP(180.0F, 90.0F),
         /** Взгляд на север: видна южная грань, восток справа. */
-        FRONT(180.0F, 0.0F),
-        /** Сбоку: взгляд на запад, видна восточная грань, юг слева. */
-        SIDE(90.0F, 0.0F);
+        FRONT(180.0F, 0.0F);
 
         private final float yaw;
         private final float pitch;
@@ -162,23 +160,6 @@ public final class PreviewCamera
         }
 
         this.reset(View.TOP);
-        this.yaw = wrapped;
-    }
-
-    /**
-     * Любая предустановка с заданным рысканием (карта сбоку или сверху для 2D): масштаб и сдвиг — заново
-     * «вписать»; тот же вид, уже вписанный, не трогаем.
-     */
-    public void lock(View v, float yaw)
-    {
-        float wrapped = wrapDegrees(yaw);
-
-        if (this.view == v && this.yaw == wrapped && this.pitch == v.pitch() && this.fitted)
-        {
-            return;
-        }
-
-        this.reset(v);
         this.yaw = wrapped;
     }
 

@@ -3,7 +3,7 @@ package com.aell.layerlist.storage;
 import com.aell.layerlist.mixin.IMixinItemStackRenderState;
 import com.aell.layerlist.mixin.IMixinSpriteContents;
 import com.mojang.blaze3d.platform.NativeImage;
-import it.unimi.dsi.fastutil.ints.IntList;
+import com.aell.layerlist.mixin.IMixinLayerRenderState;
 import java.util.HashMap;
 import java.util.Map;
 import net.fabricmc.api.EnvType;
@@ -11,7 +11,6 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -98,14 +97,13 @@ public final class ItemColors
             ItemStackRenderState state = new ItemStackRenderState();
             mc.getItemModelResolver().updateForTopItem(state, stack, ItemDisplayContext.GUI, mc.level, null, 0);
 
-            Material.Baked baked = state.pickParticleMaterial(RandomSource.create(0L));
+            TextureAtlasSprite sprite = state.pickParticleIcon(RandomSource.create(0L));
 
-            if (baked == null)
+            if (sprite == null)
             {
                 return 0;
             }
 
-            TextureAtlasSprite sprite = baked.sprite();
             image = ((IMixinSpriteContents) (Object) sprite.contents()).layerlist$originalImage();
             tint = firstTint(state);
         }
@@ -175,11 +173,11 @@ public final class ItemColors
 
             for (int i = 0; i < count; ++i)
             {
-                IntList tints = layers[i].tintLayers();
+                int[] tints = ((IMixinLayerRenderState) (Object) layers[i]).layerlist$tintLayers();
 
-                for (int j = 0; j < tints.size(); ++j)
+                for (int j = 0; tints != null && j < tints.length; ++j)
                 {
-                    int tint = tints.getInt(j) & 0x00FFFFFF;
+                    int tint = tints[j] & 0x00FFFFFF;
 
                     if (tint != 0 && tint != 0x00FFFFFF)
                     {

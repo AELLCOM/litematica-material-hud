@@ -3,14 +3,14 @@ package com.aell.layerlist.schematics.preview;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.renderpearl.api.commands.CommandEncoder;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,17 +19,14 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
-import net.minecraft.client.renderer.Projection;
-import net.minecraft.client.renderer.ProjectionMatrixBuffer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.SubmitNodeStorage;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.gui.render.state.pip.PictureInPictureRenderState;
+import net.minecraft.client.renderer.CachedOrthoProjectionMatrixBuffer;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
-import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4fStack;
-import org.joml.Vector4f;
-import org.joml.Vector4fc;
 
 /**
  * Рисует заявки {@link PreviewCapture} в кадре GUI — той же цепочкой, что окно превью вкладки
@@ -49,14 +46,19 @@ import org.joml.Vector4fc;
 @Environment(EnvType.CLIENT)
 final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pass>
 {
-    private static final Vector4fc BLACK = new Vector4f(0.0F, 0.0F, 0.0F, 1.0F);
-    private static final Vector4fc WHITE = new Vector4f(1.0F, 1.0F, 1.0F, 1.0F);
+    private static final int BLACK = 0xFF000000;
+    private static final int WHITE = 0xFFFFFFFF;
     private static final float DEPTH_RANGE = 1000.0F;
     private static final int RGBA = 4;
 
-    private final Projection projection = new Projection();
-    private final ProjectionMatrixBuffer projectionBuffer = new ProjectionMatrixBuffer("layerlist preview capture");
-    private SubmitNodeStorage submits = new SubmitNodeStorage();
+    /** 1.21.11: ортопроекция ±1000 по глубине, как у ванильного PIP. */
+    private final CachedOrthoProjectionMatrixBuffer projectionBuffer =
+            new CachedOrthoProjectionMatrixBuffer("layerlist preview capture", -DEPTH_RANGE, DEPTH_RANGE, true);
+
+    CaptureRenderer(MultiBufferSource.BufferSource buffers)
+    {
+        super(buffers);
+    }
 
     /** Невидимая заявка на вызов рендерера в кадре GUI: прямоугольник 1×1, ничего не выводит. */
     record Pass(int x0, int y0, int x1, int y1, float scale, @Nullable ScreenRectangle scissorArea,
@@ -86,7 +88,7 @@ final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pas
             this.onBlack = color(device, "layerlist preview capture (black)", width, height);
             this.onWhite = color(device, "layerlist preview capture (white)", width, height);
             this.depth = device.createTexture(() -> "layerlist preview capture depth",
-                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_RENDER_ATTACHMENT, GpuFormat.D32_FLOAT, width, height, 1, 1);
+                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_RENDER_ATTACHMENT, TextureFormat.DEPTH32, width, height, 1, 1);
             this.onBlackView = device.createTextureView(this.onBlack);
             this.onWhiteView = device.createTextureView(this.onWhite);
             this.depthView = device.createTextureView(this.depth);
@@ -95,8 +97,9 @@ final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pas
         private static GpuTexture color(GpuDevice device, String label, int width, int height)
         {
             return device.createTexture(() -> label,
-                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC | GpuTexture.USAGE_RENDER_ATTACHMENT,
-                    GpuFormat.RGBA8_UNORM, width, height, 1, 1);
+                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_COPY_SRC | GpuTexture.USAGE_RENDER_ATTACHMENT
+                            | GpuTexture.USAGE_TEXTURE_BINDING,
+                    TextureFormat.RGBA8, width, height, 1, 1);
         }
 
         @Override
@@ -143,14 +146,15 @@ final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pas
     }
 
     @Override
-    protected void renderToTexture(Pass state, PoseStack poseStack, SubmitNodeCollector collector)
+    protected void renderToTexture(Pass state, PoseStack poseStack)
     {
         // Не зовётся: prepare переопределён целиком (своя текстура, на экран ничего)
     }
 
     @Override
-    public void prepare(Pass state, GuiRenderState guiState, FeatureRenderDispatcher dispatcher, int guiScale)
+    public void prepare(Pass state, GuiRenderState guiState, int guiScale)
     {
+        FeatureRenderDispatcher dispatcher = Minecraft.getInstance().gameRenderer.getFeatureRenderDispatcher();
         PreviewCapture.Job job = PreviewCapture.pollReady();
 
         if (job == null)
@@ -166,7 +170,7 @@ final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pas
         catch (RuntimeException | LinkageError e)
         {
             // Недоотправленное в хранилище не должно попасть в следующий кадр
-            this.submits = new SubmitNodeStorage();
+            dispatcher.getSubmitNodeStorage().clear();
             PreviewCapture.fail(job, new PreviewCapture.CaptureFailed("drawing failed", e));
         }
     }
@@ -201,8 +205,7 @@ final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pas
 
         try
         {
-            this.projection.setupOrtho(-DEPTH_RANGE, DEPTH_RANGE, width, height, true);
-            RenderSystem.setProjectionMatrix(this.projectionBuffer.getBuffer(this.projection), ProjectionType.ORTHOGRAPHIC);
+            RenderSystem.setProjectionMatrix(this.projectionBuffer.getBuffer(width, height), ProjectionType.ORTHOGRAPHIC);
             RenderSystem.disableScissorForRenderTypeDraws();
 
             this.pass(encoder, dispatcher, model, camera, targets.onBlack, targets.onBlackView, BLACK, targets, width, height, scale);
@@ -235,22 +238,32 @@ final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pas
 
     /** Один проход: фон — {@code background}, глубина — заново, модель — та же цепочка, что у окна превью. */
     private void pass(CommandEncoder encoder, FeatureRenderDispatcher dispatcher, PreviewModel model, PreviewCamera.Key camera,
-            GpuTexture color, GpuTextureView colorView, Vector4fc background, Targets targets, int width, int height, int scale)
+            GpuTexture color, GpuTextureView colorView, int background, Targets targets, int width, int height, int scale)
     {
-        encoder.clearColorAndDepthTextures(color, background, targets.depth, 0.0);
+        // 1.21.11: глубина прямая (дальше — 1.0), как у ванильного PIP
+        encoder.clearColorAndDepthTextures(color, background, targets.depth, 1.0);
 
         // Как поза ванильного PIP при масштабе GUI = scale: центр текстуры, Z от зрителя
         PoseStack pose = new PoseStack();
         pose.translate(width / 2.0F, height / 2.0F, 0.0F);
         pose.scale(scale, scale, -scale);
-        PreviewPipRenderer.submitModel(model, camera, pose, this.submits);
+        PreviewPipRenderer.submitModel(model, camera, pose, dispatcher.getSubmitNodeStorage());
 
-        try (FeatureRenderDispatcher.PreparedFrame frame = dispatcher.prepareFrame(this.submits);
-             RenderPass pass = encoder.createRenderPass(() -> "layerlist preview capture", colorView, Optional.empty(),
-                     targets.depthView, OptionalDouble.empty()))
+        // Проходов нет — вывод в свою текстуру через подмену цели, как в ванильном PIP
+        GpuTextureView colorBefore = RenderSystem.outputColorTextureOverride;
+        GpuTextureView depthBefore = RenderSystem.outputDepthTextureOverride;
+        RenderSystem.outputColorTextureOverride = colorView;
+        RenderSystem.outputDepthTextureOverride = targets.depthView;
+
+        try
         {
-            RenderSystem.bindDefaultUniforms(pass);
-            FeatureRenderDispatcher.renderAllFeatures(pass, frame);
+            dispatcher.renderAllFeatures();
+            this.bufferSource.endBatch();
+        }
+        finally
+        {
+            RenderSystem.outputColorTextureOverride = colorBefore;
+            RenderSystem.outputDepthTextureOverride = depthBefore;
         }
     }
 
@@ -301,7 +314,7 @@ final class CaptureRenderer extends PictureInPictureRenderer<CaptureRenderer.Pas
 
     private static byte[] read(GpuBuffer buffer, int width, int height)
     {
-        try (GpuBufferSlice.MappedView view = buffer.map(true, false))
+        try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder().mapBuffer(buffer, true, false))
         {
             ByteBuffer data = view.data();
             byte[] rgba = new byte[width * height * RGBA];

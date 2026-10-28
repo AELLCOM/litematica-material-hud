@@ -17,7 +17,7 @@ import fi.dy.masa.litematica.world.SchematicWorldHandler;
 import fi.dy.masa.litematica.world.WorldSchematic;
 import fi.dy.masa.malilib.util.LayerMode;
 import fi.dy.masa.malilib.util.StringUtils;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ByteMap;
@@ -1045,8 +1045,8 @@ public final class LayerVerifier
             {
                 filter = true;
                 axis = layerRange.getAxis();
-                min = layerRange.getMinLayerBoundary();
-                max = layerRange.getMaxLayerBoundary();
+                min = layerRange.getLayerMin();
+                max = layerRange.getLayerMax();
             }
         }
 

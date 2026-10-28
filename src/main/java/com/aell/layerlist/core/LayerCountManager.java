@@ -28,8 +28,8 @@ import fi.dy.masa.litematica.world.SchematicWorldHandler;
 import fi.dy.masa.litematica.world.WorldSchematic;
 import fi.dy.masa.malilib.util.LayerMode;
 import fi.dy.masa.malilib.util.data.tag.CompoundData;
-import fi.dy.masa.malilib.util.position.IntBoundingBox;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.IntBoundingBox;
+import fi.dy.masa.malilib.util.LayerRange;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -309,7 +309,7 @@ public class LayerCountManager
 
     private static boolean storageScreenOpen()
     {
-        Screen screen = Minecraft.getInstance().gui.screen();
+        Screen screen = Minecraft.getInstance().screen;
         return screen instanceof AbstractContainerScreen<?> && ! (screen instanceof InventoryScreen)
                 && ! (screen instanceof CreativeModeInventoryScreen);
     }
@@ -557,7 +557,7 @@ public class LayerCountManager
     {
         LayerRange range = MaterialCutoff.countRange();
         return range.getLayerMode().ordinal() + ":" + range.getAxis().ordinal() + ":"
-                + range.getMinLayerBoundary() + ":" + range.getMaxLayerBoundary();
+                + range.getLayerMin() + ":" + range.getLayerMax();
     }
 
     private void startRecount(Minecraft mc)
@@ -837,7 +837,7 @@ public class LayerCountManager
         {
             ChunkPos pos = this.pendingChunks.poll();
             long chunkKey = chunkKey(pos);
-            boolean verified = WorldUtils.isClientChunkLoaded(mc.level, pos.x(), pos.z());
+            boolean verified = WorldUtils.isClientChunkLoaded(mc.level, pos.x, pos.z);
             // Кэш-чанк Bobby — снимок блоков: сущностей в нём нет, сущностей блоков может не быть (no-block-entities).
             // Узор, черепки и профиль там не сверяются (только состояние), сущности схемы — как в незагруженном чанке
             boolean snapshot = verified && bobbyChunk(mc, pos);
@@ -1569,7 +1569,7 @@ public class LayerCountManager
 
     /**
      * Часть бокса, которая попадает в диапазон слоёв; null — не попадает ничего. Обрезку делает
-     * malilib ({@link LayerRange#getClampedBox}); здесь — только случаи, где его ответ расходится с
+     * malilib (в 26.x — {@code LayerRange.getClampedBox}, в 0.27 его нет — режем сами); здесь — только случаи, где его ответ расходится с
      * тем, что нужно счёту: он строит итог через {@code createProper}, то есть вывернутый бокс или
      * вывернутый диапазон не отбрасывает, а разворачивает, а без оси падает на {@code switch}.
      */
@@ -1588,25 +1588,43 @@ public class LayerCountManager
         }
 
         // LAYER_RANGE с min > max бывает только из файла настроек — в такой диапазон не попадает ничего
-        if (range.getMinLayerBoundary() > range.getMaxLayerBoundary())
+        int lo = range.getLayerMin();
+        int hi = range.getLayerMax();
+
+        if (lo > hi)
         {
             return null;
         }
 
-        return range.getClampedBox(bb);
+        // malilib 0.27 (1.21.11) не умеет резать бокс по слою — режем по оси диапазона сами
+        Direction.Axis axis = range.getAxis();
+        int from = Math.max(bb.getMinValueForAxis(axis), lo);
+        int to = Math.min(bb.getMaxValueForAxis(axis), hi);
+
+        if (from > to)
+        {
+            return null;
+        }
+
+        return switch (axis)
+        {
+            case X -> new IntBoundingBox(from, bb.minY(), bb.minZ(), to, bb.maxY(), bb.maxZ());
+            case Y -> new IntBoundingBox(bb.minX(), from, bb.minZ(), bb.maxX(), to, bb.maxZ());
+            case Z -> new IntBoundingBox(bb.minX(), bb.minY(), from, bb.maxX(), bb.maxY(), to);
+        };
     }
 
     /** Чанк клиента — кэш-чанк Bobby ({@code FakeChunk}), а не присланный сервером. */
     private static boolean bobbyChunk(Minecraft mc, ChunkPos pos)
     {
-        net.minecraft.world.level.chunk.LevelChunk chunk = mc.level.getChunkSource().getChunk(pos.x(), pos.z(),
+        net.minecraft.world.level.chunk.LevelChunk chunk = mc.level.getChunkSource().getChunk(pos.x, pos.z,
                 net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
         return chunk != null && chunk.getClass().getName().equals("de.johni0702.minecraft.bobby.FakeChunk");
     }
 
     private static long chunkKey(ChunkPos pos)
     {
-        return ((long) pos.z() << 32) | (pos.x() & 0xFFFFFFFFL);
+        return ((long) pos.z << 32) | (pos.x & 0xFFFFFFFFL);
     }
 
     /** {@code blockEntities} — данные блоков региона из файла схемы, по координатам контейнера. */

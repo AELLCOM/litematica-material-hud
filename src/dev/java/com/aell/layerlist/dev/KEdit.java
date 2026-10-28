@@ -452,12 +452,12 @@ final class KEdit
 
         this.mouseX = guiX;
         this.mouseY = guiY;
-        mc.mouseHandler.onMove(window.handle(), guiX * window.getScreenWidth() / window.getGuiScaledWidth(),
+        DevInput.onMove(mc.mouseHandler, window.handle(), guiX * window.getScreenWidth() / window.getGuiScaledWidth(),
                 guiY * window.getScreenHeight() / window.getGuiScaledHeight(), 0.0, 0.0);
 
         // Без фокуса окна ваниль не разносит перетаскивание (handleAccumulatedMovement) — тогда то же
         // событие экрану, что разнесла бы она
-        if (this.heldButton >= 0 && ! mc.isWindowActive() && mc.gui.screen() != null)
+        if (this.heldButton >= 0 && ! mc.isWindowActive() && mc.screen != null)
         {
             if (! this.inactiveNoted)
             {
@@ -465,14 +465,14 @@ final class KEdit
                 this.k.info(T + "окно без фокуса — перетаскивание доставляется экрану событием mouseDragged");
             }
 
-            mc.gui.screen().mouseDragged(new MouseButtonEvent(guiX, guiY, new MouseButtonInfo(this.heldButton, 0)), dx, dy);
+            mc.screen.mouseDragged(new MouseButtonEvent(guiX, guiY, new MouseButtonInfo(this.heldButton, 0)), dx, dy);
         }
     }
 
     private void realButton(int button, int mods, int action)
     {
         Minecraft mc = Minecraft.getInstance();
-        mc.mouseHandler.onButton(mc.getWindow().handle(), new MouseButtonInfo(button, mods), action);
+        DevInput.onButton(mc.mouseHandler, mc.getWindow().handle(), new MouseButtonInfo(button, mods), action);
         this.heldButton = action == InputConstants.PRESS ? button : -1;
     }
 
@@ -615,7 +615,7 @@ final class KEdit
             return false;
         }
 
-        Camera camera = mc.gameRenderer.mainCamera();
+        Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 eye = mc.player == null ? Vec3.ZERO : mc.player.getEyePosition();
         double off = camera.position().distanceTo(eye);
 
@@ -1242,7 +1242,7 @@ final class KEdit
             return true;
         }
 
-        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         double off = camera.position().distanceTo(OrbitCamera.position());
         Vec3 f = OrbitCamera.forward();
         double dirOff = f.subtract(camera.forwardVector().x(), camera.forwardVector().y(), camera.forwardVector().z()).length();
@@ -1342,7 +1342,7 @@ final class KEdit
         // По щелчку: ваниль копит дробные доли и отдаёт экрану целые щелчки
         for (int i = 0; i < Math.abs((int) notches); ++i)
         {
-            mc.mouseHandler.onScroll(mc.getWindow().handle(), 0.0, Math.signum(notches));
+            DevInput.onScroll(mc.mouseHandler, mc.getWindow().handle(), 0.0, Math.signum(notches));
         }
 
         return true;
@@ -1400,7 +1400,7 @@ final class KEdit
     /** Камера мира стоит там же, где настоящий глаз облёта (миксин ставит его, а не расчётную позу). */
     private void cameraOnEye(String what)
     {
-        double off = Minecraft.getInstance().gameRenderer.mainCamera().position().distanceTo(OrbitCamera.position());
+        double off = Minecraft.getInstance().gameRenderer.getMainCamera().position().distanceTo(OrbitCamera.position());
         this.check(String.format(Locale.ROOT, "%s: камера мира на глазу облёта (%.3f)", what, off), off < 0.05);
     }
 

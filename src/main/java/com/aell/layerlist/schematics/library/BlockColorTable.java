@@ -10,13 +10,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.color.block.BlockTintSource;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.RenderShape;
@@ -82,8 +80,8 @@ final class BlockColorTable
             }
 
             Minecraft mc = Minecraft.getInstance();
-            BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
-            List<BlockStateModelPart> parts = new ArrayList<>();
+            BlockStateModel model = mc.getBlockRenderer().getBlockModel(state);
+            List<BlockModelPart> parts = new ArrayList<>();
             model.collectParts(RandomSource.create(42L), parts);
 
             BlockColors tints = mc.getBlockColors();
@@ -98,8 +96,8 @@ final class BlockColorTable
             if (top == 0 && side == 0)
             {
                 // Жидкости и «особые» блоки (сундуки, шалкеры) без граней в модели — по частице
-                Material.Baked particle = model.particleMaterial();
-                int color = particle == null ? 0 : spriteColor(particle.sprite());
+                TextureAtlasSprite particle = model.particleIcon();
+                int color = particle == null ? 0 : spriteColor(particle);
                 top = color == 0 ? 0 : tinted(color, tint(state, 0, tints));
             }
         }
@@ -128,11 +126,11 @@ final class BlockColorTable
     }
 
     /** Цвет грани: первая четверть модели, смотрящая в эту сторону (из отсекаемых или общих). */
-    private static int faceColor(List<BlockStateModelPart> parts, Direction direction, BlockState state, BlockColors tints)
+    private static int faceColor(List<BlockModelPart> parts, Direction direction, BlockState state, BlockColors tints)
     {
         BakedQuad quad = null;
 
-        for (BlockStateModelPart part : parts)
+        for (BlockModelPart part : parts)
         {
             quad = first(part.getQuads(direction), null);
 
@@ -152,14 +150,14 @@ final class BlockColorTable
             return 0;
         }
 
-        int color = spriteColor(quad.materialInfo().sprite());
+        int color = spriteColor(quad.sprite());
 
         if (color == 0)
         {
             return 0;
         }
 
-        return quad.materialInfo().isTinted() ? tinted(color, tint(state, quad.materialInfo().tintIndex(), tints)) : color;
+        return quad.isTinted() ? tinted(color, tint(state, quad.tintIndex(), tints)) : color;
     }
 
     private static @Nullable BakedQuad first(List<BakedQuad> quads, @Nullable Direction facing)
@@ -182,14 +180,8 @@ final class BlockColorTable
             return WHITE;
         }
 
-        BlockTintSource source = tints.getTintSource(state, layer);
-
-        if (source == null)
-        {
-            return WHITE;
-        }
-
-        int color = source.color(state);
+        // 1.21.11: оттенок без мира — BlockColors.getColor с пустыми миром и позицией (как у предметов-блоков)
+        int color = tints.getColor(state, null, null, layer);
 
         // -1 — «слой без оттенка» (у лепестков и т. п.)
         return color == -1 ? WHITE : color & WHITE;

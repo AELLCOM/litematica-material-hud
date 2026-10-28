@@ -2,7 +2,7 @@ package com.aell.layerlist.mixin.ghost;
 
 import com.aell.layerlist.ghost.GhostSupport;
 import fi.dy.masa.litematica.data.DataManager;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.spongepowered.asm.mixin.Mixin;

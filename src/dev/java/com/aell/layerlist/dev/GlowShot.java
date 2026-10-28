@@ -192,7 +192,7 @@ final class GlowShot implements CovJob
     {
         CovOut.log("[glow] перед снимком: совпадений " + StorageSearch.getInstance().getMatches().size()
                 + ", кадров рендера подсветки " + com.aell.layerlist.storage.StorageHighlightRenderer.frames);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
         CovOut.log("[glow] снимок " + name);
     }
 

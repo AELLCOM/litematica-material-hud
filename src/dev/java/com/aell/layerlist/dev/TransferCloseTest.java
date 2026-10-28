@@ -196,8 +196,8 @@ public final class TransferCloseTest implements CovJob
                     }
 
                     this.check(this.tag(r) + ": нужного нет — переноса не было", ! TransferButton.busy(), "");
-                    this.check(this.tag(r) + ": окно осталось открытым", mc.gui.screen() instanceof AbstractContainerScreen<?>,
-                            String.valueOf(mc.gui.screen()));
+                    this.check(this.tag(r) + ": окно осталось открытым", mc.screen instanceof AbstractContainerScreen<?>,
+                            String.valueOf(mc.screen));
                     this.check(this.tag(r) + ": камня у игрока нет", countStone(mc.player.getInventory()) == 0, "камня " + countStone(mc.player.getInventory()));
                     this.stage = 8;
                     return false;
@@ -231,12 +231,12 @@ public final class TransferCloseTest implements CovJob
 
                 if (r.closeAfter() >= 0L)
                 {
-                    Screen screen = mc.gui.screen();
+                    Screen screen = mc.screen;
                     boolean carried = mc.player.containerMenu != null && ! mc.player.containerMenu.getCarried().isEmpty();
                     CovOut.log("[close] " + this.tag(r) + ": закрываю окно, перенос идёт " + TransferButton.busy() + ", на курсоре "
                             + (carried ? mc.player.containerMenu.getCarried() : "пусто") + ", пинг " + latency(mc) + " мс");
 
-                    for (int i = 0; i < r.closes() && mc.gui.screen() instanceof AbstractContainerScreen<?>; ++i)
+                    for (int i = 0; i < r.closes() && mc.screen instanceof AbstractContainerScreen<?>; ++i)
                     {
                         if (r.direct())
                         {
@@ -244,12 +244,12 @@ public final class TransferCloseTest implements CovJob
                         }
                         else
                         {
-                            mc.gui.screen().onClose();
+                            mc.screen.onClose();
                         }
                     }
 
                     CovOut.log("[close] " + this.tag(r) + ": сразу после просьбы закрыть окно "
-                            + (mc.gui.screen() == screen ? "ещё открыто" : "закрыто"));
+                            + (mc.screen == screen ? "ещё открыто" : "закрыто"));
                 }
 
                 wait = 4000L;
@@ -262,9 +262,9 @@ public final class TransferCloseTest implements CovJob
                 boolean shouldClose = r.closeAfter() >= 0L || r.autoClose();
                 this.check(this.tag(r) + (r.closeAfter() >= 0L ? ": окно закрылось само"
                                 : r.autoClose() ? ": выход после набора — нужного больше нет" : ": выход после набора выключен — окно открыто"),
-                        (mc.gui.screen() == null) == shouldClose, String.valueOf(mc.gui.screen()));
+                        (mc.screen == null) == shouldClose, String.valueOf(mc.screen));
 
-                if (mc.gui.screen() != null)
+                if (mc.screen != null)
                 {
                     mc.player.closeContainer();
                 }
@@ -283,7 +283,7 @@ public final class TransferCloseTest implements CovJob
             {
                 int chest = -1;
 
-                if (mc.gui.screen() instanceof AbstractContainerScreen<?> container)
+                if (mc.screen instanceof AbstractContainerScreen<?> container)
                 {
                     chest = 0;
 
@@ -315,7 +315,7 @@ public final class TransferCloseTest implements CovJob
             }
             case 20 ->
             {
-                if (mc.gui.screen() != null)
+                if (mc.screen != null)
                 {
                     if (now - this.started > 8000L)
                     {
@@ -331,7 +331,7 @@ public final class TransferCloseTest implements CovJob
                 // Игрок жмёт Esc в миг автовыхода — меню паузы не открывается
                 EscGuardTest.esc(mc);
                 this.check(this.tag(r) + ": Esc сразу после автовыхода — паузы нет",
-                        ! (mc.gui.screen() instanceof net.minecraft.client.gui.screens.PauseScreen), String.valueOf(mc.gui.screen()));
+                        ! (mc.screen instanceof net.minecraft.client.gui.screens.PauseScreen), String.valueOf(mc.screen));
                 this.stage = 21;
                 this.nextAt = now + 1700L;
                 return false;
@@ -340,15 +340,15 @@ public final class TransferCloseTest implements CovJob
             {
                 EscGuardTest.esc(mc);
                 this.check(this.tag(r) + ": через 1,7 с Esc — пауза как обычно",
-                        mc.gui.screen() instanceof net.minecraft.client.gui.screens.PauseScreen, String.valueOf(mc.gui.screen()));
-                mc.gui.setScreen(null);
+                        mc.screen instanceof net.minecraft.client.gui.screens.PauseScreen, String.valueOf(mc.screen));
+                mc.setScreen(null);
                 this.stage = 5;
                 this.nextAt = now + 1000L;
                 return false;
             }
             case 8 ->
             {
-                if (mc.gui.screen() != null)
+                if (mc.screen != null)
                 {
                     mc.player.closeContainer();
                 }

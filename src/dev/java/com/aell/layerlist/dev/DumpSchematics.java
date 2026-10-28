@@ -166,7 +166,6 @@ public final class DumpSchematics implements CovJob
     private final KSources sources = new KSources(this);
     private final KPerf perf = new KPerf(this);
     private final KTrash trash = new KTrash(this);
-    private final KRename rename = new KRename(this);
     private final KDeselect deselect = new KDeselect(this);
     private final KHotkey hotkey = new KHotkey(this);
     private final KPoster poster = new KPoster(this);
@@ -329,7 +328,6 @@ public final class DumpSchematics implements CovJob
             this.hotkey.cleanup();
             this.deselect.cleanup();
             this.trash.cleanup();
-            this.rename.cleanup();
             this.naming.cleanup();
             this.sources.cleanup();
             this.dialog.cleanup();
@@ -542,12 +540,10 @@ public final class DumpSchematics implements CovJob
         List<Step> steps = new ArrayList<>();
         steps.add(new Step("GUI 2 (корзина, выбор, клавиша)", 8_000L, this.window(1600, 900, 2)));
         steps.addAll(this.trash.steps(""));
-        steps.addAll(this.rename.steps(""));
         steps.addAll(this.deselect.steps(""));
         steps.addAll(this.hotkey.steps(""));
         steps.add(new Step("GUI 3 (корзина, выбор, клавиша)", 8_000L, this.window(1600, 900, 3)));
         steps.addAll(this.trash.steps("s3-"));
-        steps.addAll(this.rename.steps("s3-"));
         steps.addAll(this.deselect.steps("s3-"));
         steps.addAll(this.hotkey.steps("s3-"));
         steps.add(new Step("GUI 2 — после шагов «Библиотеки»", 8_000L, this.window(1600, 900, 2)));
@@ -789,7 +785,7 @@ public final class DumpSchematics implements CovJob
     static void scale(Minecraft mc, int value)
     {
         mc.options.guiScale().set(value);
-        mc.resizeGui();
+        mc.resizeDisplay();
     }
 
     // ===== Экран =====
@@ -1035,19 +1031,6 @@ public final class DumpSchematics implements CovJob
         if ("lib".equals(System.getenv("LL_K_ONLY")))
         {
             steps.addAll(this.libSteps());
-            steps.add(new Step("закрыть экран", 3_000L, m -> this.closeScreen()));
-            steps.add(new Step("снимки записаны", 10_000L, m -> this.shotsWritten()));
-            this.insertNext(steps);
-            return true;
-        }
-
-        // LL_K_ONLY=rename — только переименование в «Библиотеке» (25.10.2026) при GUI 2 и 3
-        if ("rename".equals(System.getenv("LL_K_ONLY")))
-        {
-            steps.add(new Step("GUI 2 (переименование)", 8_000L, this.window(1600, 900, 2)));
-            steps.addAll(this.rename.steps(""));
-            steps.add(new Step("GUI 3 (переименование)", 8_000L, this.window(1600, 900, 3)));
-            steps.addAll(this.rename.steps("s3-"));
             steps.add(new Step("закрыть экран", 3_000L, m -> this.closeScreen()));
             steps.add(new Step("снимки записаны", 10_000L, m -> this.shotsWritten()));
             this.insertNext(steps);
@@ -1755,8 +1738,8 @@ public final class DumpSchematics implements CovJob
     /** Правила, которые видно только на своём образце: узор флага, лиана на двух гранях, стойка. */
     private void generatedRowChecks(List<MaterialRow> ours)
     {
-        long bannerRows = ours.stream().filter(r -> r.stack().is(Items.BANNER.pick(DyeColor.WHITE))).count();
-        long bannerTotal = ours.stream().filter(r -> r.stack().is(Items.BANNER.pick(DyeColor.WHITE))).mapToLong(MaterialRow::total).sum();
+        long bannerRows = ours.stream().filter(r -> r.stack().is(Items.WHITE_BANNER)).count();
+        long bannerTotal = ours.stream().filter(r -> r.stack().is(Items.WHITE_BANNER)).mapToLong(MaterialRow::total).sum();
         long vine = ours.stream().filter(r -> r.stack().is(Items.VINE)).mapToLong(MaterialRow::total).sum();
         MaterialRow stand = ours.stream().filter(r -> r.stack().is(Items.ARMOR_STAND)).findFirst().orElse(null);
 
@@ -2172,7 +2155,7 @@ public final class DumpSchematics implements CovJob
         }
 
         List<Item> set = List.of(Items.STONE, Items.GRASS_BLOCK, Items.OAK_STAIRS, Items.OAK_SLAB, Items.GLASS, Items.OAK_LEAVES,
-                Items.TORCH, Items.POTION, Items.LEATHER_CHESTPLATE, Items.BANNER.pick(DyeColor.WHITE), Items.CHEST, Items.SHULKER_BOX,
+                Items.TORCH, Items.POTION, Items.LEATHER_CHESTPLATE, Items.WHITE_BANNER, Items.CHEST, Items.SHULKER_BOX,
                 Items.PLAYER_HEAD);
 
         // Иконки рисует игра в кадре GUI: заказ, потом ждём, пока придут все (шаг повторяется)
@@ -2304,7 +2287,7 @@ public final class DumpSchematics implements CovJob
         String file = String.format(Locale.ROOT, "k-%02d-%s.png", ++this.shotNo, name);
         Path path = this.shots.resolve(file);
 
-        Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image ->
+        Screenshot.takeScreenshot(mc.getMainRenderTarget(), image ->
         {
             try (NativeImage owned = image)
             {

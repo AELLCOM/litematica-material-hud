@@ -800,10 +800,8 @@ final class KSources
 
     private static void move(double guiX, double guiY)
     {
-        Minecraft mc = Minecraft.getInstance();
-        var window = mc.getWindow();
-        mc.mouseHandler.onMove(window.handle(), guiX * window.getScreenWidth() / window.getGuiScaledWidth(),
-                guiY * window.getScreenHeight() / window.getGuiScaledHeight(), 0.0, 0.0);
+        // 26.2: MouseHandler.onMove закрыт — тот же путь, что у остальных шагов харнесса
+        SupportTest.moveMouse(Minecraft.getInstance(), guiX, guiY);
     }
 
     /** Клетки размещения с блоком схемы, чей предмет — {@code item}: воздух в мире / не тот блок / верный. */
@@ -1059,7 +1057,7 @@ final class KSources
     /** Litematica «один слой» на нижнем слое размещения (или вернуть прежний режим). */
     private boolean singleLayer(boolean on)
     {
-        fi.dy.masa.malilib.util.position.LayerRange range = fi.dy.masa.litematica.data.DataManager.getRenderLayerRange();
+        fi.dy.masa.malilib.util.LayerRange range = fi.dy.masa.litematica.data.DataManager.getRenderLayerRange();
 
         if (! on)
         {

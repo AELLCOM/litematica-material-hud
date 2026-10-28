@@ -49,15 +49,6 @@ public final class ZonePlaceTest implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         if (! ZoneFocusFiles.available())
         {
             CovOut.log("[zoneplace] нет Zone Focus 0.0.8+ в run/mods");
@@ -140,7 +131,7 @@ public final class ZonePlaceTest implements CovJob
                             String.valueOf(name));
                     this.check("после размещения 4 зоны", summary != null && summary[0] == 4, Arrays.toString(summary));
                     shot(mc, "редактор — размещение сразу в зонах");
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     wait = 1000L;
                 }
                 default ->
@@ -199,7 +190,7 @@ public final class ZonePlaceTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[zoneplace] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

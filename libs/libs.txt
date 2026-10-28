@@ -1,5 +1,5 @@
-malilib-fabric-26.3-0.30.1.jar https://cdn.modrinth.com/data/GcWjdA9I/versions/DPcJACN6/malilib-fabric-26.3-0.30.1.jar a43a41725bf86e2aafd600c3088d68c2231ff195
-litematica-fabric-26.3-0.29.0.jar https://cdn.modrinth.com/data/bEpr0Arc/versions/fEqsesPK/litematica-fabric-26.3-0.29.0.jar 4e7f9ffe3533a54cdecb9a4d6e0d2fb71723d338
-syncmatica-fabric-26.3-0.3.20.jar https://cdn.modrinth.com/data/bfneejKo/versions/uT7TJ2Wp/syncmatica-fabric-26.3-0.3.20.jar 554319fbea6c0f7e17c73a4fec4f984374da63dc
-voxy-0.2.20-beta.jar https://cdn.modrinth.com/data/fxxUqruK/versions/iIrM8ZKQ/voxy-0.2.20-beta.jar a0efa54716b0fcbf4075cc18f4dbfbdc3b0cf305
-sodium-fabric-0.9.3-alpha.1+mc26.3.jar https://cdn.modrinth.com/data/AANobbMI/versions/v4PSXean/sodium-fabric-0.9.3-alpha.1%2Bmc26.3.jar 5d88caf6f3e182cd39d0fb0d2e7200c5e613f287
+syncmatica-fabric-1.21.11-0.3.20.jar https://cdn.modrinth.com/data/bfneejKo/versions/jMRygmU0/syncmatica-fabric-1.21.11-0.3.20.jar 0712bef5f864c6ec9a0924e966857c37ab8ae627
+voxy-0.2.16-beta+1.21.11.jar https://cdn.modrinth.com/data/fxxUqruK/versions/H3w2nVdU/voxy-0.2.16-beta%2B1.21.11.jar 280a55279e0860d29146d908cd8a0246a12e2537
+sodium-fabric-0.8.12+mc1.21.11.jar https://cdn.modrinth.com/data/AANobbMI/versions/NFkjnzWE/sodium-fabric-0.8.12%2Bmc1.21.11.jar 4d80592bef36674e7469ae2737a7704b826289ae
+malilib-fabric-1.21.11-0.27.20.jar https://cdn.modrinth.com/data/GcWjdA9I/versions/loabWpyU/malilib-fabric-1.21.11-0.27.20.jar ba18a2c6664b4136006090e3cd0263a2703edb75
+litematica-fabric-1.21.11-0.26.16.jar https://cdn.modrinth.com/data/bEpr0Arc/versions/mengBR9D/litematica-fabric-1.21.11-0.26.16.jar 6faf0156520bc951a3a57681914228ea9354cc64

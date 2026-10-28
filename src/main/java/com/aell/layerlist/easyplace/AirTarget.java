@@ -3,7 +3,7 @@ package com.aell.layerlist.easyplace;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.world.SchematicWorldHandler;
 import fi.dy.masa.litematica.world.WorldSchematic;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.api.EnvType;

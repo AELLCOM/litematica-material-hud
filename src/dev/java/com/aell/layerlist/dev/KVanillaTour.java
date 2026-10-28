@@ -347,7 +347,7 @@ final class KVanillaTour
                 if (movedAt[0] == 0L)
                 {
                     movedAt[0] = now;
-                    mc.mouseHandler.onMove(mc.getWindow().handle(), 2.0, 2.0, 0.0, 0.0);
+                    SupportTest.moveMouse(mc, 1.0, 1.0);
                 }
 
                 // После сдвига мыши — пара кадров, чтобы наведение погасло
@@ -892,7 +892,7 @@ final class KVanillaTour
         }
 
         Inventory inventory = mc.player.getInventory();
-        mc.gui.setScreen(new ContainerScreen(ChestMenu.sixRows(0, inventory), inventory, Component.literal("Большой сундук")));
+        mc.setScreen(new ContainerScreen(ChestMenu.sixRows(0, inventory), inventory, Component.literal("Большой сундук")));
         return true;
     }
 

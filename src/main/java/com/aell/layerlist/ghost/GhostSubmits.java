@@ -4,7 +4,6 @@ import com.aell.layerlist.mixin.ghost.IMixinRenderSetup;
 import com.aell.layerlist.mixin.ghost.IMixinRenderType;
 import com.aell.layerlist.mixin.ghost.IMixinTextureBinding;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import fi.dy.masa.litematica.config.Configs;
 import java.util.ArrayList;
@@ -12,38 +11,34 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.renderer.v1.mesh.Mesh;
-import net.fabricmc.fabric.api.client.rendering.v1.SubmitRenderPhase;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.model.Model;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.MovingBlockRenderState;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.feature.submit.SubmitNode;
-import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
-import net.minecraft.client.renderer.texture.UvMapping;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.geometry.ItemQuads;
+import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
 
@@ -61,6 +56,9 @@ import org.joml.Quaternionf;
  *   <li>тени у голограмм не рисуются; надписи, частицы и прочее — как есть.</li>
  * </ul>
  * Прозрачность — та же, что у голограмм блоков («Ghost Alpha» Litematica), и только когда она включена.
+ *
+ * <p>1.21.11: набор методов {@link OrderedSubmitNodeCollector} свой (блочная модель — {@code BlockStateModel}
+ * с цветом r/g/b, части модели — {@code submitModelPart}), квады кладутся ванильным {@code putBulkData}.
  */
 @Environment(EnvType.CLIENT)
 public final class GhostSubmits
@@ -127,106 +125,43 @@ public final class GhostSubmits
         return ARGB.color(ARGB.alpha(argb) * alpha / 255, argb);
     }
 
-    /** Квады блочной модели или предмета — своей геометрией в полупрозрачном слое атласа, по одному слою на атлас. */
-    static void submitQuads(OrderedSubmitNodeCollector out, PoseStack pose, List<BakedQuad> quads, int[] tints,
-            int light, int overlay, int alpha)
+    /**
+     * Квады блочной модели или предмета — своей геометрией в полупрозрачном слое атласа, по одному слою на атлас.
+     * Оттенок квада: {@code tints[tintIndex]}, а при {@code tints == null} — один цвет {@code tint} на все тонируемые.
+     */
+    static void submitQuads(OrderedSubmitNodeCollector out, PoseStack pose, List<BakedQuad> quads, int @Nullable [] tints,
+            int tint, int light, int overlay, int alpha)
     {
         Map<Identifier, List<BakedQuad>> byAtlas = new LinkedHashMap<>();
 
         for (BakedQuad quad : quads)
         {
-            byAtlas.computeIfAbsent(quad.materialInfo().sprite().atlasLocation(), k -> new ArrayList<>()).add(quad);
+            byAtlas.computeIfAbsent(quad.sprite().atlasLocation(), k -> new ArrayList<>()).add(quad);
         }
 
         for (Map.Entry<Identifier, List<BakedQuad>> entry : byAtlas.entrySet())
         {
             List<BakedQuad> group = entry.getValue();
-            RenderType type = ITEM_TYPES.computeIfAbsent(entry.getKey(), RenderTypes::itemTranslucent);
+            RenderType type = ITEM_TYPES.computeIfAbsent(entry.getKey(), RenderTypes::itemEntityTranslucentCull);
 
             out.submitCustomGeometry(pose, type, (matrix, consumer) -> {
-                QuadInstance instance = new QuadInstance();
-
                 for (BakedQuad quad : group)
                 {
-                    int tint = quad.materialInfo().tintIndex();
-                    int color = tint >= 0 && tints != null && tint < tints.length ? tints[tint] : -1;
-                    instance.setColor(withAlpha(color, alpha));
-                    instance.setLightCoords(light);
-                    instance.setOverlayCoords(overlay);
-                    consumer.putBakedQuad(matrix, quad, instance);
+                    int index = quad.tintIndex();
+                    int color = index < 0 ? -1 : tints == null ? tint : index < tints.length ? tints[index] : -1;
+
+                    consumer.putBulkData(matrix, quad, ARGB.redFloat(color), ARGB.greenFloat(color), ARGB.blueFloat(color),
+                            alpha / 255.0F, light, overlay);
                 }
             });
         }
     }
 
-    /**
-     * Сетка Fabric Renderer API — вершинами в полупрозрачном слое блочного атласа. Данные копируются сразу:
-     * сетка может быть переиспользуемым буфером, а своя геометрия рисуется позже.
-     */
-    static void submitMesh(OrderedSubmitNodeCollector out, PoseStack pose, Mesh mesh, int[] tints, int light, int overlay,
-            int alpha)
-    {
-        List<float[]> quads = new ArrayList<>();
-        List<int[]> colors = new ArrayList<>();
-
-        mesh.forEach(quad -> {
-            float[] v = new float[4 * 8];
-            int[] c = new int[4];
-            int tint = quad.tintIndex();
-
-            for (int i = 0; i < 4; ++i)
-            {
-                v[i * 8] = quad.x(i);
-                v[i * 8 + 1] = quad.y(i);
-                v[i * 8 + 2] = quad.z(i);
-                v[i * 8 + 3] = quad.u(i);
-                v[i * 8 + 4] = quad.v(i);
-                v[i * 8 + 5] = quad.normalX(i);
-                v[i * 8 + 6] = quad.normalY(i);
-                v[i * 8 + 7] = quad.normalZ(i);
-                int color = quad.color(i);
-
-                if (tint >= 0 && tints != null && tint < tints.length)
-                {
-                    color = ARGB.multiply(color, tints[tint]);
-                }
-
-                c[i] = withAlpha(color, alpha);
-            }
-
-            quads.add(v);
-            colors.add(c);
-        });
-
-        if (quads.isEmpty())
-        {
-            return;
-        }
-
-        RenderType type = ITEM_TYPES.computeIfAbsent(net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
-                RenderTypes::itemTranslucent);
-
-        out.submitCustomGeometry(pose, type, (matrix, consumer) -> {
-            for (int q = 0; q < quads.size(); ++q)
-            {
-                float[] v = quads.get(q);
-                int[] c = colors.get(q);
-
-                for (int i = 0; i < 4; ++i)
-                {
-                    consumer.addVertex(matrix, v[i * 8], v[i * 8 + 1], v[i * 8 + 2]).setColor(c[i])
-                            .setUv(v[i * 8 + 3], v[i * 8 + 4]).setOverlay(overlay).setLight(light)
-                            .setNormal(matrix, v[i * 8 + 5], v[i * 8 + 6], v[i * 8 + 7]);
-                }
-            }
-        });
-    }
-
-    static List<BakedQuad> quads(List<BlockStateModelPart> parts)
+    static List<BakedQuad> quads(BlockStateModel model)
     {
         List<BakedQuad> out = new ArrayList<>();
 
-        for (BlockStateModelPart part : parts)
+        for (BlockModelPart part : model.collectParts(RandomSource.create(42L)))
         {
             for (Direction side : Direction.values())
             {
@@ -258,10 +193,10 @@ public final class GhostSubmits
         }
 
         @Override
-        public void submitNameTag(PoseStack pose, Vec3 offset, int y, Component name, boolean seeThrough, int light,
-                CameraRenderState camera)
+        public void submitNameTag(PoseStack pose, @Nullable Vec3 offset, int y, Component name, boolean seeThrough, int light,
+                double distance, CameraRenderState camera)
         {
-            this.out.submitNameTag(pose, offset, y, name, seeThrough, light, camera);
+            this.out.submitNameTag(pose, offset, y, name, seeThrough, light, distance, camera);
         }
 
         @Override
@@ -269,13 +204,6 @@ public final class GhostSubmits
                 Font.DisplayMode mode, int light, int color, int background, int outline)
         {
             this.out.submitText(pose, x, y, text, shadow, mode, light, color, background, outline);
-        }
-
-        @Override
-        public void submitTextBackground(PoseStack pose, float x0, float y0, float x1, float y1, int color,
-                Font.DisplayMode mode, int light)
-        {
-            this.out.submitTextBackground(pose, x0, y0, x1, y1, color, mode, light);
         }
 
         @Override
@@ -292,62 +220,48 @@ public final class GhostSubmits
 
         @Override
         public <S> void submitModel(Model<? super S> model, S state, PoseStack pose, RenderType type, int light,
-                int overlay, int tint, UvMapping uv, int outline)
+                int overlay, int tint, @Nullable TextureAtlasSprite sprite, int outline,
+                ModelFeatureRenderer.@Nullable CrumblingOverlay crumbling)
         {
-            this.out.submitModel(model, state, pose, translucent(type), light, overlay, withAlpha(tint, this.alpha), uv, outline);
+            this.out.submitModel(model, state, pose, translucent(type), light, overlay, withAlpha(tint, this.alpha), sprite,
+                    outline, crumbling);
         }
 
         @Override
-        public <S> void submitCrumblingOverlay(Model<? super S> model, S state, PoseStack pose, RenderType type,
-                int light, int overlay, int tint, ModelFeatureRenderer.CrumblingOverlay crumbling)
+        public void submitModelPart(ModelPart part, PoseStack pose, RenderType type, int light, int overlay,
+                @Nullable TextureAtlasSprite sprite, boolean sheeted, boolean foil, int tint,
+                ModelFeatureRenderer.@Nullable CrumblingOverlay crumbling, int outline)
         {
-            this.out.submitCrumblingOverlay(model, state, pose, type, light, overlay, tint, crumbling);
+            this.out.submitModelPart(part, pose, translucent(type), light, overlay, sprite, sheeted, foil,
+                    withAlpha(tint, this.alpha), crumbling, outline);
         }
 
         @Override
-        public void submitMovingBlock(PoseStack pose, MovingBlockRenderState state, int light)
+        public void submitBlock(PoseStack pose, BlockState state, int light, int overlay, int outline)
         {
-            this.out.submitMovingBlock(pose, state, light);
+            BlockStateModel model = Minecraft.getInstance().getBlockRenderer().getBlockModel(state);
+            int tint = Minecraft.getInstance().getBlockColors().getColor(state, null, null, 0);
+            submitQuads(this.out, pose, quads(model), null, tint == -1 ? -1 : 0xFF000000 | tint, light, overlay, this.alpha);
         }
 
         @Override
-        public void submitBlockModel(PoseStack pose, RenderType type, List<BlockStateModelPart> parts, int[] tints,
+        public void submitMovingBlock(PoseStack pose, MovingBlockRenderState state)
+        {
+            this.out.submitMovingBlock(pose, state);
+        }
+
+        @Override
+        public void submitBlockModel(PoseStack pose, RenderType type, BlockStateModel model, float r, float g, float b,
                 int light, int overlay, int outline)
         {
-            submitQuads(this.out, pose, quads(parts), tints, light, overlay, this.alpha);
-        }
-
-        @Override
-        public void submitBlockModel(PoseStack pose, Function<ChunkSectionLayer, RenderType> types, boolean translucentLayer,
-                List<BlockStateModelPart> parts, @Nullable Mesh mesh, int[] tints, int light, int overlay, int outline)
-        {
-            // Путь Fabric Renderer API: рамка и прочие блочные модели приходят и частями, и сеткой
-            submitQuads(this.out, pose, quads(parts), tints, light, overlay, this.alpha);
-
-            if (mesh != null && mesh.size() > 0)
-            {
-                submitMesh(this.out, pose, mesh, tints, light, overlay, this.alpha);
-            }
-        }
-
-        @Override
-        public void submitBreakingBlockModel(PoseStack pose, List<BlockStateModelPart> parts, int progress, boolean flag)
-        {
-            this.out.submitBreakingBlockModel(pose, parts, progress, flag);
-        }
-
-        @Override
-        public void submitShapeOutline(PoseStack pose, VoxelShape shape, RenderType type, int color, float width,
-                boolean seeThrough)
-        {
-            this.out.submitShapeOutline(pose, shape, type, color, width, seeThrough);
+            submitQuads(this.out, pose, quads(model), null, ARGB.colorFromFloat(1.0F, r, g, b), light, overlay, this.alpha);
         }
 
         @Override
         public void submitItem(PoseStack pose, ItemDisplayContext context, int light, int overlay, int outline,
-                int[] tints, ItemQuads quads, ItemStackRenderState.FoilType foil)
+                int[] tints, List<BakedQuad> quads, RenderType type, ItemStackRenderState.FoilType foil)
         {
-            submitQuads(this.out, pose, quads.all(), tints, light, overlay, this.alpha);
+            submitQuads(this.out, pose, quads, tints, -1, light, overlay, this.alpha);
         }
 
         @Override
@@ -368,21 +282,9 @@ public final class GhostSubmits
         }
 
         @Override
-        public void submitQuadParticleGroup(QuadParticleRenderState particles)
+        public void submitParticleGroup(SubmitNodeCollector.ParticleGroupRenderer particles)
         {
-            this.out.submitQuadParticleGroup(particles);
-        }
-
-        @Override
-        public void submitGizmoPrimitives(DrawableGizmoPrimitives.Group group, CameraRenderState camera, boolean flag)
-        {
-            this.out.submitGizmoPrimitives(group, camera, flag);
-        }
-
-        @Override
-        public <T extends SubmitNode> void submitCustom(SubmitRenderPhase<T> phase, T node)
-        {
-            this.out.submitCustom(phase, node);
+            this.out.submitParticleGroup(particles);
         }
     }
 
@@ -455,13 +357,6 @@ public final class GhostSubmits
         public VertexConsumer setUv2(int u, int v)
         {
             this.out.setUv2(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv3(float u, float v)
-        {
-            this.out.setUv3(u, v);
             return this;
         }
 

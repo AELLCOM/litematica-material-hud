@@ -52,19 +52,19 @@ public final class ZfTabShot implements CovJob
                 {
                     Screen screen = LayerListApi.createSettings(null, null, LayerListApi.TAB_ZONE_FOCUS);
                     this.check("экран настроек на вкладке Zone Focus создан", screen != null);
-                    mc.gui.setScreen(screen);
+                    mc.setScreen(screen);
                     this.nextAt = Util.getMillis() + 2500L;
                 }
                 case 1 ->
                 {
-                    this.check("экран открыт и рисуется", mc.gui.screen() != null);
+                    this.check("экран открыт и рисуется", mc.screen != null);
                     CovOut.log("[zftab] снимок вкладки");
-                    Screenshot.grab(mc, false);
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                     this.nextAt = Util.getMillis() + 1000L;
                 }
                 default ->
                 {
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     CovOut.log("[zftab] итог: " + (this.failed ? "FAIL" : "OK"));
                     return true;
                 }

@@ -17,7 +17,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.block.entity.BannerPatternLayers;
@@ -147,12 +146,10 @@ public final class DataItems
         PotDecorations decorations = stack.getOrDefault(DataComponents.POT_DECORATIONS, PotDecorations.EMPTY);
         Set<String> sherds = new LinkedHashSet<>();
 
-        for (Optional<ItemStackTemplate> side : List.of(decorations.back(), decorations.left(), decorations.right(), decorations.front()))
+        for (Optional<Item> side : List.of(decorations.back(), decorations.left(), decorations.right(), decorations.front()))
         {
-            side.ifPresent(template ->
+            side.ifPresent(sherd ->
             {
-                Item sherd = template.item().value();
-
                 if (sherd != Items.BRICK)
                 {
                     sherds.add(sherd.getDefaultInstance().getHoverName().getString());
@@ -222,7 +219,7 @@ public final class DataItems
 
         if (container != null)
         {
-            for (ItemStack item : (Iterable<ItemStack>) container.nonEmptyItemCopyStream()::iterator)
+            for (ItemStack item : container.nonEmptyItemsCopy())
             {
                 inside += countIn(item, required, depth + 1);
             }
@@ -232,7 +229,7 @@ public final class DataItems
 
         if (bundle != null)
         {
-            for (ItemStack item : (Iterable<ItemStack>) bundle.itemCopies()::iterator)
+            for (ItemStack item : (Iterable<ItemStack>) bundle.itemCopyStream()::iterator)
             {
                 inside += countIn(item, required, depth + 1);
             }

@@ -2,7 +2,7 @@ package com.aell.layerlist.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,12 +19,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinAbstractRecipeBookScreen
 {
     @Inject(
-            method = "extractRenderState",
+            method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screens/inventory/AbstractRecipeBookScreen;extractCarriedItem(Lnet/minecraft/client/gui/GuiGraphicsExtractor;II)V"),
+                    target = "Lnet/minecraft/client/gui/screens/inventory/AbstractRecipeBookScreen;renderCarriedItem(Lnet/minecraft/client/gui/GuiGraphics;II)V"),
             require = 0)
-    private void layerlist_hudUnderTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks,
+    private void layerlist_hudUnderTooltip(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks,
             CallbackInfo ci)
     {
         com.aell.layerlist.hud.LayerHudRenderer.renderUnderTooltip(graphics, mouseX, mouseY);

@@ -43,15 +43,6 @@ public final class ZoneCardShot implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         Path path = FabricLoader.getInstance().getGameDir().resolve("schematics").resolve("Портал.litematic");
         LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(path);
 
@@ -138,7 +129,7 @@ public final class ZoneCardShot implements CovJob
                 }
                 case 4 ->
                 {
-                    String screen = mc.gui.screen() == null ? "null" : mc.gui.screen().getClass().getSimpleName();
+                    String screen = mc.screen == null ? "null" : mc.screen.getClass().getSimpleName();
                     this.check("щелчок по карточке открыл «Управление зонами»", "GuiZoneManager".equals(screen), screen);
                     this.openTab(mc);
                     wait = 2500L;
@@ -155,9 +146,9 @@ public final class ZoneCardShot implements CovJob
                 }
                 case 6 ->
                 {
-                    String screen = mc.gui.screen() == null ? "null" : mc.gui.screen().getClass().getName();
+                    String screen = mc.screen == null ? "null" : mc.screen.getClass().getName();
                     this.check("кнопка в карточке открыла настройки Zone Focus", screen.contains("zonefocus"), screen);
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     manager.getClass().getMethod("clear").invoke(manager);
                     wait = 1500L;
                 }
@@ -175,7 +166,7 @@ public final class ZoneCardShot implements CovJob
                 }
                 default ->
                 {
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     CovOut.log("[zonecard] итог: " + (this.failed ? "FAIL" : "OK"));
                     return true;
                 }
@@ -185,7 +176,7 @@ public final class ZoneCardShot implements CovJob
         {
             this.check("сбой на шаге " + this.stage, false, e.toString());
             CovOut.log("[zonecard] итог: FAIL");
-            mc.gui.setScreen(null);
+            mc.setScreen(null);
             return true;
         }
 
@@ -202,7 +193,7 @@ public final class ZoneCardShot implements CovJob
         tabs.setAccessible(true);
         tabs.set(settings, null);
         SupportTest.moveMouse(mc, 4, 4);
-        mc.gui.setScreen(LayerListApi.createSettings(null, null, LayerListApi.TAB_ZONE_FOCUS));
+        mc.setScreen(LayerListApi.createSettings(null, null, LayerListApi.TAB_ZONE_FOCUS));
     }
 
     private static Object settings() throws ReflectiveOperationException
@@ -346,7 +337,7 @@ public final class ZoneCardShot implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[zonecard] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

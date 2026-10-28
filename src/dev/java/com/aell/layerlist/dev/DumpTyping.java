@@ -286,7 +286,7 @@ public final class DumpTyping implements CovJob
                 PlacementOps.remove(this.placement);
             }
 
-            if (GuiUtils.getCurrentScreen() != null || mc.gui.screen() != null)
+            if (GuiUtils.getCurrentScreen() != null || mc.screen != null)
             {
                 Nav.clear();
                 GuiBase.openGui(null);
@@ -615,7 +615,7 @@ public final class DumpTyping implements CovJob
         });
         this.expect("редактор открыт; без поля ввода текста нет", () ->
         {
-            this.editor = PlacementEditorScreen.TestHooks.current(Minecraft.getInstance().gui.screen());
+            this.editor = PlacementEditorScreen.TestHooks.current(Minecraft.getInstance().screen);
             return this.editor != null && ! this.inputOn() && ! this.sdlActive();
         }, this::state);
 
@@ -652,7 +652,7 @@ public final class DumpTyping implements CovJob
         });
         this.expect("Esc в поле: Y прежний, редактор открыт, ввод текста выключен",
                 () -> this.placement != null && this.placement.getOrigin().getY() == this.originBefore.getY()
-                        && this.editingAxis() == -1 && Minecraft.getInstance().gui.screen() == this.editor
+                        && this.editingAxis() == -1 && Minecraft.getInstance().screen == this.editor
                         && ! this.inputOn() && ! this.sdlActive(), this::placementState);
 
         this.act("клик мышью в Z", () -> this.clickField(2));
@@ -663,7 +663,7 @@ public final class DumpTyping implements CovJob
             Nav.back();
         });
         this.expect("ушли: Z не применён, поле вышло из ввода, ввод у экрана «Схемы»",
-                () -> Minecraft.getInstance().gui.screen() == this.gui && this.editor != null
+                () -> Minecraft.getInstance().screen == this.gui && this.editor != null
                         && PlacementEditorScreen.TestHooks.editingAxis(this.editor) == -1 && this.placement != null
                         && this.placement.getOrigin().getZ() == this.originBefore.getZ() && this.owner() == this.gui,
                 this::placementState);
@@ -687,7 +687,7 @@ public final class DumpTyping implements CovJob
             GuiBase.openGui(null);
         });
         this.expect("экран закрыт: ввод текста выключен, фокус снят",
-                () -> Minecraft.getInstance().gui.screen() == null && ! this.inputOn() && ! this.sdlActive()
+                () -> Minecraft.getInstance().screen == null && ! this.inputOn() && ! this.sdlActive()
                         && ! this.search().focused(), this::state);
     }
 
@@ -697,7 +697,7 @@ public final class DumpTyping implements CovJob
         this.act("экран настроек мода", () -> GuiConfigs.open(null, null));
         this.expect("настройки открыты, ввод текста держит экран", () ->
         {
-            this.configs = Minecraft.getInstance().gui.screen() instanceof GuiConfigs screen ? screen : null;
+            this.configs = Minecraft.getInstance().screen instanceof GuiConfigs screen ? screen : null;
             return this.configs != null && this.owner() == this.configs && this.inputOn() && this.sdlActive();
         }, this::state);
         this.act("клик мышью в поиск настроек", () ->
@@ -718,7 +718,7 @@ public final class DumpTyping implements CovJob
             Nav.clear();
             GuiBase.openGui(null);
         });
-        this.expect("настройки закрыты: ввод текста выключен", () -> Minecraft.getInstance().gui.screen() == null
+        this.expect("настройки закрыты: ввод текста выключен", () -> Minecraft.getInstance().screen == null
                 && ! this.inputOn() && ! this.sdlActive(), this::state);
     }
 
@@ -745,7 +745,7 @@ public final class DumpTyping implements CovJob
         this.act("XTest: ванильный чат", () ->
         {
             this.chat = new ChatScreen("", false);
-            Minecraft.getInstance().gui.setScreen(this.chat);
+            Minecraft.getInstance().setScreen(this.chat);
         });
         this.add("XTest: «q» в чат", 10_000L, mc -> this.runXTest("q"));
         this.add("XTest: контроль (ванильное поле)", 3_000L, mc ->
@@ -764,12 +764,12 @@ public final class DumpTyping implements CovJob
         });
         this.act("XTest: «Схемы», клик в поиск", () ->
         {
-            Minecraft.getInstance().gui.setScreen(null);
+            Minecraft.getInstance().setScreen(null);
             GuiSchematics.open(null);
         });
         this.add("XTest: поиск в фокусе", 10_000L, mc ->
         {
-            if (! (Minecraft.getInstance().gui.screen() instanceof GuiSchematics screen))
+            if (! (Minecraft.getInstance().screen instanceof GuiSchematics screen))
             {
                 return false;
             }
@@ -899,8 +899,8 @@ public final class DumpTyping implements CovJob
             Window window = mc.getWindow();
             double x = (this.intField(m, "x") + this.intField(m, "w") / 2.0) * window.getScreenWidth() / window.getGuiScaledWidth();
             double y = (bodyY + bodyH / 2.0) * window.getScreenHeight() / window.getGuiScaledHeight();
-            mc.mouseHandler.onMove(handle(), x, y, 0.0, 0.0);
-            mc.mouseHandler.onScroll(handle(), 0.0, input.y() < bodyY ? 1.0 : -1.0);
+            DevInput.onMove(mc.mouseHandler, handle(), x, y, 0.0, 0.0);
+            DevInput.onScroll(mc.mouseHandler, handle(), 0.0, input.y() < bodyY ? 1.0 : -1.0);
             return false;
         });
     }
@@ -961,7 +961,7 @@ public final class DumpTyping implements CovJob
             return false;
         }
 
-        this.gui = mc.gui.screen() instanceof GuiSchematics screen ? screen : null;
+        this.gui = mc.screen instanceof GuiSchematics screen ? screen : null;
         return this.gui != null;
     }
 
@@ -1063,9 +1063,9 @@ public final class DumpTyping implements CovJob
         double y = guiY * window.getScreenHeight() / window.getGuiScaledHeight();
         MouseButtonInfo left = new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0);
 
-        mc.mouseHandler.onMove(handle(), x, y, 0.0, 0.0);
-        mc.mouseHandler.onButton(handle(), left, InputConstants.PRESS);
-        mc.mouseHandler.onButton(handle(), left, InputConstants.RELEASE);
+        DevInput.onMove(mc.mouseHandler, handle(), x, y, 0.0, 0.0);
+        DevInput.onButton(mc.mouseHandler, handle(), left, InputConstants.PRESS);
+        DevInput.onButton(mc.mouseHandler, handle(), left, InputConstants.RELEASE);
         this.lastClickAt = Util.getMillis();
     }
 
@@ -1095,8 +1095,8 @@ public final class DumpTyping implements CovJob
     private void press(int scancode, int keycode, int modifiers)
     {
         KeyEvent event = new KeyEvent(scancode, keycode, modifiers);
-        Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.PRESS, event);
-        Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.RELEASE, event);
+        DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.PRESS, event);
+        DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.RELEASE, event);
     }
 
     /** Код клавиши SDL3 для клавиш без знака (скан-код с битом маски) и для служебных со знаком. */
@@ -1134,9 +1134,9 @@ public final class DumpTyping implements CovJob
             }
 
             KeyEvent event = new KeyEvent(key[0], key[1], key[2]);
-            Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.PRESS, event);
+            DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.PRESS, event);
             this.text(piece);
-            Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.RELEASE, event);
+            DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.RELEASE, event);
         });
     }
 
@@ -1183,7 +1183,7 @@ public final class DumpTyping implements CovJob
     /** Событие текста SDL: сюда цикл событий отдаёт {@code SDL_EVENT_TEXT_INPUT}. */
     private void text(String value)
     {
-        Minecraft.getInstance().keyboardHandler.textInput(handle(), value);
+        DevInput.textInput(Minecraft.getInstance().keyboardHandler, handle(), value);
     }
 
     /** Черновик IME: сюда цикл событий отдаёт {@code SDL_EVENT_TEXT_EDITING}. */
@@ -1270,7 +1270,7 @@ public final class DumpTyping implements CovJob
     {
         Object owner = this.read(manager(), "owner");
         return "ввод " + (this.inputOn() ? "вкл" : "выкл") + ", SDL " + (this.sdlActive() ? "вкл" : "выкл")
-                + ", владелец " + describe(owner) + ", экран " + describe(Minecraft.getInstance().gui.screen());
+                + ", владелец " + describe(owner) + ", экран " + describe(Minecraft.getInstance().screen);
     }
 
     private static String describe(@Nullable Object value)

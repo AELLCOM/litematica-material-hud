@@ -133,7 +133,7 @@ public final class ZoneNoZfTest implements CovJob
                 }
                 default ->
                 {
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     CovOut.log("[nozf] итог: " + (this.failed ? "FAIL" : "OK"));
                     return true;
                 }
@@ -143,7 +143,7 @@ public final class ZoneNoZfTest implements CovJob
         {
             this.check("сбой на шаге " + this.stage, false, e.toString());
             CovOut.log("[nozf] итог: FAIL");
-            mc.gui.setScreen(null);
+            mc.setScreen(null);
             return true;
         }
 
@@ -183,7 +183,7 @@ public final class ZoneNoZfTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[nozf] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

@@ -6,10 +6,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.BiomeColors;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.world.level.CardinalLighting;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.DryFoliageColor;
 import net.minecraft.world.level.FoliageColor;
@@ -77,9 +77,21 @@ final class PreviewBlockView implements BlockAndTintGetter
     }
 
     @Override
-    public CardinalLighting cardinalLighting()
+    public float getShade(Direction direction, boolean shade)
     {
-        return CardinalLighting.DEFAULT;
+        return shade ? faceShade(direction) : 1.0F;
+    }
+
+    /** Затенение грани как в обычном измерении: низ 0,5, верх 1, север-юг 0,8, запад-восток 0,6. */
+    static float faceShade(Direction direction)
+    {
+        return switch (direction)
+        {
+            case DOWN -> 0.5F;
+            case UP -> 1.0F;
+            case NORTH, SOUTH -> 0.8F;
+            case WEST, EAST -> 0.6F;
+        };
     }
 
     @Override

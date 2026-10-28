@@ -35,15 +35,6 @@ public final class ZonesShot implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         Path path = FabricLoader.getInstance().getGameDir().resolve("schematics").resolve("Портал.litematic");
         LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(path);
 
@@ -110,14 +101,22 @@ public final class ZonesShot implements CovJob
                 case 1 ->
                 {
                     progress(false);
-                    mc.gui.setScreen(this.open("com.aell.zonefocus.gui.manage.GuiZoneManager"));
+                    mc.setScreen(this.open("com.aell.zonefocus.gui.manage.GuiZoneManager"));
                 }
                 case 2 -> shot(mc, "вариант А — кит aell-ui");
                 case 3 -> progress(true);
                 case 4 -> shot(mc, "вариант А — с прогрессом");
+                case 5 -> mc.setScreen(this.open("com.aell.zonefocus.gui.manage.GuiZoneManagerClassic"));
+                case 6 -> shot(mc, "вариант Б — виджеты Zone Focus, с прогрессом");
+                case 7 ->
+                {
+                    progress(false);
+                    mc.setScreen(this.open("com.aell.zonefocus.gui.manage.GuiZoneManagerClassic"));
+                }
+                case 8 -> shot(mc, "вариант Б — без прогресса");
                 default ->
                 {
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     CovOut.log("[zonesshot] итог: OK");
                     return true;
                 }
@@ -125,8 +124,8 @@ public final class ZonesShot implements CovJob
         }
         catch (ReflectiveOperationException | RuntimeException e)
         {
-            CovOut.log("[zonesshot] итог: FAIL — " + e);
-            mc.gui.setScreen(null);
+            CovOut.log("[zonesshot] сбой: " + e);
+            mc.setScreen(null);
             return true;
         }
 
@@ -136,7 +135,7 @@ public final class ZonesShot implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[zonesshot] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     @Override

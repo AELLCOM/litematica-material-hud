@@ -105,7 +105,7 @@ public final class SchematicTarget
                     : fi.dy.masa.litematica.data.DataManager.getSchematicPlacementManager()
                             .getAllPlacementsTouchingChunk(pos))
             {
-                if (part.getBox().contains(pos))
+                if (part.getBox().containsPos(pos))
                 {
                     return true;
                 }

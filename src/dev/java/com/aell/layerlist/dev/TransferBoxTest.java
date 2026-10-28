@@ -204,7 +204,7 @@ public final class TransferBoxTest implements CovJob
                 if (r.button())
                 {
                     int[] b = TransferButton.bounds();
-                    boolean clicked = b[2] > 0 && TransferButton.mouseClicked(mc.gui.screen(), b[0] + b[2] / 2.0D,
+                    boolean clicked = b[2] > 0 && TransferButton.mouseClicked(mc.screen, b[0] + b[2] / 2.0D,
                             b[1] + b[3] / 2.0D, com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
                     this.check(this.tag(r) + ": кнопка нажата", clicked, "кнопка " + b[0] + "×" + b[1] + " " + b[2] + "×" + b[3]);
                     wait = 4000L;
@@ -225,7 +225,7 @@ public final class TransferBoxTest implements CovJob
             {
                 this.check(this.tag(r) + ": перенос закончен", ! TransferButton.busy(), "");
 
-                if (mc.gui.screen() != null)
+                if (mc.screen != null)
                 {
                     mc.player.closeContainer();
                 }
@@ -250,7 +250,7 @@ public final class TransferBoxTest implements CovJob
             {
                 int[] chest = {-1, -1, -1};
 
-                if (mc.gui.screen() instanceof AbstractContainerScreen<?> container)
+                if (mc.screen instanceof AbstractContainerScreen<?> container)
                 {
                     List<ItemStack> stacks = new ArrayList<>();
 

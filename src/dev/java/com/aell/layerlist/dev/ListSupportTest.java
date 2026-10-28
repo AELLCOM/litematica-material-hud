@@ -10,7 +10,7 @@ import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.litematica.selection.AreaSelection;
 import fi.dy.masa.litematica.selection.Box;
 import fi.dy.masa.malilib.util.LayerMode;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -445,8 +445,8 @@ public final class ListSupportTest implements CovJob
         }
 
         LayerRange range = DataManager.getRenderLayerRange();
-        CovOut.log("[listsupport] " + what + ": слои " + range.getLayerMode() + " " + range.getMinLayerBoundary() + ".."
-                + range.getMaxLayerBoundary() + ", непроверенных чанков " + hud.getUnverifiedChunks()
+        CovOut.log("[listsupport] " + what + ": слои " + range.getLayerMode() + " " + range.getLayerMin() + ".."
+                + range.getLayerMax() + ", непроверенных чанков " + hud.getUnverifiedChunks()
                 + ", из кэша " + hud.getCachedChunks());
         return true;
     }

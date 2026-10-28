@@ -44,15 +44,6 @@ public final class ZfViewsTest implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         if (! ZoneFocusFiles.available())
         {
             CovOut.log("[zfviews] нет Zone Focus 0.0.8+ в run/mods");
@@ -96,7 +87,7 @@ public final class ZfViewsTest implements CovJob
                 case 0 -> wait = this.open(mc, false);
                 case 1 ->
                 {
-                    Screen gui = mc.gui.screen();
+                    Screen gui = mc.screen;
                     Object top = field(gui, "topView");
                     this.check("2D: снимок сверху создан", top != null, "");
                     Object widget = field(top, "widget");
@@ -131,13 +122,13 @@ public final class ZfViewsTest implements CovJob
                 }
                 case 2 ->
                 {
-                    Object widget = field(field(mc.gui.screen(), "topView"), "widget");
+                    Object widget = field(field(mc.screen, "topView"), "widget");
                     int cut = (int) call(widget, "layerCut");
                     this.check("2D: срез 2 — снимок срезан выше", cut > this.cut, this.cut + " → " + cut);
                     shot(mc, "2D — снимок сверху, срез 2 из 2");
 
                     // Повёрнутое на 90° и отражённое размещение — снимок поворачивается и отражается, как в мире
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     this.placement.setMirror(Mirror.FRONT_BACK, (fi.dy.masa.malilib.gui.interfaces.IMessageConsumer) null);
                     this.placement.setRotation(Rotation.CLOCKWISE_90, (fi.dy.masa.malilib.gui.interfaces.IMessageConsumer) null);
                     wait = 1500L;
@@ -145,28 +136,15 @@ public final class ZfViewsTest implements CovJob
                 case 3 -> wait = this.open(mc, false);
                 case 4 ->
                 {
-                    Object top = field(mc.gui.screen(), "topView");
-                    Object widget = field(top, "widget");
+                    Object widget = field(field(mc.screen, "topView"), "widget");
                     Object key = call(field(widget, "camera"), "key");
                     float yaw = (float) call(key, "yaw");
-
-                    if (call(top, "worldMin") != null)
-                    {
-                        // API 6: снимок — с мира схем, уже в осях мира: север вверху, без отражений
-                        this.check("2D, снимок с мира схем: север вверху (рыскание 180)", Math.abs(yaw - 180.0F) < 0.01F, "рыскание " + yaw);
-                        this.check("2D, снимок с мира схем: без отражения картинки",
-                                ! (boolean) field(widget, "flipY") && ! (boolean) field(widget, "flipX"),
-                                "flipX " + field(widget, "flipX") + ", flipY " + field(widget, "flipY"));
-                    }
-                    else
-                    {
-                        // Поворот по часовой на 90° — верх кадра у той стороны схемы, что в мире смотрит на север (запад схемы)
-                        this.check("2D, поворот 90°: камера снимка повёрнута (рыскание 90)", Math.abs(yaw - 90.0F) < 0.01F, "рыскание " + yaw);
-                        // Отражение по X схемы до поворота на четверть — после поворота это вертикаль экрана
-                        this.check("2D, отражение FRONT_BACK + 90°: картинка отражена по вертикали",
-                                (boolean) field(widget, "flipY") && ! (boolean) field(widget, "flipX"),
-                                "flipX " + field(widget, "flipX") + ", flipY " + field(widget, "flipY"));
-                    }
+                    // Поворот по часовой на 90° — верх кадра у той стороны схемы, что в мире смотрит на север (запад схемы)
+                    this.check("2D, поворот 90°: камера снимка повёрнута (рыскание 90)", Math.abs(yaw - 90.0F) < 0.01F, "рыскание " + yaw);
+                    // Отражение по X схемы до поворота на четверть — после поворота это вертикаль экрана
+                    this.check("2D, отражение FRONT_BACK + 90°: картинка отражена по вертикали",
+                            (boolean) field(widget, "flipY") && ! (boolean) field(widget, "flipX"),
+                            "flipX " + field(widget, "flipX") + ", flipY " + field(widget, "flipY"));
                     shot(mc, "2D — повёрнуто на 90° и отражено");
                     this.combo = 0;
                     this.setCombo();
@@ -184,12 +162,12 @@ public final class ZfViewsTest implements CovJob
                         return false;
                     }
 
-                    this.clickWidget(mc, field(mc.gui.screen(), "view3d"));
+                    this.clickWidget(mc, field(mc.screen, "view3d"));
                     wait = 6000L;
                 }
                 case 5 ->
                 {
-                    Screen gui = mc.gui.screen();
+                    Screen gui = mc.screen;
                     Object preview = field(gui, "preview");
                     Object[] views = (Object[]) field(gui, "views");
                     this.check("3D: превью создано", preview != null, "");
@@ -204,8 +182,8 @@ public final class ZfViewsTest implements CovJob
                 }
                 case 6 ->
                 {
-                    Object[] views = (Object[]) field(mc.gui.screen(), "views");
-                    Object preview = field(mc.gui.screen(), "preview");
+                    Object[] views = (Object[]) field(mc.screen, "views");
+                    Object preview = field(mc.screen, "preview");
                     this.check("3D: «Сверху» — камера сверху, кнопка выбрана",
                             "TOP".equals(view(preview)) && (boolean) call(views[1], "isSelected") && ! (boolean) call(views[0], "isSelected"), view(preview));
                     shot(mc, "3D — сверху");
@@ -214,8 +192,8 @@ public final class ZfViewsTest implements CovJob
                 }
                 case 7 ->
                 {
-                    Object[] views = (Object[]) field(mc.gui.screen(), "views");
-                    Object preview = field(mc.gui.screen(), "preview");
+                    Object[] views = (Object[]) field(mc.screen, "views");
+                    Object preview = field(mc.screen, "preview");
                     this.check("3D: «Спереди» — камера спереди, кнопка выбрана",
                             "FRONT".equals(view(preview)) && (boolean) call(views[2], "isSelected"), view(preview));
                     shot(mc, "3D — спереди");
@@ -224,19 +202,19 @@ public final class ZfViewsTest implements CovJob
                 }
                 case 8 ->
                 {
-                    Object preview = field(mc.gui.screen(), "preview");
+                    Object preview = field(mc.screen, "preview");
                     this.check("3D: «Изометрия» — обратно", "ISOMETRIC".equals(view(preview)), view(preview));
-                    this.clickWidget(mc, field(mc.gui.screen(), "view2d"));
+                    this.clickWidget(mc, field(mc.screen, "view2d"));
                     wait = 6000L;
                 }
                 case 9 ->
                 {
-                    Screen gui = mc.gui.screen();
+                    Screen gui = mc.screen;
                     Object top = field(gui, "topView");
                     this.check("снова 2D: снимок собран заново", (boolean) call(field(top, "widget"), "hasModel"), "");
                     this.check("снова 2D: 3D-превью закрыто", ! (boolean) call(field(field(gui, "preview"), "widget"), "hasModel"), "");
                     shot(mc, "2D — снова, после 3D");
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     wait = 500L;
                 }
                 default ->
@@ -250,7 +228,7 @@ public final class ZfViewsTest implements CovJob
         {
             this.check("сбой на шаге " + this.stage, false, e.toString());
             CovOut.log("[zfviews] итог: FAIL");
-            mc.gui.setScreen(null);
+            mc.setScreen(null);
             return true;
         }
 
@@ -277,7 +255,7 @@ public final class ZfViewsTest implements CovJob
      */
     private void checkOrientation(Minecraft mc) throws ReflectiveOperationException
     {
-        Object gui = mc.gui.screen();
+        Object gui = mc.screen;
         Object top = field(gui, "topView");
         Object widget = field(top, "widget");
         Object editor = field(gui, "editor");
@@ -299,20 +277,15 @@ public final class ZfViewsTest implements CovJob
         boolean ok = true;
         StringBuilder detail = new StringBuilder();
 
-        // API 6: снимок с мира схем — клетка снимка = блок мира от его угла
-        net.minecraft.core.BlockPos worldMin = (net.minecraft.core.BlockPos) call(top, "worldMin");
-
         for (int[] corner : new int[][] { {0, 0}, {sx - 1, 0}, {0, sz - 1} })
         {
+            float[] p = (float[]) widget.getClass().getMethod("project", float.class, float.class, float.class)
+                    .invoke(widget, corner[0] + 0.5F, 0.0F, corner[1] + 0.5F);
+            double imageX = flipX ? rect[0] + rect[0] + rect[2] - p[0] : p[0];
+            double imageY = flipY ? rect[1] + rect[1] + rect[3] - p[1] : p[1];
             net.minecraft.core.BlockPos world = fi.dy.masa.litematica.util.PositionUtils.getTransformedBlockPos(
                     new net.minecraft.core.BlockPos(corner[0] + min.getX(), min.getY(), corner[1] + min.getZ()),
                     this.placement.getMirror(), this.placement.getRotation()).offset(this.placement.getOrigin());
-            float px = worldMin != null ? world.getX() - worldMin.getX() + 0.5F : corner[0] + 0.5F;
-            float pz = worldMin != null ? world.getZ() - worldMin.getZ() + 0.5F : corner[1] + 0.5F;
-            float[] p = (float[]) widget.getClass().getMethod("project", float.class, float.class, float.class)
-                    .invoke(widget, px, 0.0F, pz);
-            double imageX = flipX ? rect[0] + rect[0] + rect[2] - p[0] : p[0];
-            double imageY = flipY ? rect[1] + rect[1] + rect[3] - p[1] : p[1];
             double mapX = map[0] + (world.getX() - bminX + 0.5D) * scale;
             double mapY = map[1] + (world.getZ() - bminZ + 0.5D) * scale;
             boolean near = Math.abs(imageX - mapX) <= scale + 1.0D && Math.abs(imageY - mapY) <= scale + 1.0D;
@@ -337,7 +310,7 @@ public final class ZfViewsTest implements CovJob
         editor.getField("showProgress").setBoolean(null, false);
         Screen gui = (Screen) Class.forName("com.aell.zonefocus.gui.manage.GuiZoneManager")
                 .getConstructor(Screen.class, SchematicPlacement.class).newInstance(null, this.placement);
-        mc.gui.setScreen(gui);
+        mc.setScreen(gui);
         return 7000L;
     }
 
@@ -392,7 +365,7 @@ public final class ZfViewsTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[zfviews] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

@@ -84,7 +84,7 @@ public final class SelPerfTest implements CovJob
         catch (RuntimeException | LinkageError | ReflectiveOperationException e)
         {
             CovOut.log("[selperf] сбой: " + e);
-            mc.gui.setScreen(null);
+            mc.setScreen(null);
             return true;
         }
     }
@@ -139,7 +139,7 @@ public final class SelPerfTest implements CovJob
             }
             case 2 ->
             {
-                Object pane = field(mc.gui.screen(), "selection");
+                Object pane = field(mc.screen, "selection");
                 PreviewWidget preview = (PreviewWidget) field(pane, "preview");
 
                 if (this.capturedAt == 0L && field(pane, "area") != null)
@@ -185,8 +185,8 @@ public final class SelPerfTest implements CovJob
                 if (now - this.since > MEASURE_MS)
                 {
                     CovOut.log("[selperf] покой, FPS по секундам: " + this.fps);
-                    Screenshot.grab(mc, false);
-                    Object pane = field(mc.gui.screen(), "selection");
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
+                    Object pane = field(mc.screen, "selection");
                     PreviewWidget preview = (PreviewWidget) field(pane, "preview");
                     int[] b = preview.bounds();
                     this.dragX = b[0] + b[2] / 2;
@@ -201,7 +201,7 @@ public final class SelPerfTest implements CovJob
             }
             case 4 ->
             {
-                Object pane = field(mc.gui.screen(), "selection");
+                Object pane = field(mc.screen, "selection");
                 PreviewWidget preview = (PreviewWidget) field(pane, "preview");
                 int[] b = preview.bounds();
                 this.dragX += 6;
@@ -218,7 +218,7 @@ public final class SelPerfTest implements CovJob
 
                     if (! cpu && ! this.voxy)
                     {
-                        Screenshot.grab(mc, false);
+                        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                         // Тот же поворот старым путём — для сравнения на этом же стенде
                         setForceCpu(true);
                         this.cpuPass = true;
@@ -232,7 +232,7 @@ public final class SelPerfTest implements CovJob
                     {
                         if (this.voxy)
                         {
-                            Screenshot.grab(mc, false);
+                            Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                         }
 
                         setForceCpu(false);
@@ -245,15 +245,31 @@ public final class SelPerfTest implements CovJob
             case 5 ->
             {
                 // Щелчок без сдвига по середине превью — угол встаёт на блок под ним (у Voxy — свой луч)
-                Object pane = field(mc.gui.screen(), "selection");
+                Object pane = field(mc.screen, "selection");
                 PreviewWidget preview = (PreviewWidget) field(pane, "preview");
                 int[] b = preview.bounds();
                 Box box = DataManager.getSelectionManager().getCurrentSelection().getSelectedSubRegionBox();
                 this.before = new BlockPos[] { box.getPos1(), box.getPos2() };
                 double cx = b[0] + b[2] / 2.0;
                 double cy = b[1] + b[3] / 2.0;
-                preview.mouseClicked(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
-                preview.mouseReleased(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
+                {
+                    Object camera = field(preview, "camera");
+                    Object key = camera.getClass().getMethod("key").invoke(camera);
+                    StringBuilder picks = new StringBuilder();
+
+                    for (int[] d : new int[][] { { 0, 0 }, { -30, 0 }, { 30, 0 }, { 0, -30 }, { 0, 30 } })
+                    {
+                        picks.append(java.util.Arrays.toString(preview.pickAt(cx + d[0], cy + d[1]))).append(' ');
+                    }
+
+                    Object src = field(preview, "source");
+                    CovOut.log("[selperf] щелчок: окно " + java.util.Arrays.toString(b) + ", камера " + key + ", снимок "
+                            + (src == null ? "нет" : src.getClass().getMethod("sizeX").invoke(src) + "×" + src.getClass().getMethod("sizeY").invoke(src)
+                            + "×" + src.getClass().getMethod("sizeZ").invoke(src)) + ", выбор: " + picks);
+                }
+                boolean down = preview.mouseClicked(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
+                boolean up = preview.mouseReleased(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
+                CovOut.log("[selperf] щелчок принят: нажатие " + down + ", отпускание " + up);
                 this.stage = 6;
             }
             case 6 ->
@@ -268,7 +284,7 @@ public final class SelPerfTest implements CovJob
             }
             default ->
             {
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 Nav.clear();
                 CovOut.log("[selperf] итог: OK");
                 return true;

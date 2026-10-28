@@ -329,7 +329,7 @@ public final class LightTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[light] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

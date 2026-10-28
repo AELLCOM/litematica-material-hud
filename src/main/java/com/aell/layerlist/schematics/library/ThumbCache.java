@@ -2,7 +2,7 @@ package com.aell.layerlist.schematics.library;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.blaze3d.textures.FilterMode;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

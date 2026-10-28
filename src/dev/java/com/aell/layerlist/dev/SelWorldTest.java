@@ -26,9 +26,6 @@ import net.minecraft.util.Util;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.sdl.SDLEvents;
-import org.lwjgl.sdl.SDLVideo;
-import org.lwjgl.sdl.SDL_Event;
 
 /**
  * Режим {@code selworld}: вкладка «Выделение» — карточка координат сверху справа, кнопки шага «+ / −» и «Смотреть на
@@ -96,7 +93,7 @@ public final class SelWorldTest implements CovJob
                 }
                 case 1 ->
                 {
-                    this.check("экран «Выделение» открыт", mc.gui.screen() instanceof GuiSchematics);
+                    this.check("экран «Выделение» открыт", mc.screen instanceof GuiSchematics);
                     Widget plus = this.nudge(mc, 0);
                     SupportTest.moveMouse(mc, plus.x() + plus.w() / 2.0, plus.y() + 3);
                     this.nextAt = Util.getMillis() + 400L;
@@ -104,7 +101,7 @@ public final class SelWorldTest implements CovJob
                 case 2 ->
                 {
                     CovOut.log("[selworld] снимок 1: новая раскладка, курсор на «+» X угла 1");
-                    Screenshot.grab(mc, false);
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                     Widget eye = (Widget) field(this.pane(mc), "seeWorld");
                     Widget all = (Widget) field(this.pane(mc), "allSelections");
                     Widget n = this.nudge(mc, 0);
@@ -162,19 +159,19 @@ public final class SelWorldTest implements CovJob
                 case 7 ->
                 {
                     this.check("Esc во время выезда — отмена: экран на месте, панели вернулись",
-                            mc.gui.screen() instanceof GuiSchematics && ! this.moving(mc) && ! SelectionHud.active());
+                            mc.screen instanceof GuiSchematics && ! this.moving(mc) && ! SelectionHud.active());
                     this.clickEye(mc);
                     this.nextAt = Util.getMillis() + 120L;
                 }
                 case 8 ->
                 {
                     CovOut.log("[selworld] снимок 2: выезд в мир");
-                    Screenshot.grab(mc, false);
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                     this.nextAt = Util.getMillis() + 1200L;
                 }
                 case 9 ->
                 {
-                    this.check("доехали — экран закрыт", mc.gui.screen() == null);
+                    this.check("доехали — экран закрыт", mc.screen == null);
                     this.check("HUD «Смотреть на мир» включён", SelectionHud.active());
                     this.check("мышь захвачена игрой", mc.mouseHandler.isMouseGrabbed());
                     // Не летать: дальше ломаем блок под ногами, до него должна доставать рука
@@ -218,14 +215,14 @@ public final class SelWorldTest implements CovJob
                 case 13 ->
                 {
                     CovOut.log("[selworld] снимок 3: игра, координаты HUD-ом сверху справа");
-                    Screenshot.grab(mc, false);
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                     this.pushR();
                     this.nextAt = Util.getMillis() + 400L;
                 }
                 case 200 ->
                 {
                     this.check("R в игре — курсор у карточки (экран «Выделение», карточка живая)",
-                            mc.gui.screen() instanceof GuiSchematics && this.parked(mc) && ! SelectionHud.active());
+                            mc.screen instanceof GuiSchematics && this.parked(mc) && ! SelectionHud.active());
                     this.check("меню паузы не открылось, мышь свободна", ! mc.mouseHandler.isMouseGrabbed());
                     this.x0 = this.cornerX();
                     Widget n = this.nudge(mc, 0);
@@ -248,8 +245,8 @@ public final class SelWorldTest implements CovJob
                         this.key(mc, InputConstants.KEY_BACKSPACE, '\b');
                     }
 
-                    mc.keyboardHandler.textInput(mc.getWindow().handle(), "9");
-                    mc.keyboardHandler.textInput(mc.getWindow().handle(), "0");
+                    DevInput.textInput(mc.keyboardHandler, mc.getWindow().handle(), "9");
+                    DevInput.textInput(mc.keyboardHandler, mc.getWindow().handle(), "0");
                     this.nextAt = Util.getMillis() + 300L;
                 }
                 case 203 ->
@@ -271,7 +268,7 @@ public final class SelWorldTest implements CovJob
                 case 211 ->
                 {
                     CovOut.log("[selworld] снимок 3в: подтверждение сброса поверх мира");
-                    Screenshot.grab(mc, false);
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                     this.key(mc, InputConstants.KEY_RETURN, '\r');
                     this.nextAt = Util.getMillis() + 300L;
                 }
@@ -288,36 +285,36 @@ public final class SelWorldTest implements CovJob
                 case 204 ->
                 {
                     CovOut.log("[selworld] снимок 3б: курсор у карточки после «Сбросить»");
-                    Screenshot.grab(mc, false);
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                     // Щелчок мимо карточки — в мир
                     SupportTest.click(mc, mc.getWindow().getGuiScaledWidth() * 0.3, mc.getWindow().getGuiScaledHeight() * 0.6);
                     this.nextAt = Util.getMillis() + 400L;
                 }
                 case 205 ->
                 {
-                    this.check("щелчок мимо карточки — снова игра с HUD", mc.gui.screen() == null && SelectionHud.active());
+                    this.check("щелчок мимо карточки — снова игра с HUD", mc.screen == null && SelectionHud.active());
                     this.pushR();
                     this.nextAt = Util.getMillis() + 300L;
                 }
                 case 206 ->
                 {
-                    this.check("R — снова курсор", mc.gui.screen() instanceof GuiSchematics && this.parked(mc));
+                    this.check("R — снова курсор", mc.screen instanceof GuiSchematics && this.parked(mc));
                     this.pushR();
                     this.nextAt = Util.getMillis() + 400L;
                 }
                 case 207 ->
                 {
-                    this.check("R при курсоре — обратно в игру", mc.gui.screen() == null && SelectionHud.active());
+                    this.check("R при курсоре — обратно в игру", mc.screen == null && SelectionHud.active());
                     this.key(mc, InputConstants.KEY_ESCAPE, 0x1B);
                     this.nextAt = Util.getMillis() + 150L;
                 }
                 case 14 ->
                 {
                     CovOut.log("[selworld] снимок 4: Esc — экран въезжает обратно");
-                    Screenshot.grab(mc, false);
-                    this.check("Esc в игре вернул «Выделение»", mc.gui.screen() instanceof GuiSchematics
-                            && "SELECTION".equals(String.valueOf(field(mc.gui.screen(), "tab"))));
-                    this.check("меню паузы не открылось", ! (mc.gui.screen() instanceof PauseScreen));
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
+                    this.check("Esc в игре вернул «Выделение»", mc.screen instanceof GuiSchematics
+                            && "SELECTION".equals(String.valueOf(field(mc.screen, "tab"))));
+                    this.check("меню паузы не открылось", ! (mc.screen instanceof PauseScreen));
                     this.check("HUD выключен", ! SelectionHud.active());
                     this.nextAt = Util.getMillis() + 900L;
                 }
@@ -330,20 +327,20 @@ public final class SelWorldTest implements CovJob
                 case 16 ->
                 {
                     CovOut.log("[selworld] снимок 5: экран вернулся");
-                    Screenshot.grab(mc, false);
+                    Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                     this.key(mc, InputConstants.KEY_ESCAPE, 0x1B);
                     this.nextAt = Util.getMillis() + 300L;
                 }
                 case 17 ->
                 {
-                    this.check("Esc закрыл экран", mc.gui.screen() == null);
+                    this.check("Esc закрыл экран", mc.screen == null);
                     this.key(mc, InputConstants.KEY_ESCAPE, 0x1B);
                     this.nextAt = Util.getMillis() + 300L;
                 }
                 case 18 ->
                 {
-                    this.check("Esc в игре без HUD — обычная пауза", mc.gui.screen() instanceof PauseScreen);
-                    mc.gui.setScreen(null);
+                    this.check("Esc в игре без HUD — обычная пауза", mc.screen instanceof PauseScreen);
+                    mc.setScreen(null);
                     Nav.clear();
                     CovOut.log("[selworld] итог: " + (this.failed ? "FAIL" : "OK"));
                     return true;
@@ -359,7 +356,7 @@ public final class SelWorldTest implements CovJob
             this.check("сбой: " + e, false);
             CovOut.log("[selworld] итог: FAIL");
             mc.options.keyUp.setDown(false);
-            mc.gui.setScreen(null);
+            mc.setScreen(null);
             return true;
         }
 
@@ -403,41 +400,21 @@ public final class SelWorldTest implements CovJob
 
     private void mouse(Minecraft mc, int button, int action)
     {
-        mc.mouseHandler.onButton(mc.getWindow().handle(), new MouseButtonInfo(button, 0), action);
+        DevInput.onButton(mc.mouseHandler, mc.getWindow().handle(), new MouseButtonInfo(button, 0), action);
     }
 
-    /**
-     * R — событием в очереди SDL, как от клавиатуры: хоткеи malilib 0.30 узнают зажатые клавиши только из сырого
-     * события SDL, одного {@code keyPress} им мало (см. {@code KHotkey}). Обработается в ближайшем кадре.
-     */
+    /** R — через KeyboardHandler, как настоящая (26.2: событий SDL нет, malilib 0.29 видит клавишу из keyPress). */
     private void pushR()
     {
-        long window = Minecraft.getInstance().getWindow().handle();
-        int windowId = SDLVideo.SDL_GetWindowID(window);
-
-        for (boolean down : new boolean[] { true, false })
-        {
-            SDL_Event event = SDL_Event.calloc();
-
-            try
-            {
-                event.key(key -> key.type(down ? SDLEvents.SDL_EVENT_KEY_DOWN : SDLEvents.SDL_EVENT_KEY_UP).windowID(windowId)
-                        .scancode(InputConstants.KEY_R).key('r').down(down).repeat(false));
-                SDLEvents.SDL_PushEvent(event);
-            }
-            finally
-            {
-                event.free();
-            }
-        }
+        this.key(Minecraft.getInstance(), InputConstants.KEY_R, 'r');
     }
 
     /** Клавиша через KeyboardHandler — тот же путь, что у настоящей (в игре Esc идёт мимо экрана). */
     private void key(Minecraft mc, int key, int code)
     {
         KeyEvent event = new KeyEvent(key, code, 0);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.PRESS, event);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.RELEASE, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.PRESS, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.RELEASE, event);
     }
 
     private int cornerX()
@@ -448,7 +425,7 @@ public final class SelWorldTest implements CovJob
 
     private Object pane(Minecraft mc) throws ReflectiveOperationException
     {
-        return field(mc.gui.screen(), "selection");
+        return field(mc.screen, "selection");
     }
 
     /** Кнопка шага угла 1: 0 — X, 1 — Y, 2 — Z. */

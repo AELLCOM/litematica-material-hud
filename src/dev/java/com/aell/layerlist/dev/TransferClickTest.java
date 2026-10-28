@@ -273,7 +273,7 @@ public final class TransferClickTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[click] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

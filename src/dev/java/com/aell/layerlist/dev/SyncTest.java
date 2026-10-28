@@ -218,7 +218,7 @@ public final class SyncTest implements CovJob
                         Syncmatica.remove(r);
                     }
 
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     wait = 1500L;
                 }
                 default ->
@@ -300,7 +300,7 @@ public final class SyncTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[sync] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

@@ -153,7 +153,7 @@ final class KTrash
             if (! moved[0])
             {
                 moved[0] = true;
-                mc.mouseHandler.onMove(mc.getWindow().handle(), 2.0, 2.0, 0.0, 0.0);
+                DevInput.onMove(mc.mouseHandler, mc.getWindow().handle(), 2.0, 2.0, 0.0, 0.0);
             }
 
             return shot.run(mc);
@@ -327,8 +327,8 @@ final class KTrash
         KeyEvent event = new KeyEvent(scancode, keycode, 0);
         Minecraft mc = Minecraft.getInstance();
         long window = mc.getWindow().handle();
-        mc.keyboardHandler.keyPress(window, InputConstants.PRESS, event);
-        mc.keyboardHandler.keyPress(window, InputConstants.RELEASE, event);
+        DevInput.keyPress(mc.keyboardHandler, window, InputConstants.PRESS, event);
+        DevInput.keyPress(mc.keyboardHandler, window, InputConstants.RELEASE, event);
     }
 
     private @Nullable Modal topModal()

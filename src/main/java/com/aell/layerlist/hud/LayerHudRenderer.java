@@ -26,7 +26,7 @@ import fi.dy.masa.malilib.render.GuiContext;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.GuiUtils;
 import fi.dy.masa.malilib.util.StringUtils;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,7 +34,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -222,7 +222,7 @@ public class LayerHudRenderer implements IInfoHudRenderer
     private static int mouseY = Integer.MIN_VALUE;
 
     /** Из экрана контейнера — до предмета на курсоре и подсказки. */
-    public static void renderUnderTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY)
+    public static void renderUnderTooltip(GuiGraphics graphics, int mouseX, int mouseY)
     {
         LayerHudRenderer hud = getInstance();
         TransferButton.forget();
@@ -251,7 +251,7 @@ public class LayerHudRenderer implements IInfoHudRenderer
     }
 
     @Override
-    public int render(GuiGraphicsExtractor graphics, int xOffset, int yOffset, HudAlignment alignment)
+    public int render(GuiGraphics graphics, int xOffset, int yOffset, HudAlignment alignment)
     {
         infoHudX = xOffset;
         infoHudY = yOffset;
@@ -271,7 +271,7 @@ public class LayerHudRenderer implements IInfoHudRenderer
         return this.draw(graphics, xOffset, yOffset, alignment);
     }
 
-    private int draw(GuiGraphicsExtractor graphics, int xOffset, int yOffset, HudAlignment alignment)
+    private int draw(GuiGraphics graphics, int xOffset, int yOffset, HudAlignment alignment)
     {
         ++drawsTotal;
         Minecraft mc = Minecraft.getInstance();

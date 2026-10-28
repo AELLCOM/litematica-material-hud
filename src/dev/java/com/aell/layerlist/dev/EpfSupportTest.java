@@ -13,7 +13,7 @@ import fi.dy.masa.litematica.util.WorldUtils;
 import fi.dy.masa.litematica.world.SchematicWorldHandler;
 import fi.dy.masa.malilib.config.options.ConfigBoolean;
 import fi.dy.masa.malilib.util.LayerMode;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Locale;
@@ -323,7 +323,7 @@ public final class EpfSupportTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[epfsupport] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

@@ -22,11 +22,11 @@ import javax.imageio.stream.MemoryCacheImageOutputStream;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.SpecialGuiElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
+import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
@@ -106,9 +106,9 @@ public final class ItemIcons
 
         registered = true;
 
-        PictureInPictureRendererRegistry.register(context ->
+        SpecialGuiElementRegistry.register(context ->
         {
-            IconRenderer created = new IconRenderer();
+            IconRenderer created = new IconRenderer(context.vertexConsumers());
             renderer = created;
 
             return created;
@@ -118,7 +118,7 @@ public final class ItemIcons
         HudElementRegistry.addLast(HUD_HOOK, (graphics, deltaTracker) -> requestFrame());
         // Любой экран — и в мире, и в меню (у экрана свои события, подписываемся при каждой сборке)
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) ->
-                ScreenEvents.afterExtract(screen).register((shown, graphics, mouseX, mouseY, delta) -> requestFrame()));
+                ScreenEvents.afterRender(screen).register((shown, graphics, mouseX, mouseY, delta) -> requestFrame()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
@@ -307,13 +307,13 @@ public final class ItemIcons
             return;
         }
 
-        GuiRenderState frame = Minecraft.getInstance().gameRenderer.gameRenderState().guiRenderState;
+        GuiRenderState frame = ((com.aell.layerlist.mixin.schematics.IMixinGameRendererGui) Minecraft.getInstance().gameRenderer).layerlist$guiRenderState();
         boolean[] present = {false};
         frame.forEachPictureInPicture(state -> present[0] |= state == IconRenderer.Pass.INSTANCE);
 
         if (! present[0])
         {
-            frame.addPicturesInPictureState(IconRenderer.Pass.INSTANCE);
+            frame.submitPicturesInPictureState(IconRenderer.Pass.INSTANCE);
         }
     }
 

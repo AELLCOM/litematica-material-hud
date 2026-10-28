@@ -48,8 +48,8 @@ public abstract class MixinGuiScrollBarSkin
 
     /** Ползунок из текстуры (так рисуют списки Litematica) — та же плашка, без текстуры. */
     @WrapOperation(method = "render", at = @At(value = "INVOKE",
-            target = "Lfi/dy/masa/malilib/render/RenderUtils;drawTexturedRect(Lfi/dy/masa/malilib/render/GuiContext;Lnet/minecraft/resources/Identifier;IIIIII)V"),
-            require = 0)
+            target = "Lfi/dy/masa/malilib/render/RenderUtils;drawTexturedRect(Lfi/dy/masa/malilib/render/GuiContext;Lnet/minecraft/resources/Identifier;IIIIII)V",
+            remap = true), require = 0)
     private void layerlist$skinThumb(GuiContext ctx, Identifier texture, int x, int y, int u, int v, int width, int height,
             Operation<Void> original)
     {

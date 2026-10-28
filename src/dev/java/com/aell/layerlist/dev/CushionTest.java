@@ -30,7 +30,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.decoration.Cushion;
 import net.minecraft.world.item.DyeColor;
@@ -581,7 +581,7 @@ public final class CushionTest implements CovJob
                 {
                     double len = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
                     Vec3 feet = new Vec3(p.x + d[0] / len * r, p.y + up, p.z + d[1] / len * r);
-                    AABB body = EntityTypes.PLAYER.getDimensions().makeBoundingBox(feet.x, feet.y, feet.z);
+                    AABB body = EntityType.PLAYER.getDimensions().makeBoundingBox(feet.x, feet.y, feet.z);
                     Vec3 eye = feet.add(0.0D, 1.62D, 0.0D);
 
                     if (level.noCollision(body) && eye.distanceTo(p) < 4.0D && aimPoint(level, eye, ghost) != null)

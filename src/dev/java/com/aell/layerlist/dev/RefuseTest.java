@@ -360,7 +360,7 @@ public final class RefuseTest implements CovJob
 
         try
         {
-            ChatComponent chat = mc.gui.hud.getChat();
+            ChatComponent chat = mc.gui.getChat();
 
             for (Field field : ChatComponent.class.getDeclaredFields())
             {

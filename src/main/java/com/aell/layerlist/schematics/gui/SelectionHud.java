@@ -142,10 +142,10 @@ public final class SelectionHud
 
     public static void register()
     {
-        RenderEventHandler.getInstance().registerInGameGuiRenderer(new IRenderer()
+        RenderEventHandler.getInstance().registerGameOverlayRenderer(new IRenderer()
         {
             @Override
-            public void onExtractGuiOverlayPost(GuiContext ctx, float partialTicks, ProfilerFiller profiler)
+            public void onRenderGameOverlayPostAdvanced(GuiContext ctx, float partialTicks, ProfilerFiller profiler)
             {
                 SelectionHud.render(ctx);
             }
@@ -176,7 +176,7 @@ public final class SelectionHud
     {
         Minecraft mc = Minecraft.getInstance();
 
-        if (! active || mc.gui.screen() != null)
+        if (! active || mc.screen != null)
         {
             return false;
         }
@@ -201,7 +201,7 @@ public final class SelectionHud
     {
         Minecraft mc = Minecraft.getInstance();
 
-        if (! active || mc.gui.screen() != null || mc.level == null)
+        if (! active || mc.screen != null || mc.level == null)
         {
             return false;
         }
@@ -241,9 +241,9 @@ public final class SelectionHud
             return;
         }
 
-        Screen screen = mc.gui.screen();
+        Screen screen = mc.screen;
 
-        if (mc.gui.hud.isHidden() || (screen != null && ! (screen instanceof ChatScreen)))
+        if (mc.options.hideGui || (screen != null && ! (screen instanceof ChatScreen)))
         {
             return;
         }

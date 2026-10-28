@@ -3,8 +3,9 @@ package com.aell.layerlist.schematics.preview;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
-import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
+import net.minecraft.client.gui.render.state.pip.PictureInPictureRenderState;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3x2f;
 import org.joml.Matrix3x2fc;
 
 /**
@@ -18,14 +19,28 @@ import org.joml.Matrix3x2fc;
  */
 @Environment(EnvType.CLIENT)
 public record PreviewRenderState(PreviewModel model, PreviewCamera.Key camera, int x0, int y0, int x1, int y1,
-        float scale, Matrix3x2fc pose, @Nullable ScreenRectangle scissorArea, @Nullable ScreenRectangle bounds,
+        float scale, Matrix3x2f pose, @Nullable ScreenRectangle scissorArea, @Nullable ScreenRectangle bounds,
         boolean flipX, boolean flipY)
         implements PictureInPictureRenderState
 {
     public PreviewRenderState(PreviewModel model, PreviewCamera.Key camera, int x0, int y0, int x1, int y1,
             Matrix3x2fc pose, @Nullable ScreenRectangle scissorArea, boolean flipX, boolean flipY)
     {
-        this(model, camera, x0, y0, x1, y1, 1.0F, pose, scissorArea,
-                PictureInPictureRenderState.getBounds(x0, y0, x1, y1, pose, scissorArea), flipX, flipY);
+        // 1.21.11: PictureInPictureRenderState.pose() — изменяемая Matrix3x2f; копия, чтобы стек GUI её не тронул
+        this(model, camera, x0, y0, x1, y1, 1.0F, new Matrix3x2f(pose), scissorArea, bounds(x0, y0, x1, y1, pose, scissorArea), flipX, flipY);
+    }
+
+    /** 26.2: ванильный {@code getBounds} позу не берёт — переводим углы сами, как это делает 26.3. */
+    private static @Nullable ScreenRectangle bounds(int x0, int y0, int x1, int y1, Matrix3x2fc pose,
+            @Nullable ScreenRectangle scissorArea)
+    {
+        org.joml.Vector2f a = pose.transformPosition(x0, y0, new org.joml.Vector2f());
+        org.joml.Vector2f b = pose.transformPosition(x1, y1, new org.joml.Vector2f());
+        int left = (int) Math.floor(Math.min(a.x, b.x));
+        int top = (int) Math.floor(Math.min(a.y, b.y));
+        int right = (int) Math.ceil(Math.max(a.x, b.x));
+        int bottom = (int) Math.ceil(Math.max(a.y, b.y));
+
+        return PictureInPictureRenderState.getBounds(left, top, right, bottom, scissorArea);
     }
 }

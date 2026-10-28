@@ -299,7 +299,7 @@ public final class Exporters
     /** Открыть адрес в браузере (sheets.new, ссылка на лист команды). */
     public static void browse(URI uri)
     {
-        Blaze3D.openUri(uri);
+        net.minecraft.util.Util.getPlatform().openUri(uri);
     }
 
     /**
@@ -332,7 +332,7 @@ public final class Exporters
         }
 
         Path folder = target.getParent();
-        Blaze3D.openPath(folder != null ? folder : target);
+        net.minecraft.util.Util.getPlatform().openPath(folder != null ? folder : target);
     }
 
     /**
@@ -352,7 +352,7 @@ public final class Exporters
             LOGGER.warn("Export: could not create the folder {}", target, e);
         }
 
-        Blaze3D.openPath(target);
+        net.minecraft.util.Util.getPlatform().openPath(target);
     }
 
     private static ExportResult run(ExportRequest request, Job job)

@@ -35,15 +35,15 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
-import net.fabricmc.fabric.api.resource.v1.reloader.SimpleReloadListener;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.world.InteractionResult;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -112,7 +112,7 @@ public class LayerListClient implements ClientModInitializer
             return InteractionResult.PASS;
         });
 
-        LevelRenderEvents.BEFORE_GIZMOS.register(context -> {
+        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
             StorageHighlightRenderer.render();
             LayerVerifyRenderer.render();
             ShelfRenderer.render();
@@ -120,7 +120,7 @@ public class LayerListClient implements ClientModInitializer
         });
 
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) ->
-                LayerVerifier.getInstance().onChunkLoaded(chunk.getPos().x(), chunk.getPos().z()));
+                LayerVerifier.getInstance().onChunkLoaded(chunk.getPos().x, chunk.getPos().z));
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             ContainerObserver.saveAndClearActive(client);
@@ -190,18 +190,17 @@ public class LayerListClient implements ClientModInitializer
 
     private static void registerColorCacheReset()
     {
-        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
-                Identifier.fromNamespaceAndPath("layerlist", "item_colors"),
-                new SimpleReloadListener<Void>()
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+                new SimpleSynchronousResourceReloadListener()
                 {
                     @Override
-                    protected Void prepare(PreparableReloadListener.SharedState state)
+                    public Identifier getFabricId()
                     {
-                        return null;
+                        return Identifier.fromNamespaceAndPath("layerlist", "item_colors");
                     }
 
                     @Override
-                    protected void apply(Void prepared, PreparableReloadListener.SharedState state)
+                    public void onResourceManagerReload(ResourceManager manager)
                     {
                         ItemColors.clearCache();
                     }

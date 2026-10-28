@@ -77,13 +77,13 @@ public final class EscGuardTest implements CovJob
                     new BlockHitResult(Vec3.atCenterOf(CHEST).add(0, 0, 0.5), Direction.SOUTH, CHEST, false));
             case 1 ->
             {
-                this.check("сундук открыт", mc.gui.screen() instanceof AbstractContainerScreen<?>, String.valueOf(mc.gui.screen()));
+                this.check("сундук открыт", mc.screen instanceof AbstractContainerScreen<?>, String.valueOf(mc.screen));
                 esc(mc);
-                this.check("Esc вышел из сундука", mc.gui.screen() == null, String.valueOf(mc.gui.screen()));
+                this.check("Esc вышел из сундука", mc.screen == null, String.valueOf(mc.screen));
                 esc(mc);
-                this.check("обычный выход по Esc, тут же Esc — пауза как в игре", mc.gui.screen() instanceof PauseScreen,
-                        String.valueOf(mc.gui.screen()));
-                mc.gui.setScreen(null);
+                this.check("обычный выход по Esc, тут же Esc — пауза как в игре", mc.screen instanceof PauseScreen,
+                        String.valueOf(mc.screen));
+                mc.setScreen(null);
                 wait = 500L;
             }
             case 2 ->
@@ -93,17 +93,17 @@ public final class EscGuardTest implements CovJob
             case 3 ->
             {
                 // Свой инвентарь: открыть и закрыть — защита не включается
-                mc.gui.setScreen(new InventoryScreen(mc.player));
+                mc.setScreen(new InventoryScreen(mc.player));
                 wait = 500L;
             }
             case 4 ->
             {
                 esc(mc);
-                this.check("инвентарь закрыт по Esc", mc.gui.screen() == null, String.valueOf(mc.gui.screen()));
+                this.check("инвентарь закрыт по Esc", mc.screen == null, String.valueOf(mc.screen));
                 esc(mc);
-                this.check("после своего инвентаря Esc — пауза как обычно", mc.gui.screen() instanceof PauseScreen,
-                        String.valueOf(mc.gui.screen()));
-                mc.gui.setScreen(null);
+                this.check("после своего инвентаря Esc — пауза как обычно", mc.screen instanceof PauseScreen,
+                        String.valueOf(mc.screen));
+                mc.setScreen(null);
                 wait = 500L;
             }
             default ->
@@ -122,8 +122,8 @@ public final class EscGuardTest implements CovJob
     static void esc(Minecraft mc)
     {
         KeyEvent event = new KeyEvent(InputConstants.KEY_ESCAPE, 0x1B, 0);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.PRESS, event);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.RELEASE, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.PRESS, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.RELEASE, event);
     }
 
     private void check(String what, boolean ok, String detail)

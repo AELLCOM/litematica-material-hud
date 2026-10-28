@@ -141,7 +141,7 @@ public final class OrbitCamera
         pivotZ = 0.0;
 
         // При нулевой опоре wanted() — это смещение глаза от опоры
-        Vec3 eye = mc.gameRenderer.mainCamera().position();
+        Vec3 eye = mc.gameRenderer.getMainCamera().position();
         Vec3 offset = wanted();
 
         pivotX = eye.x - offset.x;
@@ -172,7 +172,7 @@ public final class OrbitCamera
 
         Minecraft mc = Minecraft.getInstance();
 
-        if (mc.gui.screen() != owner || mc.level == null || mc.player == null)
+        if (mc.screen != owner || mc.level == null || mc.player == null)
         {
             owner = null;
 
@@ -434,7 +434,7 @@ public final class OrbitCamera
         {
             AABB body = new AABB(eyeX - BODY_HALF, eyeY - BODY_HALF, eyeZ - BODY_HALF,
                     eyeX + BODY_HALF, eyeY + BODY_HALF, eyeZ + BODY_HALF);
-            Vec3 moved = Entity.collideBoundingBox(CollisionContext.empty(), step, body, level, List.of());
+            Vec3 moved = Entity.collideBoundingBox(null, step, body, level, List.of());
 
             eyeX += moved.x;
             eyeY += moved.y;
@@ -518,7 +518,7 @@ public final class OrbitCamera
 
     static double tanHalfFov()
     {
-        return Math.tan(Math.toRadians(Minecraft.getInstance().gameRenderer.mainCamera().getFov() * 0.5));
+        return Math.tan(Math.toRadians(CursorRay.fovDegrees() * 0.5));
     }
 
     static double aspect()

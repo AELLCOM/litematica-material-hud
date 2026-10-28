@@ -234,7 +234,7 @@ public final class StoragePotTest implements CovJob
                         "пропущено " + missing + ", не тот блок " + wrong);
                 v.toggle();
             }
-            case 15 -> Screenshot.grab(mc, false);
+            case 15 -> Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
             case 16 ->
             {
                 CovOut.log("[storagepot] итог: " + (this.failed ? "FAIL" : "OK"));

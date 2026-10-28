@@ -4,7 +4,7 @@ import com.aell.layerlist.shaded.ui.Ui;
 import com.aell.layerlist.ui.Theme;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.gizmos.GizmoStyle;
@@ -65,10 +65,10 @@ public final class PlacementOverlay
         }
 
         registered = true;
-        LevelRenderEvents.BEFORE_GIZMOS.register(context -> render());
+        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> render());
 
         // Обводка блока под прицелом игрока в виде сверху и в облёте — лишний чёрный квадрат где-то внизу
-        LevelRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, outline) -> ! TopViewCamera.active()
+        WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, outline) -> ! TopViewCamera.active()
                 && ! OrbitCamera.active());
     }
 
@@ -90,7 +90,7 @@ public final class PlacementOverlay
         PlacementEditorScreen screen = editor;
         Minecraft mc = Minecraft.getInstance();
 
-        if (screen == null || mc.level == null || mc.gui.screen() != screen)
+        if (screen == null || mc.level == null || mc.screen != screen)
         {
             return;
         }

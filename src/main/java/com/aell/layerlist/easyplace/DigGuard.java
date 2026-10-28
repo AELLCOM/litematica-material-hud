@@ -128,7 +128,7 @@ public final class DigGuard
         }
 
         lastHintTick = now;
-        player.sendOverlayMessage(Component.translatable(key));
+        player.displayClientMessage(Component.translatable(key), true);
     }
 
     private static @Nullable WorldSchematic schematicWorld()

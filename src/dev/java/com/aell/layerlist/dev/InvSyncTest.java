@@ -29,7 +29,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.Connection;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Util;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -248,7 +248,7 @@ public final class InvSyncTest implements CovJob
                 CovOut.log("[sync] одиночная: 24 блока за " + this.runTook + " мс (" + String.format(java.util.Locale.ROOT, "%.1f", 24000.0 / Math.max(1, this.runTook)) + " блоков/с)");
                 // Чужой клик по инвентарю (как автопополнение): обмен рюкзак → хотбар 1
                 setForced(300L);
-                mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, 9, 1, ContainerInput.SWAP, mc.player);
+                mc.gameMode.handleInventoryMouseClick(mc.player.inventoryMenu.containerId, 9, 1, ClickType.SWAP, mc.player);
                 this.check("чужой клик по инвентарю: установка ждёт", placeTooSoon(), "");
                 wait = 450L;
             }

@@ -1,8 +1,8 @@
 package com.aell.layerlist.schematics.area;
 
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.CardinalLighting;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -29,8 +29,8 @@ final class MapBiomeTint implements BlockAndTintGetter {
     }
 
     @Override
-    public CardinalLighting cardinalLighting() {
-        return CardinalLighting.DEFAULT;
+    public float getShade(Direction direction, boolean shade) {
+        return 1.0F;
     }
 
     @Override

@@ -128,14 +128,14 @@ public final class Availability
 
         if (contents != null)
         {
-            contents.nonEmptyItemCopyStream().forEach(inner -> add(counts, inner, count, depth + 1));
+            contents.nonEmptyItemsCopy().forEach(inner -> add(counts, inner, count, depth + 1));
         }
 
         BundleContents bundle = stack.get(DataComponents.BUNDLE_CONTENTS);
 
         if (bundle != null)
         {
-            bundle.itemCopies().forEach(inner -> add(counts, inner, count, depth + 1));
+            bundle.itemCopyStream().forEach(inner -> add(counts, inner, count, depth + 1));
         }
     }
 

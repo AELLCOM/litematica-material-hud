@@ -43,15 +43,6 @@ public final class ZfVerifyTest implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         if (! FabricLoader.getInstance().isModLoaded("zonefocus"))
         {
             CovOut.log("[zfverify] Zone Focus не загружен — положите jar в run/mods");

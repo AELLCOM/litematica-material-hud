@@ -13,13 +13,12 @@ import fi.dy.masa.litematica.render.schematic.ChunkMeshDataSchematic;
 import fi.dy.masa.litematica.render.schematic.ChunkRenderDataSchematic;
 import fi.dy.masa.litematica.render.schematic.ChunkRenderDispatcherBuffers;
 import fi.dy.masa.litematica.render.schematic.ChunkRendererSchematicVbo;
-import fi.dy.masa.litematica.render.schematic.FluidModelRendererSchematic;
-import fi.dy.masa.litematica.render.schematic.IBlockOutputSchematic;
-import fi.dy.masa.malilib.util.position.LayerRange;
+import fi.dy.masa.malilib.util.LayerRange;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.chunk.VisGraph;
-import net.minecraft.world.phys.Vec3;
+import com.mojang.blaze3d.vertex.PoseStack;
+import java.util.Set;
 import org.objectweb.asm.Opcodes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -45,11 +44,12 @@ public abstract class MixinChunkRendererSchematicVbo
     @Final
     protected BlockPos.MutableBlockPos position;
 
+    // Litematica 0.26 (1.21.11): блок кладётся в буфер со сдвигом PoseStack, а не offset-аргументом, и
+    // использованные слои собираются в два набора — так и зовём для опор вне слоя
     @Shadow
-    protected abstract void renderBlocksAndOverlay(BlockModelRendererSchematic blockRenderer,
-            FluidModelRendererSchematic fluidRenderer, BlockPos pos, ChunkRenderDataSchematic data,
-            ChunkMeshDataSchematic chunkMeshData, ChunkRenderDispatcherBuffers pack, IBlockOutputSchematic blockOutput,
-            Vec3 offset, VisGraph visGraph);
+    protected abstract void renderBlocksAndOverlay(BlockPos pos, ChunkRenderDataSchematic data,
+            ChunkMeshDataSchematic chunkMeshData, ChunkRenderDispatcherBuffers pack,
+            Set<?> usedLayers, Set<?> usedRenderTypes, PoseStack poseStack, VisGraph visGraph);
 
     // Режим «голограммы по инвентарю»: позиция, чей блок схемы не закрыт предметами игрока, не
     // мешится совсем — ни модель, ни жидкость, ни оверлей. Выше по стеку слои Litematica и обрезка
@@ -102,7 +102,7 @@ public abstract class MixinChunkRendererSchematicVbo
     // собирает — а опора в нём может лежать
     @ModifyExpressionValue(method = "rebuildChunk",
             at = @At(value = "INVOKE",
-                    target = "Lfi/dy/masa/malilib/util/position/LayerRange;intersectsBox(IIIIII)Z"),
+                    target = "Lfi/dy/masa/malilib/util/LayerRange;intersectsBox(IIIIII)Z"),
             require = 0, allow = 1)
     private boolean layerlist$chunkHoldsSupport(boolean intersects)
     {
@@ -110,18 +110,19 @@ public abstract class MixinChunkRendererSchematicVbo
     }
 
     // Опоры вне слоя дорисовываются тем же путём, что и клетки слоя: модель, жидкость, оверлей,
-    // и все фильтры выше (инвентарь, «без опоры») действуют и на них
+    // и все фильтры выше (инвентарь, «без опоры») действуют и на них. В 0.26 disableCache зовётся
+    // на каждую коробку — встаём один раз, после всех коробок (второй обход списка — по слоям)
     @Inject(method = "rebuildChunk",
-            at = @At(value = "INVOKE",
-                    target = "Lfi/dy/masa/litematica/render/schematic/BlockModelRendererSchematic;disableCache()V"),
+            at = @At(value = "INVOKE", target = "Ljava/util/List;iterator()Ljava/util/Iterator;", ordinal = 1),
             require = 0, allow = 1)
     private void layerlist$renderSupportCells(CallbackInfo ci,
             @Local(argsOnly = true) ChunkRenderDispatcherBuffers pack,
             @Local LayerRange range,
-            @Local BlockModelRendererSchematic blockRenderer,
             @Local ChunkRenderDataSchematic data,
             @Local ChunkMeshDataSchematic chunkMeshData,
-            @Local IBlockOutputSchematic blockOutput,
+            @Local(ordinal = 0) Set<?> usedLayers,
+            @Local(ordinal = 1) Set<?> usedRenderTypes,
+            @Local PoseStack poseStack,
             @Local VisGraph visGraph)
     {
         long[] cells = GhostSupport.cellsInChunk(this.position.getX() >> 4, this.position.getZ() >> 4);
@@ -133,23 +134,30 @@ public abstract class MixinChunkRendererSchematicVbo
 
         int bottomY = this.position.getY();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        // Свой рендерер жидкостей: локальную переменную метода Mixin в этом месте не видит
-        FluidModelRendererSchematic fluidRenderer = new FluidModelRendererSchematic(
-                net.minecraft.client.Minecraft.getInstance().getModelManager().getFluidStateModelSet());
+        BlockModelRendererSchematic.enableCache();
 
-        for (long cell : cells)
+        try
         {
-            pos.set(cell);
-
-            if (GhostSupport.rawWithinRange(range, pos.getX(), pos.getY(), pos.getZ()))
+            for (long cell : cells)
             {
-                continue;
-            }
+                pos.set(cell);
 
-            Vec3 offset = new Vec3(pos.getX() & 0xF, pos.getY() - bottomY, pos.getZ() & 0xF);
-            GhostSupport.countDrawn();
-            this.renderBlocksAndOverlay(blockRenderer, fluidRenderer, pos, data, chunkMeshData, pack, blockOutput,
-                    offset, visGraph);
+                if (GhostSupport.rawWithinRange(range, pos.getX(), pos.getY(), pos.getZ()))
+                {
+                    continue;
+                }
+
+                GhostSupport.countDrawn();
+                poseStack.pushPose();
+                poseStack.translate((float) (pos.getX() & 15), (float) (pos.getY() - bottomY), (float) (pos.getZ() & 15));
+                this.renderBlocksAndOverlay(pos.immutable(), data, chunkMeshData, pack, usedLayers, usedRenderTypes,
+                        poseStack, visGraph);
+                poseStack.popPose();
+            }
+        }
+        finally
+        {
+            BlockModelRendererSchematic.disableCache();
         }
     }
 
@@ -158,7 +166,7 @@ public abstract class MixinChunkRendererSchematicVbo
     // проверке слышит «внутренние грани выключены» — и отсекает сама, своим кодом и по своей опции
     // schematicOverlayEnableCulling: позиция без единой видимой грани отсекается, граница объёма
     // остаётся видимой. Подменяется одно значение: чтение RENDER_TRANSLUCENT_INNER_SIDES внутри
-    // shouldCullOverlayPos (в 0.29.0 и 0.29.1 — GETSTATIC и сразу getBooleanValue).
+    // shouldCullOverlayPos (в 0.26.16, 0.29.0 и 0.29.1 — GETSTATIC и сразу getBooleanValue).
     @ModifyExpressionValue(method = "shouldCullOverlayPos",
             at = @At(value = "INVOKE",
                     target = "Lfi/dy/masa/malilib/config/options/ConfigBooleanHotkeyed;getBooleanValue()Z",

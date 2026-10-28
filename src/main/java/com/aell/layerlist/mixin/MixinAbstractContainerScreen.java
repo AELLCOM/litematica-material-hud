@@ -2,7 +2,7 @@ package com.aell.layerlist.mixin;
 
 import com.aell.layerlist.storage.SlotHighlighter;
 import fi.dy.masa.malilib.render.GuiContext;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,25 +13,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinAbstractContainerScreen
 {
     @Inject(
-            method = "extractContents",
+            method = "renderContents",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;",
                     shift = At.Shift.AFTER))
-    private void layerlist_highlightSearchedSlots(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci)
+    private void layerlist_highlightSearchedSlots(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci)
     {
         SlotHighlighter.render(GuiContext.fromGuiGraphics(graphics), (AbstractContainerScreen<?>) (Object) this);
     }
 
     // Панель материалов у открытого контейнера — до предмета на курсоре и до подсказки предмета
-    // (её Screen выводит позже, extractDeferredElements): подсказка ложится поверх панели
+    // (её Screen выводит позже, renderTooltip): подсказка ложится поверх панели
     @Inject(
-            method = "extractRenderState",
+            method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;extractCarriedItem(Lnet/minecraft/client/gui/GuiGraphicsExtractor;II)V"),
+                    target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;renderCarriedItem(Lnet/minecraft/client/gui/GuiGraphics;II)V"),
             require = 0)
-    private void layerlist_hudUnderTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks,
+    private void layerlist_hudUnderTooltip(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks,
             CallbackInfo ci)
     {
         com.aell.layerlist.hud.LayerHudRenderer.renderUnderTooltip(graphics, mouseX, mouseY);

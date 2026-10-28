@@ -60,11 +60,11 @@ public final class DevScreenshots
     {
         switch (index)
         {
-            case 0 -> mc.gui.setScreen(GuiConfigs.create(null, null).showTab(0));
+            case 0 -> mc.setScreen(GuiConfigs.create(null, null).showTab(0));
             case 1 -> shot(mc, "1-hud");
-            case 2 -> mc.gui.setScreen(GuiConfigs.create(null, null).showTab(2));
+            case 2 -> mc.setScreen(GuiConfigs.create(null, null).showTab(2));
             case 3 -> shot(mc, "2-highlight");
-            case 4 -> mc.gui.setScreen(GuiConfigs.create(null, null).showTab(3));
+            case 4 -> mc.setScreen(GuiConfigs.create(null, null).showTab(3));
             case 5 -> shot(mc, "3-hotkeys");
             case 6 ->
             {
@@ -84,10 +84,10 @@ public final class DevScreenshots
             {
                 fi.dy.masa.litematica.data.DataManager.setConfigGuiTab(
                         fi.dy.masa.litematica.gui.GuiConfigs.ConfigGuiTab.GENERIC);
-                mc.gui.setScreen(new fi.dy.masa.litematica.gui.GuiConfigs());
+                mc.setScreen(new fi.dy.masa.litematica.gui.GuiConfigs());
             }
             case 11 -> shot(mc, "5-litematica-tabs");
-            case 12 -> mc.gui.setScreen(new fi.dy.masa.litematica.gui.GuiRenderLayer());
+            case 12 -> mc.setScreen(new fi.dy.masa.litematica.gui.GuiRenderLayer());
             case 13 -> shot(mc, "6-litematica-render-layers");
             // Экран «Схемы» (0.0.26): лишний шаг ожидания — миниатюры и превью читаются в фоне
             case 14 -> GuiSchematics.open(null);
@@ -101,7 +101,7 @@ public final class DevScreenshots
 
     private static void shot(Minecraft mc, String name)
     {
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
         System.out.println("[layerlist] screenshot: " + name);
     }
 }

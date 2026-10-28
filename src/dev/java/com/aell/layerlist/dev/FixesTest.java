@@ -279,7 +279,7 @@ public final class FixesTest implements CovJob
             {
                 try
                 {
-                    var gui = (com.aell.layerlist.schematics.gui.GuiSchematics) mc.gui.screen();
+                    var gui = (com.aell.layerlist.schematics.gui.GuiSchematics) mc.screen;
                     java.lang.reflect.Method show = com.aell.layerlist.schematics.gui.GuiSchematics.class.getDeclaredMethod(
                             "showMaterials", com.aell.layerlist.schematics.library.SchematicEntry.class, SchematicPlacement.class);
                     show.setAccessible(true);
@@ -294,7 +294,7 @@ public final class FixesTest implements CovJob
             }
             case 8 ->
             {
-                var gui = mc.gui.screen() instanceof com.aell.layerlist.schematics.gui.GuiSchematics g ? g : null;
+                var gui = mc.screen instanceof com.aell.layerlist.schematics.gui.GuiSchematics g ? g : null;
                 Object pane = KProbe.fieldNamedType(gui, "MaterialsPane");
                 var cell = KProbe.fieldOfType(pane, com.aell.layerlist.schematics.gui.materials.ReplaceCell.class);
                 String key = com.aell.layerlist.schematics.materials.ItemKeys.of(new ItemStack(Items.GLOW_BERRIES));
@@ -318,7 +318,7 @@ public final class FixesTest implements CovJob
             }
             case 10 ->
             {
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 this.round = 1;
                 this.index = 0;
                 this.prepareRound(server);
@@ -594,7 +594,7 @@ public final class FixesTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log(T + "снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

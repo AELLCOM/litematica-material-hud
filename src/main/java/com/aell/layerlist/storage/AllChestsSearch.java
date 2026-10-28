@@ -50,15 +50,15 @@ public final class AllChestsSearch
     public static void askToEnable(Runnable enable)
     {
         Minecraft mc = Minecraft.getInstance();
-        Screen back = mc.gui.screen();
-        mc.gui.setScreen(new ConfirmScreen(yes ->
+        Screen back = mc.screen;
+        mc.setScreen(new ConfirmScreen(yes ->
         {
             if (yes)
             {
                 enable.run();
             }
 
-            mc.gui.setScreen(back);
+            mc.setScreen(back);
         }, Component.translatable("layerlist.message.search_all.warn.title"),
                 Component.translatable("layerlist.message.search_all.warn.text"),
                 Component.translatable("layerlist.message.search_all.warn.yes"),

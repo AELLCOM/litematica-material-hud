@@ -149,7 +149,7 @@ public final class StockHudTest implements CovJob
             case 1 ->
             {
                 // A, B, C открыть и закрыть — так их запоминает индекс; E не трогаем
-                if (mc.gui.screen() != null)
+                if (mc.screen != null)
                 {
                     mc.player.closeContainer();
                     ++this.opened;
@@ -198,7 +198,7 @@ public final class StockHudTest implements CovJob
             {
                 TreeSet<String> rows = ids(hud.getEntries());
                 CovOut.log("[stock] открыт сундук A (" + screenName(mc) + "), строки HUD: " + rows);
-                this.check("открыт сундук: экран хранилища", mc.gui.screen() != null, "");
+                this.check("открыт сундук: экран хранилища", mc.screen != null, "");
                 this.check("открыт сундук: список полный (для переноса)", rows.equals(set(STONE, PLANKS, GLASS, COBBLE)), rows.toString());
                 this.check("открыт сундук: страница для «Перенести» с камнем",
                         ids(hud.getPageEntries()).contains(STONE), "");
@@ -269,7 +269,7 @@ public final class StockHudTest implements CovJob
                 this.check("HUD тоже вернул все четыре", ids(hud.getEntries()).size() == 4 && hud.getStockHidden() == 0,
                         ids(hud.getEntries()).toString());
                 shot(mc, "stock-6-table-off");
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 wait = 500L;
             }
             default ->
@@ -308,7 +308,7 @@ public final class StockHudTest implements CovJob
 
     private static String screenName(Minecraft mc)
     {
-        return mc.gui.screen() == null ? "нет экрана" : mc.gui.screen().getClass().getSimpleName();
+        return mc.screen == null ? "нет экрана" : mc.screen.getClass().getSimpleName();
     }
 
     private static TreeSet<String> ids(List<MaterialListEntry> entries)
@@ -360,7 +360,7 @@ public final class StockHudTest implements CovJob
 
     private static Object pane(Minecraft mc)
     {
-        return mc.gui.screen() instanceof GuiSchematics gui ? KProbe.fieldNamedType(gui, "MaterialsPane") : null;
+        return mc.screen instanceof GuiSchematics gui ? KProbe.fieldNamedType(gui, "MaterialsPane") : null;
     }
 
     private static Object field(Object owner, String name)
@@ -402,7 +402,7 @@ public final class StockHudTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[stock] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private static String chest(BlockPos pos, String block, String items)

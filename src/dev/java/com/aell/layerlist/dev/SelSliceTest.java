@@ -125,7 +125,7 @@ public final class SelSliceTest implements CovJob
         catch (RuntimeException | LinkageError | ReflectiveOperationException e)
         {
             CovOut.log("[selslice] FAIL сбой: " + e);
-            mc.gui.setScreen(null);
+            mc.setScreen(null);
             return true;
         }
     }
@@ -172,7 +172,7 @@ public final class SelSliceTest implements CovJob
 
                 for (int i = 0; i < LAYERS.length - 2; ++i)
                 {
-                    mc.gui.screen().mouseScrolled(x, y, 0.0, -1.0);
+                    mc.screen.mouseScrolled(x, y, 0.0, -1.0);
                 }
 
                 this.check("колесо: слой " + cut.value(), cut.value() == 2);
@@ -212,7 +212,7 @@ public final class SelSliceTest implements CovJob
                 this.check("срез превью — на слое 2: " + preview.layerCut(), preview.layerCut() == 2);
                 this.check("пока режем — рисует своё превью, не Voxy", ! (boolean) field(pane, "voxyShown"));
                 CovOut.log("[selslice] снимок 1: срез на слое 3 из 6");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 this.nextAt = now + 400L;
                 this.stage = 3;
             }
@@ -225,7 +225,7 @@ public final class SelSliceTest implements CovJob
 
                 for (int i = 0; i < LAYERS.length; ++i)
                 {
-                    mc.gui.screen().mouseScrolled(x, y, 0.0, 1.0);
+                    mc.screen.mouseScrolled(x, y, 0.0, 1.0);
                 }
 
                 this.check("колесо вправо до упора — «всё»: " + cut.value(), cut.value() == cut.max());
@@ -255,13 +255,13 @@ public final class SelSliceTest implements CovJob
                 this.check("справа — снова вся область" + (voxy ? " (рисует Voxy)" : ""), true);
                 this.check("без среза: " + preview.layerCut(), preview.layerCut() == Integer.MAX_VALUE);
                 CovOut.log("[selslice] снимок 2: вся область");
-                Screenshot.grab(mc, false);
+                Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
                 this.nextAt = now + 400L;
                 this.stage = 9;
             }
             default ->
             {
-                mc.gui.setScreen(null);
+                mc.setScreen(null);
                 Nav.clear();
                 CovOut.log("[selslice] итог: " + (this.failed ? "FAIL" : "OK"));
                 return true;
@@ -278,7 +278,7 @@ public final class SelSliceTest implements CovJob
 
     private Object pane(Minecraft mc) throws ReflectiveOperationException
     {
-        return field(mc.gui.screen(), "selection");
+        return field(mc.screen, "selection");
     }
 
     private static Object field(Object owner, String name) throws ReflectiveOperationException

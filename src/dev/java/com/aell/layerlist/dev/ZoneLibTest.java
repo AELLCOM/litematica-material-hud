@@ -58,15 +58,6 @@ public final class ZoneLibTest implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         if (! ZoneFocusFiles.available())
         {
             CovOut.log("[zonelib] нет Zone Focus 0.0.8+ в run/mods");
@@ -164,7 +155,7 @@ public final class ZoneLibTest implements CovJob
                     int count = (int) overlay.getClass().getMethod("count").invoke(overlay);
                     this.check("на превью 6 зон", count == 6, "зон " + count);
                     shot(mc, "библиотека — зоны с номерами на превью");
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(this.file);
                     this.placement = SchematicPlacement.createFor(schematic, mc.player.blockPosition().offset(4, 0, 4), "zonelib", true, true);
                     DataManager.getSchematicPlacementManager().addSchematicPlacement(this.placement, false);
@@ -256,12 +247,12 @@ public final class ZoneLibTest implements CovJob
                     editor.getField("showProgress").setBoolean(null, false);
                     Screen gui = (Screen) Class.forName("com.aell.zonefocus.gui.manage.GuiZoneManager")
                             .getConstructor(Screen.class, SchematicPlacement.class).newInstance(null, this.placement);
-                    mc.gui.setScreen(gui);
+                    mc.setScreen(gui);
                     wait = 6000L;
                 }
                 case 7 ->
                 {
-                    Screen gui = mc.gui.screen();
+                    Screen gui = mc.screen;
                     Object preview = field(gui, "preview");
                     this.check("3D-превью создано", preview != null, "");
                     shot(mc, "управление зонами — 3D");
@@ -316,14 +307,14 @@ public final class ZoneLibTest implements CovJob
                     Method stats = scanner.getClass().getMethod("getStats", int.class);
                     Object s0 = stats.invoke(scanner, 0);
                     this.check("3D с прогрессом: скан запустился сам, зона 1 посчитана", s0 != null, String.valueOf(s0));
-                    Object preview = field(mc.gui.screen(), "preview");
+                    Object preview = field(mc.screen, "preview");
                     java.lang.reflect.Method built = preview.getClass().getMethod("builtPercent");
                     int percent = (int) built.invoke(preview);
                     this.check("3D с прогрессом: модель «блок в блок» — построено между 0 и 100 %", percent > 0 && percent < 100,
                             "построено " + percent + "%");
                     // Качество / Оптимизация рядом с 2D / 3D — щелчок переключает настройку Material HUD
-                    Object hi = field(mc.gui.screen(), "qualityHi");
-                    Object lo = field(mc.gui.screen(), "qualityLo");
+                    Object hi = field(mc.screen, "qualityHi");
+                    Object lo = field(mc.screen, "qualityLo");
                     boolean shown = (boolean) hi.getClass().getMethod("visible").invoke(hi)
                             && (boolean) lo.getClass().getMethod("visible").invoke(lo);
                     boolean before = com.aell.layerlist.api.LayerListApi.isPreviewQuality();
@@ -333,23 +324,23 @@ public final class ZoneLibTest implements CovJob
                             "было " + before + ", стало " + after);
                     this.clickWidget(mc, before ? hi : lo);
                     // «Зоны» в углу 3D — убрать каркасы
-                    this.clickWidget(mc, field(mc.gui.screen(), "frames"));
+                    this.clickWidget(mc, field(mc.screen, "frames"));
                     wait = 1500L;
                 }
                 case 10 ->
                 {
-                    Object preview = field(mc.gui.screen(), "preview");
+                    Object preview = field(mc.screen, "preview");
                     Object overlay = field(preview, "overlay");
                     int count = (int) overlay.getClass().getMethod("count").invoke(overlay);
                     this.check("3D: «Зоны» выкл — каркасов нет", count == 0, "каркасов " + count);
                     shot(mc, "управление зонами — 3D без полос");
-                    this.clickWidget(mc, field(mc.gui.screen(), "frames"));
+                    this.clickWidget(mc, field(mc.screen, "frames"));
                     Class.forName("com.aell.zonefocus.gui.manage.ZoneEditor").getField("showProgress").setBoolean(null, false);
                     wait = 1500L;
                 }
                 case 11 ->
                 {
-                    Object preview = field(mc.gui.screen(), "preview");
+                    Object preview = field(mc.screen, "preview");
                     Object overlay = field(preview, "overlay");
                     int count = (int) overlay.getClass().getMethod("count").invoke(overlay);
                     this.check("3D: «Зоны» вкл — каркасы вернулись", count == 6, "каркасов " + count);
@@ -406,7 +397,7 @@ public final class ZoneLibTest implements CovJob
                     this.check("«Отменить разбиение»: у файла сетки нет", ZoneFocusFiles.grid(this.file) == null
                             && ! ZoneFocusFiles.hasZones(this.file), "");
                     this.check("«Отменить разбиение»: у размещения зон нет", ! has, "");
-                    mc.gui.setScreen(null);
+                    mc.setScreen(null);
                     wait = 500L;
                 }
                 default ->
@@ -420,7 +411,7 @@ public final class ZoneLibTest implements CovJob
         {
             this.check("сбой на шаге " + this.stage, false, e.toString());
             CovOut.log("[zonelib] итог: FAIL");
-            mc.gui.setScreen(null);
+            mc.setScreen(null);
             return true;
         }
 
@@ -474,7 +465,7 @@ public final class ZoneLibTest implements CovJob
     private static void shot(Minecraft mc, String name)
     {
         CovOut.log("[zonelib] снимок " + name);
-        Screenshot.grab(mc, false);
+        Screenshot.grab(mc.gameDirectory, mc.getMainRenderTarget(), message -> {});
     }
 
     private void check(String what, boolean ok, String detail)

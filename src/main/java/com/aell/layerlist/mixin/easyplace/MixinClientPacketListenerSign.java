@@ -31,7 +31,7 @@ public abstract class MixinClientPacketListenerSign
 
         try
         {
-            handled = SignEditor.handleOpen(packet.pos(), packet.slot());
+            handled = SignEditor.handleOpen(packet.getPos(), packet.isFrontText());
         }
         catch (RuntimeException | LinkageError e)
         {

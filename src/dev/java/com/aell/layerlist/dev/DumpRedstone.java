@@ -500,7 +500,7 @@ public final class DumpRedstone implements CovJob
      */
     private static Vec3 aimPoint(WorldSchematic world, BlockState wanted, BlockPos cell)
     {
-        if (wanted.getBlock() instanceof net.minecraft.world.level.block.RedstoneWireBlock)
+        if (wanted.getBlock() instanceof net.minecraft.world.level.block.RedStoneWireBlock)
         {
             return new Vec3(cell.getX() + 0.5D, cell.getY() + 0.03D, cell.getZ() + 0.5D);
         }

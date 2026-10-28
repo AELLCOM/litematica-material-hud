@@ -6,7 +6,7 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.render.GuiContext;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,14 +21,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = GuiBase.class, remap = false)
 public abstract class MixinGuiBaseSkin
 {
-    @Inject(method = "extractRenderState", at = @At("HEAD"), require = 0)
-    private void layerlist$skinBegin(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci)
+    @Inject(method = "render", at = @At("HEAD"), require = 0, remap = true)
+    private void layerlist$skinBegin(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci)
     {
         LitematicaSkin.beginFrame((GuiBase) (Object) this);
     }
 
-    @Inject(method = "extractRenderState", at = @At("RETURN"), require = 0)
-    private void layerlist$skinEnd(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci)
+    @Inject(method = "render", at = @At("RETURN"), require = 0, remap = true)
+    private void layerlist$skinEnd(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci)
     {
         LitematicaSkin.endFrame();
     }

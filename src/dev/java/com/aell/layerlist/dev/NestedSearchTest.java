@@ -138,7 +138,7 @@ public final class NestedSearchTest implements CovJob
             case 1 ->
             {
                 // Открыть и закрыть каждый контейнер по очереди — так его запоминает индекс
-                if (mc.gui.screen() != null)
+                if (mc.screen != null)
                 {
                     mc.player.closeContainer();
                     ++this.opened;
