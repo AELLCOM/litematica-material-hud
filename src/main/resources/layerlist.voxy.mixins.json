@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "package": "com.aell.layerlist.mixin.voxy",
+  "plugin": "com.aell.layerlist.mixin.voxy.VoxyMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MixinVoxyClient",
+    "MixinVoxyRenderSystem",
+    "MixinVoxyViewportSelector"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

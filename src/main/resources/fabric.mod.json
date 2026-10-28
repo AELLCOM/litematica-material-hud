@@ -1,0 +1,42 @@
+{
+	"schemaVersion": 1,
+	"id": "layerlist",
+	"version": "${version}",
+	"name": "Litematica Material HUD",
+	"description": "A live material list HUD for the current render layer instead of Litematica's info panel. Updates as you build, pages through with hotkeys, and marks the chests, barrels, copper chests and shulker boxes holding the blocks you need with bold colored dots. Also carries two built-in modules with their own settings tabs: Ghost Alpha (transparency of Litematica's ghost blocks) and Easy Place (fixes for blocks placed by click count or by the direction you look). Pairs with the standalone Litematica Zone Focus mod: when it is installed, its settings tab appears here too. Unofficial add-on: not affiliated with or endorsed by masa or Sakura-Ryoko (Litematica, malilib).",
+	"authors": [
+		"Aell_"
+	],
+	"contact": {
+		"discord": "https://discord.gg/jTU2yawThv"
+	},
+	"license": "GPL-3.0-or-later",
+	"icon": "assets/layerlist/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.aell.layerlist.LayerListClient"
+		],
+		"modmenu": [
+			"com.aell.layerlist.compat.ModMenuImpl"
+		]
+	},
+	"mixins": [
+		{
+			"config": "layerlist.mixins.json",
+			"environment": "client"
+		},
+		{
+			"config": "layerlist.voxy.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.18.2",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=25",
+		"fabric-api": "*",
+		"malilib": "*",
+		"litematica": "*"
+	}
+}

@@ -1,0 +1,94 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.terraformersmc.com/releases' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    compileOnly files("libs/malilib-fabric-${project.minecraft_version}-${project.malilib_version}.jar")
+    compileOnly files("libs/litematica-fabric-${project.minecraft_version}-${project.litematica_version}.jar")
+
+    // Syncmatica — по желанию: классы с её типами грузятся, только если мод стоит (compat/SyncmaticaImpl)
+    compileOnly files("libs/syncmatica-fabric-26.3-0.3.20.jar")
+
+    // Voxy — по желанию, для 3D-превью «Выделения»: только для компиляции, в jar не входит (лицензия Voxy — All Rights
+    // Reserved). Классы с типами Voxy грузятся, только если Voxy стоит отдельно (compat/voxy/VoxyViewImpl)
+    compileOnly files("libs/voxy-0.2.20-beta.jar")
+    compileOnly files("libs/sodium-fabric-0.9.3-alpha.1+mc26.3.jar")
+
+    compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'minecraft_version', project.minecraft_version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version, 'minecraft_version': project.minecraft_version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 25
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+def sharedUiRoot = file("${rootDir}/aell-ui/src/main/java")
+def shadedUiPackage = 'com.aell.layerlist.shaded.ui'
+def shadedUiPath = shadedUiPackage.replace('.', '/')
+
+tasks.register('generateSharedUi', Copy) {
+    if (! sharedUiRoot.isDirectory()) {
+        throw new GradleException("aell-ui not found at ${sharedUiRoot}; it ships inside this repository")
+    }
+
+    from(sharedUiRoot) { include 'com/aell/ui/**/*.java' }
+    into layout.buildDirectory.dir('generated/shared-ui')
+    includeEmptyDirs = false
+    eachFile { it.path = it.path.replace('com/aell/ui', shadedUiPath) }
+    filter { line -> line.replace('com.aell.ui', shadedUiPackage) }
+    inputs.property('shadedUiPackage', shadedUiPackage)
+}
+
+sourceSets.main.java.srcDir(layout.buildDirectory.dir('generated/shared-ui'))
+tasks.named('compileJava') { dependsOn tasks.named('generateSharedUi') }
+
+// Харнесс покрытия Easy Place: отдельный набор исходников, который компилируется вместе
+// с проектом и лежит на пути запуска dev-клиента, но в jar не попадает — jar собирается
+// только из sourceSets.main. Включается переменной окружения LL_COVERAGE.
+sourceSets {
+    dev {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath = files()
+    }
+}
+
+sourceSets.main.runtimeClasspath += sourceSets.dev.output
+
+tasks.named('build') { dependsOn tasks.named('compileDevJava') }
+tasks.named('classes') { finalizedBy tasks.named('devClasses') }
+
+// Лицензии в jar: текст GPLv3 мода, NOTICE (дисклеймер и благодарности), MIT встроенной aell-ui и VoxyMap LTS.
+tasks.named('jar') {
+    from('LICENSE') { rename { "LICENSE_${project.archives_base_name}" } }
+    from('NOTICE.md') { rename { "NOTICE_${project.archives_base_name}.md" } }
+    from("${rootDir}/aell-ui/LICENSE") { rename { 'LICENSE_aell-ui' } }
+    from('LICENSE_VoxyMap')
+}
