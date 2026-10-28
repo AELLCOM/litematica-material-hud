@@ -452,7 +452,7 @@ final class KEdit
 
         this.mouseX = guiX;
         this.mouseY = guiY;
-        mc.mouseHandler.onMove(window.handle(), guiX * window.getScreenWidth() / window.getGuiScaledWidth(),
+        DevInput.onMove(mc.mouseHandler, window.handle(), guiX * window.getScreenWidth() / window.getGuiScaledWidth(),
                 guiY * window.getScreenHeight() / window.getGuiScaledHeight(), 0.0, 0.0);
 
         // Без фокуса окна ваниль не разносит перетаскивание (handleAccumulatedMovement) — тогда то же
@@ -472,7 +472,7 @@ final class KEdit
     private void realButton(int button, int mods, int action)
     {
         Minecraft mc = Minecraft.getInstance();
-        mc.mouseHandler.onButton(mc.getWindow().handle(), new MouseButtonInfo(button, mods), action);
+        DevInput.onButton(mc.mouseHandler, mc.getWindow().handle(), new MouseButtonInfo(button, mods), action);
         this.heldButton = action == InputConstants.PRESS ? button : -1;
     }
 
@@ -1342,7 +1342,7 @@ final class KEdit
         // По щелчку: ваниль копит дробные доли и отдаёт экрану целые щелчки
         for (int i = 0; i < Math.abs((int) notches); ++i)
         {
-            mc.mouseHandler.onScroll(mc.getWindow().handle(), 0.0, Math.signum(notches));
+            DevInput.onScroll(mc.mouseHandler, mc.getWindow().handle(), 0.0, Math.signum(notches));
         }
 
         return true;

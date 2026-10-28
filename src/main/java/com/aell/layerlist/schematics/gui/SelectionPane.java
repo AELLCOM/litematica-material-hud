@@ -1469,7 +1469,7 @@ final class SelectionPane extends Pane
             this.voxyAt = now;
         }
 
-        com.mojang.renderpearl.api.textures.GpuTextureView color = VoxyPreview.color();
+        com.mojang.blaze3d.textures.GpuTextureView color = VoxyPreview.color();
 
         if (color == null)
         {
@@ -1478,7 +1478,7 @@ final class SelectionPane extends Pane
         }
 
         ctx.blit(color, com.mojang.blaze3d.systems.RenderSystem.getSamplerCache().getClampToEdge(
-                com.mojang.renderpearl.api.textures.FilterMode.LINEAR), x, y, x + w, y + h, 0.0F, 1.0F, 1.0F, 0.0F);
+                com.mojang.blaze3d.textures.FilterMode.LINEAR), x, y, x + w, y + h, 0.0F, 1.0F, 1.0F, 0.0F);
         this.voxyShown = true;
         this.drawSelectionVoxy(ctx, selection);
         return true;

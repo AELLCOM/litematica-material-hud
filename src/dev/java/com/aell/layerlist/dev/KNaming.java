@@ -1011,7 +1011,7 @@ final class KNaming
     /** Курсор SDL — к левому краю: подсказка под настоящей мышью не ложится на снимки. */
     private boolean mouseAside(Minecraft mc)
     {
-        mc.mouseHandler.onMove(mc.getWindow().handle(), 2.0, mc.getWindow().getScreenHeight() / 2.0, 0.0, 0.0);
+        DevInput.onMove(mc.mouseHandler, mc.getWindow().handle(), 2.0, mc.getWindow().getScreenHeight() / 2.0, 0.0, 0.0);
         return true;
     }
 
@@ -1030,7 +1030,7 @@ final class KNaming
         var window = mc.getWindow();
         double x = (folder.x() + folder.w() / 2.0) * window.getScreenWidth() / window.getGuiScaledWidth();
         double y = (folder.y() + folder.h() / 2.0) * window.getScreenHeight() / window.getGuiScaledHeight();
-        mc.mouseHandler.onMove(window.handle(), x, y, 0.0, 0.0);
+        DevInput.onMove(mc.mouseHandler, window.handle(), x, y, 0.0, 0.0);
         return true;
     }
 

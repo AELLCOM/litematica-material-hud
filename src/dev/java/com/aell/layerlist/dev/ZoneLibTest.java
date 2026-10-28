@@ -58,15 +58,6 @@ public final class ZoneLibTest implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         if (! ZoneFocusFiles.available())
         {
             CovOut.log("[zonelib] нет Zone Focus 0.0.8+ в run/mods");

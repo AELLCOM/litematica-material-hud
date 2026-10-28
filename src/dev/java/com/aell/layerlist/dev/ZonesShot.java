@@ -35,15 +35,6 @@ public final class ZonesShot implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         Path path = FabricLoader.getInstance().getGameDir().resolve("schematics").resolve("Портал.litematic");
         LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(path);
 
@@ -115,6 +106,14 @@ public final class ZonesShot implements CovJob
                 case 2 -> shot(mc, "вариант А — кит aell-ui");
                 case 3 -> progress(true);
                 case 4 -> shot(mc, "вариант А — с прогрессом");
+                case 5 -> mc.gui.setScreen(this.open("com.aell.zonefocus.gui.manage.GuiZoneManagerClassic"));
+                case 6 -> shot(mc, "вариант Б — виджеты Zone Focus, с прогрессом");
+                case 7 ->
+                {
+                    progress(false);
+                    mc.gui.setScreen(this.open("com.aell.zonefocus.gui.manage.GuiZoneManagerClassic"));
+                }
+                case 8 -> shot(mc, "вариант Б — без прогресса");
                 default ->
                 {
                     mc.gui.setScreen(null);
@@ -125,7 +124,7 @@ public final class ZonesShot implements CovJob
         }
         catch (ReflectiveOperationException | RuntimeException e)
         {
-            CovOut.log("[zonesshot] итог: FAIL — " + e);
+            CovOut.log("[zonesshot] сбой: " + e);
             mc.gui.setScreen(null);
             return true;
         }

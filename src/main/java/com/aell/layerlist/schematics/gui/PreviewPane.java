@@ -64,7 +64,6 @@ final class PreviewPane extends Pane
     private final Button iso;
     private final Button top;
     private final Button front;
-    private final Button side;
     private final Slider cut;
     /** «Качественно | Оптимизировано» — два сегмента вплотную, выбранный подсвечен. */
     private final Button qualityHigh;
@@ -118,7 +117,6 @@ final class PreviewPane extends Pane
                 .tooltip(Tr.t("preview.quality.tip"));
         this.top = new Button(Tr.t("preview.top"), Button.Style.SECONDARY, () -> this.setView(PreviewCamera.View.TOP));
         this.front = new Button(Tr.t("preview.front"), Button.Style.SECONDARY, () -> this.setView(PreviewCamera.View.FRONT));
-        this.side = new Button(Tr.t("preview.side"), Button.Style.SECONDARY, () -> this.setView(PreviewCamera.View.SIDE));
         this.cut = new Slider(0, 0, 0, this::onCut).tooltip(Tr.t("preview.cut.tip"));
         this.syncViewButtons();
 
@@ -150,7 +148,7 @@ final class PreviewPane extends Pane
 
     private List<Button> barButtons()
     {
-        return List.of(this.iso, this.top, this.front, this.side);
+        return List.of(this.iso, this.top, this.front);
     }
 
     /** «Отображение схемы» над превью; «Качественно» нагружает игру — сначала предупредить. */
@@ -186,7 +184,6 @@ final class PreviewPane extends Pane
         this.iso.selected(this.view == PreviewCamera.View.ISOMETRIC);
         this.top.selected(this.view == PreviewCamera.View.TOP);
         this.front.selected(this.view == PreviewCamera.View.FRONT);
-        this.side.selected(this.view == PreviewCamera.View.SIDE);
         boolean high = SchematicsConfig.previewQuality() == SchematicsConfig.PreviewQuality.QUALITY;
         this.qualityHigh.selected(high);
         this.qualityFast.selected(! high);
@@ -351,7 +348,6 @@ final class PreviewPane extends Pane
         this.iso.setEnabled(ready);
         this.top.setEnabled(ready);
         this.front.setEnabled(ready);
-        this.side.setEnabled(ready);
         this.cut.setEnabled(ready && this.cut.max() > 0);
 
         for (Button button : this.barButtons())

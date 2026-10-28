@@ -32,12 +32,6 @@ final class SnapshotGrid
         this.cancelled = cancelled;
     }
 
-    /** Блоков на клетку по каждой оси. */
-    int scale()
-    {
-        return this.scale;
-    }
-
     /**
      * @param maxCells бюджет клеток снимка; не больше {@link VoxelSnapshot#MAX_VOLUME}
      * @throws SchematicReadException пустой габарит или схема не сводится даже грубой сеткой

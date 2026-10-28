@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "区域列表...",
   "layerlist.zf.config.zoneSeeThrough.name": "穿透方块可见",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "把区域边框画在所有东西之上，这样在建筑内部也能看到",
-  "modmenu.descriptionTranslation.layerlist": "用当前渲染层的材料清单取代 Litematica 的信息面板：建造时自动更新，可用快捷键翻页，并以醒目的彩色圆点标记存有当前页方块的箱子、木桶、铜箱和潜影盒；打开容器后还会高亮对应的物品栏格子。",
-  "modmenu.summaryTranslation.layerlist": "实时显示当前建造层的材料清单，并在存放这些方块的容器上标出彩色圆点。"
+  "modmenu.descriptionTranslation.layerlist": "在屏幕上以 HUD 形式显示当前图层所需的 Litematica 材料列表，并标记存有所需方块的箱子、木桶和潜影盒。包含 Ghost Alpha 和 Easy Place 模块。",
+  "modmenu.summaryTranslation.layerlist": "在屏幕上以 HUD 形式显示当前图层所需的 Litematica 材料列表，并标记存有所需方块的箱子、木桶和潜影盒。包含 Ghost Alpha 和 Easy Place 模块。"
 }

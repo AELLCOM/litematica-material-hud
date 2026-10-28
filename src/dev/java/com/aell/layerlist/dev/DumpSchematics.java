@@ -166,7 +166,6 @@ public final class DumpSchematics implements CovJob
     private final KSources sources = new KSources(this);
     private final KPerf perf = new KPerf(this);
     private final KTrash trash = new KTrash(this);
-    private final KRename rename = new KRename(this);
     private final KDeselect deselect = new KDeselect(this);
     private final KHotkey hotkey = new KHotkey(this);
     private final KPoster poster = new KPoster(this);
@@ -329,7 +328,6 @@ public final class DumpSchematics implements CovJob
             this.hotkey.cleanup();
             this.deselect.cleanup();
             this.trash.cleanup();
-            this.rename.cleanup();
             this.naming.cleanup();
             this.sources.cleanup();
             this.dialog.cleanup();
@@ -542,12 +540,10 @@ public final class DumpSchematics implements CovJob
         List<Step> steps = new ArrayList<>();
         steps.add(new Step("GUI 2 (корзина, выбор, клавиша)", 8_000L, this.window(1600, 900, 2)));
         steps.addAll(this.trash.steps(""));
-        steps.addAll(this.rename.steps(""));
         steps.addAll(this.deselect.steps(""));
         steps.addAll(this.hotkey.steps(""));
         steps.add(new Step("GUI 3 (корзина, выбор, клавиша)", 8_000L, this.window(1600, 900, 3)));
         steps.addAll(this.trash.steps("s3-"));
-        steps.addAll(this.rename.steps("s3-"));
         steps.addAll(this.deselect.steps("s3-"));
         steps.addAll(this.hotkey.steps("s3-"));
         steps.add(new Step("GUI 2 — после шагов «Библиотеки»", 8_000L, this.window(1600, 900, 2)));
@@ -1035,19 +1031,6 @@ public final class DumpSchematics implements CovJob
         if ("lib".equals(System.getenv("LL_K_ONLY")))
         {
             steps.addAll(this.libSteps());
-            steps.add(new Step("закрыть экран", 3_000L, m -> this.closeScreen()));
-            steps.add(new Step("снимки записаны", 10_000L, m -> this.shotsWritten()));
-            this.insertNext(steps);
-            return true;
-        }
-
-        // LL_K_ONLY=rename — только переименование в «Библиотеке» (25.10.2026) при GUI 2 и 3
-        if ("rename".equals(System.getenv("LL_K_ONLY")))
-        {
-            steps.add(new Step("GUI 2 (переименование)", 8_000L, this.window(1600, 900, 2)));
-            steps.addAll(this.rename.steps(""));
-            steps.add(new Step("GUI 3 (переименование)", 8_000L, this.window(1600, 900, 3)));
-            steps.addAll(this.rename.steps("s3-"));
             steps.add(new Step("закрыть экран", 3_000L, m -> this.closeScreen()));
             steps.add(new Step("снимки записаны", 10_000L, m -> this.shotsWritten()));
             this.insertNext(steps);

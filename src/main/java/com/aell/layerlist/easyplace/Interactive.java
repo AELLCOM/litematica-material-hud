@@ -26,7 +26,7 @@ import net.minecraft.world.level.block.FlowerPotBlock;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.LightBlock;
-import net.minecraft.world.level.block.RedstoneWireBlock;
+import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.NoteBlock;
 import net.minecraft.world.level.block.RespawnAnchorBlock;
 import net.minecraft.world.level.block.ShelfBlock;
@@ -71,7 +71,7 @@ public final class Interactive
         }
 
         return state.getBlock() instanceof ShelfBlock
-                || state.getBlock() instanceof RedstoneWireBlock
+                || state.getBlock() instanceof RedStoneWireBlock
                 || state.getBlock() instanceof LightBlock
                 || state.getBlock() instanceof FenceBlock
                 || state.getBlock() instanceof DoorBlock

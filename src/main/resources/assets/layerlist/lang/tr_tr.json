@@ -57,6 +57,6 @@
   "layerlist.ui.gate.easy_place_off": "düzeltme kapalı",
   "layerlist.ui.gate.cutoff_off": "«Y'ye kadar say» kapalı",
   "layerlist.ui.gate.opaque": "saydamlık %0",
-  "modmenu.descriptionTranslation.layerlist": "Litematica'nın bilgi paneli yerine seçili render katmanının malzeme listesini gösterir: inşa ettikçe güncellenir, kısayollarla sayfalanır ve geçerli sayfadaki blokları içeren sandıkları, fıçıları, bakır sandıkları ve shulker kutularını belirgin renkli noktalarla işaretler; kabı açtığında eşleşen yuvalar da vurgulanır.",
-  "modmenu.summaryTranslation.layerlist": "İnşa ettiğin katman için canlı malzeme listesi ve o blokları barındıran sandıklarda renkli noktalar."
+  "modmenu.descriptionTranslation.layerlist": "Geçerli katman için Litematica malzeme listesini HUD olarak gösterir ve gerekli blokları içeren sandıkları, varilleri ve shulker kutularını işaretler. Ghost Alpha ve Easy Place modüllerini içerir.",
+  "modmenu.summaryTranslation.layerlist": "Geçerli katman için Litematica malzeme listesini HUD olarak gösterir ve gerekli blokları içeren sandıkları, varilleri ve shulker kutularını işaretler. Ghost Alpha ve Easy Place modüllerini içerir."
 }

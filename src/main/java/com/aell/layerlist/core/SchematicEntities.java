@@ -21,7 +21,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.decoration.Cushion;
 import net.minecraft.world.entity.decoration.GlowItemFrame;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.decoration.painting.Painting;
@@ -98,11 +97,6 @@ public final class SchematicEntities
         if (entity instanceof ArmorStand)
         {
             return Kind.ARMOR_STAND;
-        }
-
-        if (entity instanceof Cushion)
-        {
-            return Kind.CUSHION;
         }
 
         if (entity instanceof ItemFrame)
@@ -365,17 +359,7 @@ public final class SchematicEntities
                     statuses.set(0, Status.MISMATCH);
                 }
             }
-            case CUSHION ->
-            {
-                Cushion want = (Cushion) reference;
-                Cushion have = (Cushion) real;
-
-                if (want.getColor() != have.getColor()
-                        || Direction.fromYRot(want.getYRot()) != Direction.fromYRot(have.getYRot()))
-                {
-                    statuses.set(0, Status.MISMATCH);
-                }
-            }
+            // 26.2: подушек в игре нет, CUSHION не встречается
             case ITEM_FRAME ->
             {
                 ItemFrame want = (ItemFrame) reference;

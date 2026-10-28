@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "Lista stref...",
   "layerlist.zf.config.zoneSeeThrough.name": "Widoczne przez bloki",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Rysuje ramki stref na wierzchu wszystkiego, żeby było je widać w środku budowli",
-  "modmenu.descriptionTranslation.layerlist": "Zamiast panelu informacyjnego Litematiki pokazuje listę materiałów wybranej warstwy: aktualizuje się w trakcie budowania, przewija się skrótami klawiszowymi i oznacza wyraźnymi kolorowymi kropkami skrzynie, beczki, miedziane skrzynie i shulkery zawierające bloki z bieżącej strony — po otwarciu pojemnika podświetla pasujące sloty.",
-  "modmenu.summaryTranslation.layerlist": "Żywa lista materiałów dla budowanej warstwy oraz kolorowe kropki na skrzyniach z tymi blokami."
+  "modmenu.descriptionTranslation.layerlist": "Pokazuje listę materiałów Litematica dla bieżącej warstwy jako HUD i oznacza skrzynie, beczki oraz skrzynie shulkerów, w których są potrzebne bloki. Zawiera moduły Ghost Alpha i Easy Place.",
+  "modmenu.summaryTranslation.layerlist": "Pokazuje listę materiałów Litematica dla bieżącej warstwy jako HUD i oznacza skrzynie, beczki oraz skrzynie shulkerów, w których są potrzebne bloki. Zawiera moduły Ghost Alpha i Easy Place."
 }

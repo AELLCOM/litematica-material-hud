@@ -252,8 +252,24 @@ public final class SelPerfTest implements CovJob
                 this.before = new BlockPos[] { box.getPos1(), box.getPos2() };
                 double cx = b[0] + b[2] / 2.0;
                 double cy = b[1] + b[3] / 2.0;
-                preview.mouseClicked(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
-                preview.mouseReleased(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
+                {
+                    Object camera = field(preview, "camera");
+                    Object key = camera.getClass().getMethod("key").invoke(camera);
+                    StringBuilder picks = new StringBuilder();
+
+                    for (int[] d : new int[][] { { 0, 0 }, { -30, 0 }, { 30, 0 }, { 0, -30 }, { 0, 30 } })
+                    {
+                        picks.append(java.util.Arrays.toString(preview.pickAt(cx + d[0], cy + d[1]))).append(' ');
+                    }
+
+                    Object src = field(preview, "source");
+                    CovOut.log("[selperf] щелчок: окно " + java.util.Arrays.toString(b) + ", камера " + key + ", снимок "
+                            + (src == null ? "нет" : src.getClass().getMethod("sizeX").invoke(src) + "×" + src.getClass().getMethod("sizeY").invoke(src)
+                            + "×" + src.getClass().getMethod("sizeZ").invoke(src)) + ", выбор: " + picks);
+                }
+                boolean down = preview.mouseClicked(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
+                boolean up = preview.mouseReleased(cx, cy, InputConstants.MOUSE_BUTTON_LEFT);
+                CovOut.log("[selperf] щелчок принят: нажатие " + down + ", отпускание " + up);
                 this.stage = 6;
             }
             case 6 ->

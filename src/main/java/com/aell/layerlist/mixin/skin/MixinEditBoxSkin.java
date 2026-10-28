@@ -4,7 +4,7 @@ import com.aell.layerlist.skin.LitematicaSkin;
 import com.aell.layerlist.skin.SkinPaint;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import fi.dy.masa.malilib.gui.GuiTextFieldGeneric;
 import fi.dy.masa.malilib.render.GuiContext;
 import net.fabricmc.api.EnvType;
@@ -25,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class MixinEditBoxSkin
 {
     @WrapOperation(method = "extractWidgetRenderState", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
+            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"),
             require = 0)
     private void layerlist$skinField(GuiGraphicsExtractor graphics, RenderPipeline pipeline, Identifier sprite, int x, int y, int w,
             int h, Operation<Void> original)

@@ -3,7 +3,7 @@
 	"id": "layerlist",
 	"version": "${version}",
 	"name": "Litematica Material HUD",
-	"description": "A live material list HUD for the current render layer instead of Litematica's info panel. Updates as you build, pages through with hotkeys, and marks the chests, barrels, copper chests and shulker boxes holding the blocks you need with bold colored dots. Also carries two built-in modules with their own settings tabs: Ghost Alpha (transparency of Litematica's ghost blocks) and Easy Place (fixes for blocks placed by click count or by the direction you look). Pairs with the standalone Litematica Zone Focus mod: when it is installed, its settings tab appears here too. Unofficial add-on: not affiliated with or endorsed by masa or Sakura-Ryoko (Litematica, malilib).",
+	"description": "Shows the Litematica material list for the current layer as a HUD and marks the chests, barrels and shulker boxes that hold the needed blocks. Includes the Ghost Alpha and Easy Place modules.",
 	"authors": [
 		"Aell_"
 	],

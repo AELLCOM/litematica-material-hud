@@ -114,8 +114,6 @@ public final class PreviewWidget
 
     /** Готовность «блок в блок»: размещение, с которым сверяем, текущая сверка и её итог. */
     private fi.dy.masa.litematica.schematic.placement.@Nullable SchematicPlacement buildPlacement;
-    /** Снимок с мира схем: клетка — блок {@code buildWorldMin + клетка} (API 6). */
-    private net.minecraft.core.@Nullable BlockPos buildWorldMin;
     private BuildStatus.@Nullable Scan buildScan;
     private @Nullable BuildStatus buildStatus;
     private long buildScannedAt;
@@ -272,57 +270,7 @@ public final class PreviewWidget
         this.dragButton = -1;
     }
 
-    /** Карта с любой предустановкой (сбоку — {@link PreviewCamera.View#FRONT}/{@code SIDE}): как {@link #setMap}. API 6. */
-    public void setMapView(PreviewCamera.View view, float yaw, boolean flipX, boolean flipY)
-    {
-        this.camera.lock(view, yaw);
-        this.camera.setMargin(0.0F);
-        this.locked = true;
-        this.flipX = flipX;
-        this.flipY = flipY;
-        this.dragButton = -1;
-    }
-
-    /**
-     * Готовность «блок в блок» у снимка, снятого с мира схем по коробке мира: клетка — блок {@code worldMin + клетка}
-     * (см. {@link BuildStatus.Scan#Scan(VoxelSnapshot, net.minecraft.core.BlockPos)}); {@code null} — без неё. API 6.
-     */
-    public void setBuildWorld(net.minecraft.core.@Nullable BlockPos worldMin)
-    {
-        if (Objects.equals(worldMin, this.buildWorldMin))
-        {
-            return;
-        }
-
-        this.buildWorldMin = worldMin;
-        this.buildScan = null;
-        this.buildScannedAt = 0L;
-
-        if (worldMin == null && this.buildPlacement == null && this.buildStatus != null)
-        {
-            this.buildStatus = null;
-            this.context = null;
-        }
-    }
-
-    /** Камера последнего кадра (орбита): тот же ключ, что получает рендерер. API 6. */
-    public PreviewCamera.Key cameraKey()
-    {
-        return this.camera.key();
-    }
-
-    public @Nullable VoxelSnapshot source()
-    {
-        return this.source;
-    }
-
-    /** Точка снимка (клетки), которую рендерер ставит в центр окна при нулевом сдвиге. API 6. */
-    public float @Nullable [] modelCenter()
-    {
-        VoxelSnapshot s = this.source;
-        return s != null ? this.center(s) : null;
-    }
-
+    /** Не рисовать блоки выше слоя {@code topY} (координата схемы); {@link Integer#MAX_VALUE} — без среза. */
     /**
      * Показывать готовность постройки по блокам: модель красится по сверке с миром у этого размещения
      * (непостроенное — «призраком», чужое — красным); {@code null} — без неё. Сверка идёт кусками по кадрам
@@ -358,9 +306,8 @@ public final class PreviewWidget
     {
         VoxelSnapshot snapshot = this.source;
         var placement = this.buildPlacement;
-        var worldMin = this.buildWorldMin;
 
-        if ((placement == null && worldMin == null) || snapshot == null || snapshot.scale() != 1)
+        if (placement == null || snapshot == null || snapshot.scale() != 1)
         {
             return;
         }
@@ -374,8 +321,7 @@ public final class PreviewWidget
                 return;
             }
 
-            this.buildScan = worldMin != null ? new BuildStatus.Scan(snapshot, worldMin)
-                    : new BuildStatus.Scan(snapshot, placement);
+            this.buildScan = new BuildStatus.Scan(snapshot, placement);
         }
 
         if (! this.buildScan.step(BUILD_SCAN_PER_FRAME))
@@ -395,7 +341,6 @@ public final class PreviewWidget
         }
     }
 
-    /** Не рисовать блоки выше слоя {@code topY} (координата схемы); {@link Integer#MAX_VALUE} — без среза. */
     public void setLayerCut(int topY)
     {
         if (topY != this.layerCut)

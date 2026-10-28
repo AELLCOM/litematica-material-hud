@@ -899,8 +899,8 @@ public final class DumpTyping implements CovJob
             Window window = mc.getWindow();
             double x = (this.intField(m, "x") + this.intField(m, "w") / 2.0) * window.getScreenWidth() / window.getGuiScaledWidth();
             double y = (bodyY + bodyH / 2.0) * window.getScreenHeight() / window.getGuiScaledHeight();
-            mc.mouseHandler.onMove(handle(), x, y, 0.0, 0.0);
-            mc.mouseHandler.onScroll(handle(), 0.0, input.y() < bodyY ? 1.0 : -1.0);
+            DevInput.onMove(mc.mouseHandler, handle(), x, y, 0.0, 0.0);
+            DevInput.onScroll(mc.mouseHandler, handle(), 0.0, input.y() < bodyY ? 1.0 : -1.0);
             return false;
         });
     }
@@ -1063,9 +1063,9 @@ public final class DumpTyping implements CovJob
         double y = guiY * window.getScreenHeight() / window.getGuiScaledHeight();
         MouseButtonInfo left = new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0);
 
-        mc.mouseHandler.onMove(handle(), x, y, 0.0, 0.0);
-        mc.mouseHandler.onButton(handle(), left, InputConstants.PRESS);
-        mc.mouseHandler.onButton(handle(), left, InputConstants.RELEASE);
+        DevInput.onMove(mc.mouseHandler, handle(), x, y, 0.0, 0.0);
+        DevInput.onButton(mc.mouseHandler, handle(), left, InputConstants.PRESS);
+        DevInput.onButton(mc.mouseHandler, handle(), left, InputConstants.RELEASE);
         this.lastClickAt = Util.getMillis();
     }
 
@@ -1095,8 +1095,8 @@ public final class DumpTyping implements CovJob
     private void press(int scancode, int keycode, int modifiers)
     {
         KeyEvent event = new KeyEvent(scancode, keycode, modifiers);
-        Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.PRESS, event);
-        Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.RELEASE, event);
+        DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.PRESS, event);
+        DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.RELEASE, event);
     }
 
     /** Код клавиши SDL3 для клавиш без знака (скан-код с битом маски) и для служебных со знаком. */
@@ -1134,9 +1134,9 @@ public final class DumpTyping implements CovJob
             }
 
             KeyEvent event = new KeyEvent(key[0], key[1], key[2]);
-            Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.PRESS, event);
+            DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.PRESS, event);
             this.text(piece);
-            Minecraft.getInstance().keyboardHandler.keyPress(handle(), InputConstants.RELEASE, event);
+            DevInput.keyPress(Minecraft.getInstance().keyboardHandler, handle(), InputConstants.RELEASE, event);
         });
     }
 
@@ -1183,7 +1183,7 @@ public final class DumpTyping implements CovJob
     /** Событие текста SDL: сюда цикл событий отдаёт {@code SDL_EVENT_TEXT_INPUT}. */
     private void text(String value)
     {
-        Minecraft.getInstance().keyboardHandler.textInput(handle(), value);
+        DevInput.textInput(Minecraft.getInstance().keyboardHandler, handle(), value);
     }
 
     /** Черновик IME: сюда цикл событий отдаёт {@code SDL_EVENT_TEXT_EDITING}. */

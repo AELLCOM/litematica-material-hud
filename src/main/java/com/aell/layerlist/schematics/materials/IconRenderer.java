@@ -4,14 +4,14 @@ import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.renderpearl.api.commands.CommandEncoder;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -286,12 +286,20 @@ final class IconRenderer extends PictureInPictureRenderer<IconRenderer.Pass>
             mc.gameRenderer.lighting().setupFor(item.usesBlockLight() ? Lighting.Entry.ITEMS_3D : Lighting.Entry.ITEMS_FLAT);
             item.submit(pose, this.submits, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
 
-            try (FeatureRenderDispatcher.PreparedFrame frame = dispatcher.prepareFrame(this.submits);
-                 RenderPass pass = encoder.createRenderPass(() -> "layerlist item icon", grid.colorView(), Optional.empty(),
-                         grid.depthView(), OptionalDouble.empty()))
+            // 26.2: проходов нет — вывод в свою текстуру через подмену цели, как в ванильном PIP
+            GpuTextureView colorBefore = RenderSystem.outputColorTextureOverride;
+            GpuTextureView depthBefore = RenderSystem.outputDepthTextureOverride;
+            RenderSystem.outputColorTextureOverride = grid.colorView();
+            RenderSystem.outputDepthTextureOverride = grid.depthView();
+
+            try
             {
-                RenderSystem.bindDefaultUniforms(pass);
-                FeatureRenderDispatcher.renderAllFeatures(pass, frame);
+                dispatcher.renderAllFeatures(this.submits);
+            }
+            finally
+            {
+                RenderSystem.outputColorTextureOverride = colorBefore;
+                RenderSystem.outputDepthTextureOverride = depthBefore;
             }
 
             return true;

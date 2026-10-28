@@ -350,11 +350,11 @@ public final class DumpIcons implements CovJob
         this.samples.add(new Sample("diamond_sword+glint", shiny));
     }
 
-    private static Optional<ItemStackTemplate> sherd(String id)
+    private static Optional<Item> sherd(String id)
     {
         Item item = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(id));
 
-        return item == Items.AIR ? Optional.empty() : Optional.of(new ItemStackTemplate(item));
+        return item == Items.AIR ? Optional.empty() : Optional.of(item);
     }
 
     // ===== Выход =====

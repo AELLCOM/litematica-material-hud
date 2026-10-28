@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "ゾーン一覧...",
   "layerlist.zf.config.zoneSeeThrough.name": "ブロック越しに表示",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "ゾーンの枠をすべての手前に描画し、建物の中からも見えるようにします",
-  "modmenu.descriptionTranslation.layerlist": "Litematica の情報パネルの代わりに、選択中のレンダーレイヤーのマテリアルリストを表示します。設置に合わせて更新され、ホットキーでページ送りができ、現在のページのブロックが入ったチェスト・樽・銅のチェスト・シュルカーボックスを目立つ色付きの点で示します。コンテナを開くと該当スロットもハイライトされます。",
-  "modmenu.summaryTranslation.layerlist": "建築中のレイヤーのマテリアルリストをリアルタイム表示し、該当ブロックを収納したチェストに色付きの点を表示します。"
+  "modmenu.descriptionTranslation.layerlist": "現在のレイヤーに必要な材料をLitematicaの材料リストとしてHUDに表示し、必要なブロックが入っているチェスト、樽、シュルカーボックスに印を付けます。Ghost Alpha と Easy Place のモジュールを含みます。",
+  "modmenu.summaryTranslation.layerlist": "現在のレイヤーに必要な材料をLitematicaの材料リストとしてHUDに表示し、必要なブロックが入っているチェスト、樽、シュルカーボックスに印を付けます。Ghost Alpha と Easy Place のモジュールを含みます。"
 }

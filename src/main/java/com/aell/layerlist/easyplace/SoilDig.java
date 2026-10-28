@@ -11,7 +11,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -93,7 +92,7 @@ public final class SoilDig
                 + EpDebug.name(wanted) + ", выкапываю");
 
         mc.gameMode.startDestroyBlock(pos, face);
-        mc.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
+        mc.player.swing(InteractionHand.MAIN_HAND);
 
         return true;
     }
@@ -132,7 +131,7 @@ public final class SoilDig
         }
 
         mc.gameMode.continueDestroyBlock(pos, face);
-        mc.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
+        mc.player.swing(InteractionHand.MAIN_HAND);
     }
 
     /** Эту клетку сейчас копаем мы. */

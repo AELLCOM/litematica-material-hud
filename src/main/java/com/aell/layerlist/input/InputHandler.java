@@ -96,7 +96,7 @@ public class InputHandler implements IKeybindProvider, IHotkeyCallback
 
         for (int i = 0; i < keys.size() - 1; ++i)
         {
-            if (! com.mojang.blaze3d.platform.InputConstants.isKeyDown(keys.get(i)))
+            if (! com.mojang.blaze3d.platform.InputConstants.isKeyDown(net.minecraft.client.Minecraft.getInstance().getWindow(), keys.get(i)))
             {
                 return false;
             }

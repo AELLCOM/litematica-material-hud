@@ -122,8 +122,8 @@ public final class EscGuardTest implements CovJob
     static void esc(Minecraft mc)
     {
         KeyEvent event = new KeyEvent(InputConstants.KEY_ESCAPE, 0x1B, 0);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.PRESS, event);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.RELEASE, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.PRESS, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.RELEASE, event);
     }
 
     private void check(String what, boolean ok, String detail)

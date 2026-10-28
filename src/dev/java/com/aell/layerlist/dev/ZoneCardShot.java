@@ -43,15 +43,6 @@ public final class ZoneCardShot implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         Path path = FabricLoader.getInstance().getGameDir().resolve("schematics").resolve("Портал.litematic");
         LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(path);
 

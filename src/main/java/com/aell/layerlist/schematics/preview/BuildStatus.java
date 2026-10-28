@@ -100,7 +100,7 @@ public final class BuildStatus
     public static final class Scan
     {
         private final VoxelSnapshot snapshot;
-        private final @Nullable SchematicPlacement placement;
+        private final SchematicPlacement placement;
         private final BlockPos origin;
         private final BlockPos min;
         private final byte[] cells;
@@ -118,19 +118,6 @@ public final class BuildStatus
             this.origin = placement.getOrigin();
             LitematicaSchematic schematic = placement.getSchematic();
             this.min = schematic != null ? enclosingMin(schematic) : BlockPos.ZERO;
-            this.cells = new byte[(int) snapshot.volume()];
-        }
-
-        /**
-         * Снимок, снятый с мира схем по коробке мира ({@code WorldSnapshotJob}): клетка {@code (x, y, z)} — это блок
-         * {@code worldMin + (x, y, z)}, поворачивать нечего. Только снимок 1:1.
-         */
-        public Scan(VoxelSnapshot snapshot, BlockPos worldMin)
-        {
-            this.snapshot = snapshot;
-            this.placement = null;
-            this.origin = worldMin;
-            this.min = BlockPos.ZERO;
             this.cells = new byte[(int) snapshot.volume()];
         }
 
@@ -162,18 +149,11 @@ public final class BuildStatus
                     continue;
                 }
 
-                if (this.placement == null)
-                {
-                    this.world.set(x + this.origin.getX(), y + this.origin.getY(), z + this.origin.getZ());
-                }
-                else
-                {
-                    this.local.set(x + this.min.getX(), y + this.min.getY(), z + this.min.getZ());
-                    BlockPos turned = PositionUtils.getTransformedBlockPos(this.local, this.placement.getMirror(),
-                            this.placement.getRotation());
-                    this.world.set(turned.getX() + this.origin.getX(), turned.getY() + this.origin.getY(),
-                            turned.getZ() + this.origin.getZ());
-                }
+                this.local.set(x + this.min.getX(), y + this.min.getY(), z + this.min.getZ());
+                BlockPos turned = PositionUtils.getTransformedBlockPos(this.local, this.placement.getMirror(),
+                        this.placement.getRotation());
+                this.world.set(turned.getX() + this.origin.getX(), turned.getY() + this.origin.getY(),
+                        turned.getZ() + this.origin.getZ());
                 byte status = UNKNOWN;
 
                 if (mc.level.hasChunk(this.world.getX() >> 4, this.world.getZ() >> 4))

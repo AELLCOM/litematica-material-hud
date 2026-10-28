@@ -135,7 +135,7 @@ public final class Availability
 
         if (bundle != null)
         {
-            bundle.itemCopies().forEach(inner -> add(counts, inner, count, depth + 1));
+            bundle.itemCopyStream().forEach(inner -> add(counts, inner, count, depth + 1));
         }
     }
 

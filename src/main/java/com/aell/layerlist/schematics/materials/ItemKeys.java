@@ -8,7 +8,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.block.entity.BannerPatternLayers;
 import net.minecraft.world.level.block.entity.PotDecorations;
@@ -72,8 +72,8 @@ public final class ItemKeys
         return key.toString();
     }
 
-    private static String side(Optional<ItemStackTemplate> side)
+    private static String side(Optional<Item> side)
     {
-        return side.map(template -> BuiltInRegistries.ITEM.getKey(template.item().value()).toString()).orElse("-");
+        return side.map(item -> BuiltInRegistries.ITEM.getKey(item).toString()).orElse("-");
     }
 }

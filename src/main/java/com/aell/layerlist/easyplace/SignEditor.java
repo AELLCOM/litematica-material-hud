@@ -1,7 +1,6 @@
 package com.aell.layerlist.easyplace;
 
 import fi.dy.masa.litematica.world.SchematicWorldHandler;
-import java.util.List;
 import fi.dy.masa.litematica.world.WorldSchematic;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -12,7 +11,6 @@ import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
 import net.minecraft.world.level.block.SignBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
-import net.minecraft.world.level.block.entity.SignTextSlot;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -37,7 +35,7 @@ public final class SignEditor
     private SignEditor() {}
 
     /** true — экран не открывать: табличка схемы заполнена без него. */
-    public static boolean handleOpen(BlockPos pos, SignTextSlot slot)
+    public static boolean handleOpen(BlockPos pos, boolean front)
     {
         if (! EasyPlaceModule.isActive())
         {
@@ -62,15 +60,16 @@ public final class SignEditor
 
         // Непустая табличка — игрок открыл редактирование сам: экран как в ванили
         if (! blank(level.getBlockEntity(pos) instanceof SignBlockEntity sign
-                ? sign.getText(slot)
+                ? sign.getText(front)
                 : null))
         {
             return false;
         }
 
-        String[] lines = lines(schematicWorld, pos, slot);
+        String[] lines = lines(schematicWorld, pos, front);
 
-        mc.player.connection.send(new ServerboundSignUpdatePacket(pos, List.of(lines), slot));
+        mc.player.connection.send(new ServerboundSignUpdatePacket(pos, front,
+                lines[0], lines[1], lines[2], lines[3]));
         EpDebug.say("табличка " + EpDebug.at(pos) + ": текст из схемы, редактор не открываем");
 
         return true;
@@ -85,7 +84,7 @@ public final class SignEditor
 
         for (int line = 0; line < 4; ++line)
         {
-            if (! text.getMessages(false).get(line).getString().isEmpty())
+            if (! text.getMessage(line, false).getString().isEmpty())
             {
                 return false;
             }
@@ -94,7 +93,7 @@ public final class SignEditor
         return true;
     }
 
-    private static String[] lines(WorldSchematic schematicWorld, BlockPos pos, SignTextSlot slot)
+    private static String[] lines(WorldSchematic schematicWorld, BlockPos pos, boolean front)
     {
         String[] out = { "", "", "", "" };
 
@@ -102,11 +101,11 @@ public final class SignEditor
         {
             if (schematicWorld.getBlockEntity(pos) instanceof SignBlockEntity sign)
             {
-                SignText text = sign.getText(slot);
+                SignText text = sign.getText(front);
 
                 for (int line = 0; line < 4; ++line)
                 {
-                    out[line] = text.getMessages(false).get(line).getString();
+                    out[line] = text.getMessage(line, false).getString();
                 }
             }
         }

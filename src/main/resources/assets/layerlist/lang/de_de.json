@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "Zonenliste...",
   "layerlist.zf.config.zoneSeeThrough.name": "Durch Blöcke sichtbar",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Zonenrahmen über allem zeichnen, damit du sie im Inneren des Baus siehst",
-  "modmenu.descriptionTranslation.layerlist": "Zeigt statt Litematicas Infopanel eine Materialliste für die aktuell gewählte Render-Ebene: Sie aktualisiert sich beim Bauen, lässt sich per Tastenkürzel durchblättern und markiert Truhen, Fässer, Kupfertruhen und Shulker-Kisten mit den Blöcken der aktuellen Seite durch kräftige farbige Punkte — beim Öffnen des Behälters werden die passenden Slots hervorgehoben.",
-  "modmenu.summaryTranslation.layerlist": "Live-Materialliste für die Ebene, die du gerade baust, plus farbige Punkte auf den Lagern mit diesen Blöcken."
+  "modmenu.descriptionTranslation.layerlist": "Zeigt die Materialliste von Litematica für die aktuelle Ebene als HUD an und markiert die Truhen, Fässer und Shulker-Kisten, in denen die benötigten Blöcke liegen. Enthält die Module Ghost Alpha und Easy Place.",
+  "modmenu.summaryTranslation.layerlist": "Zeigt die Materialliste von Litematica für die aktuelle Ebene als HUD an und markiert die Truhen, Fässer und Shulker-Kisten, in denen die benötigten Blöcke liegen. Enthält die Module Ghost Alpha und Easy Place."
 }

@@ -8,7 +8,7 @@ and adds Easy Place fixes, a schematics library and more.
 [CurseForge](https://www.curseforge.com/minecraft/mc-mods/litematica-material-hud-chest-finder) ·
 [Discord](https://discord.gg/jTU2yawThv)
 
-This branch (`main`) is the source of **1.0.22+26.3** for **Minecraft 26.3**.
+This branch (`mc/26.2`) is the source of **1.0.22+26.2** for **Minecraft 26.2**.
 Other Minecraft versions live in their own branches: `main` (26.3), `mc/26.2`, `mc/1.21.11`.
 Release history is in [CHANGELOG.md](CHANGELOG.md) (Russian).
 

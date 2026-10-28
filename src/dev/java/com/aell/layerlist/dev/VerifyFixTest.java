@@ -182,7 +182,8 @@ public final class VerifyFixTest implements CovJob
                 }
                 long missing = LayerVerifier.getInstance().getEntityMarks().stream()
                         .filter(m -> m.category() == LayerVerifier.Category.MISSING).count();
-                this.check("Ctrl+B: подушка, стойка и рамка — три красные рамки", missing == 3, marks.toString());
+                // Подушек до 26.3 нет — summon молча не встаёт: ждём стойку и рамку
+                this.check("Ctrl+B: стойка и рамка — две красные рамки (подушек в этой версии нет)", missing == 2, marks.toString());
                 shot(mc, "verify-entities");
                 wait = 500L;
             }

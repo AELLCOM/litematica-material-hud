@@ -5,14 +5,13 @@ import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import com.mojang.renderpearl.api.textures.FilterMode;
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -323,13 +322,13 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
         submitSpecials(model, pose, this.gpuSubmits);
         RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
         GpuBuffer indexBuffer = indices.getBuffer(Math.max(1, maxQuads) * 6);
-        FeatureRenderDispatcher.PreparedFrame frame = features.prepareFrame(this.gpuSubmits);
 
-        try (frame; RenderPass pass = device.createCommandEncoder().createRenderPass(() -> "Material HUD preview", this.gpuColorView,
-                Optional.empty(), this.gpuDepthView, OptionalDouble.empty()))
+        // 26.2: проход открывает сам тип рендера — в цель вывода, подменённую на свои текстуры (как ванильный PIP)
+        RenderSystem.outputColorTextureOverride = this.gpuColorView;
+        RenderSystem.outputDepthTextureOverride = this.gpuDepthView;
+
+        try
         {
-            RenderSystem.bindDefaultUniforms(pass);
-
             for (int layer : new int[] { PreviewModel.SOLID, PreviewModel.CUTOUT, GPU_FLAT, PreviewModel.TRANSLUCENT })
             {
                 PreparedRenderType type = types[layer];
@@ -338,12 +337,16 @@ final class PreviewPipRenderer extends PictureInPictureRenderer<PreviewRenderSta
                 if (type != null && vertices != null)
                 {
                     int count = gpu.quads[layer] * 6;
-                    type.drawFromBuffer(new StagedVertexBuffer.ExecuteInfo(vertices, indexBuffer, indices.type(), 0, 0, count,
-                            PrimitiveTopology.QUADS), pass);
+                    type.drawFromBuffer(new StagedVertexBuffer.ExecuteInfo(vertices, indexBuffer, indices.type(), 0, 0, count));
                 }
             }
 
-            FeatureRenderDispatcher.renderAllFeatures(pass, frame);
+            features.renderAllFeatures(this.gpuSubmits);
+        }
+        finally
+        {
+            RenderSystem.outputColorTextureOverride = null;
+            RenderSystem.outputDepthTextureOverride = null;
         }
 
         this.blitGpu(state, gui);

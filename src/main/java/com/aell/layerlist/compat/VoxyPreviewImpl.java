@@ -3,10 +3,10 @@ package com.aell.layerlist.compat;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.GpuFormat;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
-import com.mojang.renderpearl.backend.opengl.GlTextureView;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.blaze3d.opengl.GlTextureView;
 import java.lang.reflect.Method;
 import java.util.Locale;
 import me.cortex.voxy.client.core.IVoxyRenderSystemHolder;
@@ -73,28 +73,6 @@ final class VoxyPreviewImpl
 
     static boolean render(double x, double y, double z, float yaw, float pitch, float fov, int width, int height)
     {
-        int w = Math.min(width, MAX_TARGET_SIZE);
-        int h = Math.min(height, MAX_TARGET_SIZE);
-        Projection projection = new Projection();
-        projection.setupPerspective(NEAR_PLANE, FAR_PLANE, fov, w, h);
-        return renderWith(x, y, z, yaw, pitch, projection.getMatrix(new Matrix4f()), width, height);
-    }
-
-    /**
-     * Кадр ортографической проекцией: окно {@code ±halfW × ±halfH} блоков вокруг оси взгляда (та же камера, что у
-     * ортографического превью Material HUD — так мир Voxy ложится ровно под голограмму). API 6.
-     */
-    static boolean renderOrtho(double x, double y, double z, float yaw, float pitch, float halfW, float halfH,
-            float near, float far, int width, int height)
-    {
-        boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
-        Matrix4f projectionMatrix = new Matrix4f().setOrtho(-halfW, halfW, -halfH, halfH, near, far, zeroToOne);
-        return renderWith(x, y, z, yaw, pitch, projectionMatrix, width, height);
-    }
-
-    private static boolean renderWith(double x, double y, double z, float yaw, float pitch, Matrix4f projectionMatrix,
-            int width, int height)
-    {
         hasFrame = false;
         VoxyRenderSystem system = IVoxyRenderSystemHolder.getNullable();
 
@@ -108,7 +86,7 @@ final class VoxyPreviewImpl
 
         if (target == null)
         {
-            target = new TextureTarget("Material HUD selection preview (Voxy)", w, h, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
+            target = new TextureTarget("Material HUD selection preview (Voxy)", w, h, true, GpuFormat.RGBA8_UNORM);
         }
         else if (target.width != w || target.height != h)
         {
@@ -119,6 +97,9 @@ final class VoxyPreviewImpl
         RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(out.getColorTexture(), CLEAR_COLOR,
                 out.getDepthTexture(), RenderProperties.getRenderProperties().clearDepth());
 
+        Projection projection = new Projection();
+        projection.setupPerspective(NEAR_PLANE, FAR_PLANE, fov, w, h);
+        Matrix4f projectionMatrix = projection.getMatrix(new Matrix4f());
         Quaternionf rotation = new Quaternionf().rotationYXZ((float) Math.PI - (float) Math.toRadians(yaw), -(float) Math.toRadians(pitch), 0.0F);
         Matrix4f modelView = new Matrix4f().rotation(rotation.conjugate(new Quaternionf()));
 

@@ -11,9 +11,6 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
-import org.lwjgl.sdl.SDLEvents;
-import org.lwjgl.sdl.SDLVideo;
-import org.lwjgl.sdl.SDL_Event;
 
 /**
  * Режим {@code toggles}: клавиши-переключатели «Защита от установки мимо схемы» и «Не копать лишнего»
@@ -25,7 +22,6 @@ import org.lwjgl.sdl.SDL_Event;
 @Environment(EnvType.CLIENT)
 final class ToggleKeysTest implements CovJob
 {
-    private static final int SCANCODE_MASK = 1 << 30;
 
     private record Case(String name, ConfigHotkey key, ConfigBoolean option, int scancode, String keyName) {}
 
@@ -124,30 +120,13 @@ final class ToggleKeysTest implements CovJob
             this.before = c.option.getBooleanValue();
             // Отпускание — отдельным кадром: в одном кадре malilib теряет его, клавиша «залипает»,
             // и следующее нажатие выглядит как сочетание двух клавиш
-            if (this.press == 0 && this.index == 0)
-            {
-                // Первое нажатие — настоящим событием SDL, как у игрока: проверяет, что malilib доводит клавишу до обработчика
-                pushKey(c.scancode, true);
-                this.release = c.scancode;
-                ++this.press;
-                this.at = Util.getMillis() + 150L;
-                return false;
-            }
-
+            // 1.21.11 (GLFW): нажатия — тем же вызовом, каким malilib зовёт обработчик клавиши
             // Остальные — тем же вызовом, каким malilib зовёт обработчик клавиши: повторные синтетические события
             // SDL под xvfb до malilib больше не доходят (одно нажатие за запуск — особенность стенда, не мода)
             ((fi.dy.masa.malilib.hotkeys.KeybindMulti) c.key.getKeybind()).getCallback()
                     .onKeyAction(fi.dy.masa.malilib.hotkeys.KeyAction.PRESS, c.key.getKeybind());
             ++this.press;
             this.at = Util.getMillis() + 200L;
-            return false;
-        }
-
-        if (this.release != 0)
-        {
-            pushKey(this.release, false);
-            this.release = 0;
-            this.at = Util.getMillis() + 400L;
             return false;
         }
 
@@ -189,26 +168,7 @@ final class ToggleKeysTest implements CovJob
         CovOut.log("[toggles]   " + (pass ? "OK   " : "FAIL ") + what);
     }
 
-    private static void pushKey(int scancode, boolean down)
-    {
-        long window = Minecraft.getInstance().getWindow().handle();
-        int windowId = SDLVideo.SDL_GetWindowID(window);
 
-        {
-            SDL_Event event = SDL_Event.calloc();
-
-            try
-            {
-                event.key(key -> key.type(down ? SDLEvents.SDL_EVENT_KEY_DOWN : SDLEvents.SDL_EVENT_KEY_UP)
-                        .windowID(windowId).scancode(scancode).key(scancode | SCANCODE_MASK).down(down).repeat(false));
-                SDLEvents.SDL_PushEvent(event);
-            }
-            finally
-            {
-                event.free();
-            }
-        }
-    }
 
     @Override
     public void close()

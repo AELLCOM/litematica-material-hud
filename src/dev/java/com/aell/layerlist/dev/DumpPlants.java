@@ -40,7 +40,6 @@ import net.minecraft.world.level.block.CaveVines;
 import net.minecraft.world.level.block.GrowingPlantHeadBlock;
 import net.minecraft.world.level.block.HangingMossBlock;
 import net.minecraft.world.level.block.ShelfBlock;
-import net.minecraft.world.level.block.ShelfMushroomBlock;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.entity.ShelfBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -278,7 +277,6 @@ public final class DumpPlants implements CovJob
         expected.put(Items.KELP, 3);
         expected.put(Items.PALE_HANGING_MOSS, 2);
         expected.put(Items.VINE, 3);
-        expected.put(Items.SHELF_MUSHROOM, 1);
         expected.put(Items.OAK_SHELF, 4);
         String phase = after ? "list_after" : "list_before";
 
@@ -345,7 +343,6 @@ public final class DumpPlants implements CovJob
                 inventory.add(new ItemStack(Items.KELP, 8));
                 inventory.add(new ItemStack(Items.PALE_HANGING_MOSS, 4));
                 inventory.add(new ItemStack(Items.VINE, 8));
-                inventory.add(new ItemStack(Items.SHELF_MUSHROOM, 2));
                 inventory.add(new ItemStack(Items.OAK_SHELF, 4));
                 inventory.add(new ItemStack(Items.BONE_MEAL, 32));
                 inventory.add(new ItemStack(Items.SHEARS));
@@ -530,18 +527,6 @@ public final class DumpPlants implements CovJob
             return have.is(wanted.getBlock()) ? null : "в мире " + name(have);
         }
 
-        if (wanted.getBlock() instanceof ShelfMushroomBlock)
-        {
-            if (! have.is(wanted.getBlock()))
-            {
-                return "в мире " + name(have);
-            }
-
-            return have.getValue(ShelfMushroomBlock.AGE).equals(wanted.getValue(ShelfMushroomBlock.AGE))
-                    && have.getValue(ShelfMushroomBlock.FACING) == wanted.getValue(ShelfMushroomBlock.FACING)
-                    ? null : "возраст " + have.getValue(ShelfMushroomBlock.AGE) + " сторона " + have.getValue(ShelfMushroomBlock.FACING);
-        }
-
         if (wanted.getBlock() instanceof ShelfBlock)
         {
             if (! have.is(wanted.getBlock()) || have.getValue(ShelfBlock.FACING) != wanted.getValue(ShelfBlock.FACING))
@@ -678,9 +663,6 @@ public final class DumpPlants implements CovJob
 
         level.setBlock(o.offset(5, 1, 5), Blocks.VINE.defaultBlockState().setValue(VineBlock.NORTH, true)
                 .setValue(VineBlock.EAST, true).setValue(VineBlock.UP, true), EXACT);
-
-        level.setBlock(o.offset(7, 1, 1), Blocks.SHELF_MUSHROOM.defaultBlockState().setValue(ShelfMushroomBlock.FACING, Direction.WEST)
-                .setValue(ShelfMushroomBlock.AGE, 1), EXACT);
 
         shelf(level, o.offset(1, 0, 8), true, new ItemStack(Items.DIRT), ItemStack.EMPTY, new ItemStack(Items.STONE));
         shelf(level, o.offset(2, 0, 8), true, new ItemStack(Items.APPLE), new ItemStack(Items.BREAD), ItemStack.EMPTY);

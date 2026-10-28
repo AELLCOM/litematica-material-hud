@@ -44,15 +44,6 @@ public final class ZfViewsTest implements CovJob
     @Override
     public boolean begin(Minecraft mc)
     {
-        try
-        {
-            Object zm = Class.forName("com.aell.zonefocus.zone.ZoneManager").getMethod("getInstance").invoke(null);
-            zm.getClass().getMethod("clear").invoke(zm);
-        }
-        catch (ReflectiveOperationException | RuntimeException ignored)
-        {
-        }
-
         if (! ZoneFocusFiles.available())
         {
             CovOut.log("[zfviews] нет Zone Focus 0.0.8+ в run/mods");
@@ -145,28 +136,15 @@ public final class ZfViewsTest implements CovJob
                 case 3 -> wait = this.open(mc, false);
                 case 4 ->
                 {
-                    Object top = field(mc.gui.screen(), "topView");
-                    Object widget = field(top, "widget");
+                    Object widget = field(field(mc.gui.screen(), "topView"), "widget");
                     Object key = call(field(widget, "camera"), "key");
                     float yaw = (float) call(key, "yaw");
-
-                    if (call(top, "worldMin") != null)
-                    {
-                        // API 6: снимок — с мира схем, уже в осях мира: север вверху, без отражений
-                        this.check("2D, снимок с мира схем: север вверху (рыскание 180)", Math.abs(yaw - 180.0F) < 0.01F, "рыскание " + yaw);
-                        this.check("2D, снимок с мира схем: без отражения картинки",
-                                ! (boolean) field(widget, "flipY") && ! (boolean) field(widget, "flipX"),
-                                "flipX " + field(widget, "flipX") + ", flipY " + field(widget, "flipY"));
-                    }
-                    else
-                    {
-                        // Поворот по часовой на 90° — верх кадра у той стороны схемы, что в мире смотрит на север (запад схемы)
-                        this.check("2D, поворот 90°: камера снимка повёрнута (рыскание 90)", Math.abs(yaw - 90.0F) < 0.01F, "рыскание " + yaw);
-                        // Отражение по X схемы до поворота на четверть — после поворота это вертикаль экрана
-                        this.check("2D, отражение FRONT_BACK + 90°: картинка отражена по вертикали",
-                                (boolean) field(widget, "flipY") && ! (boolean) field(widget, "flipX"),
-                                "flipX " + field(widget, "flipX") + ", flipY " + field(widget, "flipY"));
-                    }
+                    // Поворот по часовой на 90° — верх кадра у той стороны схемы, что в мире смотрит на север (запад схемы)
+                    this.check("2D, поворот 90°: камера снимка повёрнута (рыскание 90)", Math.abs(yaw - 90.0F) < 0.01F, "рыскание " + yaw);
+                    // Отражение по X схемы до поворота на четверть — после поворота это вертикаль экрана
+                    this.check("2D, отражение FRONT_BACK + 90°: картинка отражена по вертикали",
+                            (boolean) field(widget, "flipY") && ! (boolean) field(widget, "flipX"),
+                            "flipX " + field(widget, "flipX") + ", flipY " + field(widget, "flipY"));
                     shot(mc, "2D — повёрнуто на 90° и отражено");
                     this.combo = 0;
                     this.setCombo();
@@ -299,20 +277,15 @@ public final class ZfViewsTest implements CovJob
         boolean ok = true;
         StringBuilder detail = new StringBuilder();
 
-        // API 6: снимок с мира схем — клетка снимка = блок мира от его угла
-        net.minecraft.core.BlockPos worldMin = (net.minecraft.core.BlockPos) call(top, "worldMin");
-
         for (int[] corner : new int[][] { {0, 0}, {sx - 1, 0}, {0, sz - 1} })
         {
+            float[] p = (float[]) widget.getClass().getMethod("project", float.class, float.class, float.class)
+                    .invoke(widget, corner[0] + 0.5F, 0.0F, corner[1] + 0.5F);
+            double imageX = flipX ? rect[0] + rect[0] + rect[2] - p[0] : p[0];
+            double imageY = flipY ? rect[1] + rect[1] + rect[3] - p[1] : p[1];
             net.minecraft.core.BlockPos world = fi.dy.masa.litematica.util.PositionUtils.getTransformedBlockPos(
                     new net.minecraft.core.BlockPos(corner[0] + min.getX(), min.getY(), corner[1] + min.getZ()),
                     this.placement.getMirror(), this.placement.getRotation()).offset(this.placement.getOrigin());
-            float px = worldMin != null ? world.getX() - worldMin.getX() + 0.5F : corner[0] + 0.5F;
-            float pz = worldMin != null ? world.getZ() - worldMin.getZ() + 0.5F : corner[1] + 0.5F;
-            float[] p = (float[]) widget.getClass().getMethod("project", float.class, float.class, float.class)
-                    .invoke(widget, px, 0.0F, pz);
-            double imageX = flipX ? rect[0] + rect[0] + rect[2] - p[0] : p[0];
-            double imageY = flipY ? rect[1] + rect[1] + rect[3] - p[1] : p[1];
             double mapX = map[0] + (world.getX() - bminX + 0.5D) * scale;
             double mapY = map[1] + (world.getZ() - bminZ + 0.5D) * scale;
             boolean near = Math.abs(imageX - mapX) <= scale + 1.0D && Math.abs(imageY - mapY) <= scale + 1.0D;

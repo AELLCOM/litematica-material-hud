@@ -11,7 +11,10 @@ import net.minecraft.client.input.PreeditEvent;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Ввод текста SDL для своих полей (26.3). Буквы приходят окну событием {@code SDL_EVENT_TEXT_INPUT},
+ * Вариант для 26.2 (GLFW): буквы приходят всегда, а {@link TextInputManager} без владельца — он только
+ * включает IME. Владельца ведём сами, ваниль зовём без аргументов.
+ *
+ * <p>Ввод текста SDL для своих полей (26.3). Буквы приходят окну событием {@code SDL_EVENT_TEXT_INPUT},
  * а SDL шлёт его, только пока ввод текста включён ({@link TextInputManager#startTextInput}). Ванильный
  * {@code EditBox} включает его сам в {@code setFocused}; наши поля — не {@code EditBox}, и без этого
  * класса {@code charTyped} до них не доходил вовсе: стрелки и Backspace работали, буквы — нет.
@@ -49,7 +52,7 @@ public final class TextFocus
     public static void take(Object who)
     {
         owner = who;
-        manager().startTextInput(who);
+        manager().startTextInput();
     }
 
     /** Выключить ввод, если его держит {@code who}; иначе ничего. */
@@ -58,9 +61,8 @@ public final class TextFocus
         if (owner == who)
         {
             owner = null;
+            manager().stopTextInput();
         }
-
-        manager().stopTextInput(who);
     }
 
     /** Держать ввод, пока {@code want}: зовётся каждый кадр (экран со «списком, где буква — поиск»). */

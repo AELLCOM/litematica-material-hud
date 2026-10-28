@@ -610,15 +610,15 @@ public final class SupportTest implements CovJob
                 // Клавиша панели в открытом инвентаре — настоящим путём клавиатуры (KeyboardHandler)
                 int key = LayerListConfigs.TOGGLE_HUD.getKeybind().getKeys().get(0);
                 var event = new net.minecraft.client.input.KeyEvent(key, 0, 0);
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
                 boolean hidden = ! LayerListConfigs.HUD_ENABLED;
                 boolean stillOpen = mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
                 this.check("Y в инвентаре спрятала панель, инвентарь открыт", hidden && stillOpen,
                         "HUD " + LayerListConfigs.HUD_ENABLED + ", экран " + mc.gui.screen());
                 shot(mc, "инвентарь — панель скрыта клавишей");
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
-                mc.keyboardHandler.keyPress(mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.PRESS, event);
+                DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), com.mojang.blaze3d.platform.InputConstants.RELEASE, event);
                 this.check("второе нажатие Y вернуло панель", LayerListConfigs.HUD_ENABLED, "");
                 wait = 1500L;
             }
@@ -749,8 +749,8 @@ public final class SupportTest implements CovJob
 
         var window = mc.getWindow();
         int left = com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT;
-        mc.mouseHandler.onButton(window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.PRESS);
-        mc.mouseHandler.onButton(window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.RELEASE);
+        DevInput.onButton(mc.mouseHandler, window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.PRESS);
+        DevInput.onButton(mc.mouseHandler, window.handle(), new MouseButtonInfo(left, 0), com.mojang.blaze3d.platform.InputConstants.RELEASE);
     }
 
     /** Курсор в точку экрана (координаты GUI). */

@@ -187,13 +187,13 @@ public final class PreviewModel
     /** Квады — вершинами формата блоков (позиция, цвет, UV, свет) в обычный прямой буфер (его забирает сборщик мусора). */
     static java.nio.ByteBuffer packVertices(List<Quads> parts, int total)
     {
-        com.mojang.renderpearl.api.vertex.VertexFormat format = com.mojang.blaze3d.vertex.DefaultVertexFormat.BLOCK;
+        com.mojang.blaze3d.vertex.VertexFormat format = com.mojang.blaze3d.vertex.DefaultVertexFormat.BLOCK;
 
         try (com.mojang.blaze3d.vertex.ByteBufferBuilder bytes = com.mojang.blaze3d.vertex.ByteBufferBuilder.exactlySized(
                 total * 4 * format.getVertexSize()))
         {
             com.mojang.blaze3d.vertex.BufferBuilder builder = new com.mojang.blaze3d.vertex.BufferBuilder(bytes,
-                    com.mojang.renderpearl.api.pipeline.PrimitiveTopology.QUADS, format);
+                    com.mojang.blaze3d.PrimitiveTopology.QUADS, format);
 
             for (Quads quads : parts)
             {

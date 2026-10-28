@@ -42,10 +42,8 @@ public final class SettingsShot implements CovJob
         {
             case 0 ->
             {
-                var screen = com.aell.layerlist.config.GuiConfigs.create(null, null);
-                mc.gui.setScreen(screen);
+                mc.gui.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null));
                 SupportTest.moveMouse(mc, 4.0D, mc.getWindow().getGuiScaledHeight() - 4.0D);
-                search(screen, System.getenv("LL_SETTINGS_SEARCH"));
             }
             case 1 ->
             {
@@ -61,31 +59,6 @@ public final class SettingsShot implements CovJob
         }
 
         return false;
-    }
-
-    /** {@code LL_SETTINGS_SEARCH}: строка поиска настроек — снять нужные опции, не листая вкладки. */
-    private static void search(Object screen, String query)
-    {
-        if (query == null || query.isBlank())
-        {
-            return;
-        }
-
-        try
-        {
-            Class<?> type = com.aell.layerlist.shaded.ui.SettingsScreen.class;
-            var field = type.getDeclaredField("search");
-            field.setAccessible(true);
-            field.set(screen, query);
-            var layout = type.getDeclaredMethod("layout");
-            layout.setAccessible(true);
-            layout.invoke(screen);
-            CovOut.log("[settingsshot] поиск: " + query);
-        }
-        catch (ReflectiveOperationException e)
-        {
-            CovOut.log("[settingsshot] поиск не задан: " + e);
-        }
     }
 
     @Override

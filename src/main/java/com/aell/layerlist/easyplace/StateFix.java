@@ -19,10 +19,9 @@ import net.minecraft.world.level.block.EndPortalFrameBlock;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.GrowingPlantHeadBlock;
 import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.RedstoneWireBlock;
+import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.state.properties.RedstoneSide;
 import net.minecraft.world.level.block.RespawnAnchorBlock;
-import net.minecraft.world.level.block.ShelfMushroomBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -332,13 +331,6 @@ public final class StateFix
             return null;
         }
 
-        if (schematic.getBlock() instanceof ShelfMushroomBlock && world.is(schematic.getBlock())
-                && schematic.getValue(ShelfMushroomBlock.FACING) == world.getValue(ShelfMushroomBlock.FACING)
-                && schematic.getValue(ShelfMushroomBlock.AGE) > world.getValue(ShelfMushroomBlock.AGE))
-        {
-            return new Fix("mushroom", Path.TOOL, BONE_MEAL, false, false, null, null, null, true);
-        }
-
         return null;
     }
 
@@ -350,8 +342,7 @@ public final class StateFix
             return false;
         }
 
-        return GrowingPlants.berries(schematic) || GrowingPlants.cut(schematic)
-                || (schematic.getBlock() instanceof ShelfMushroomBlock && schematic.getValue(ShelfMushroomBlock.AGE) > 0);
+        return GrowingPlants.berries(schematic) || GrowingPlants.cut(schematic);
     }
 
     private static boolean wants(BlockState schematic,
@@ -565,7 +556,7 @@ public final class StateFix
      */
     private static @Nullable Fix wireShape(BlockState schematic, BlockState world)
     {
-        if (world.getBlock() instanceof RedstoneWireBlock
+        if (world.getBlock() instanceof RedStoneWireBlock
                 && ((isDot(schematic) && isCross(world)) || (isCross(schematic) && isDot(world))))
         {
             return new Fix("dot", Path.BLOCK_ACTION, null, false, false, null);
@@ -586,12 +577,12 @@ public final class StateFix
 
     private static boolean wireSidesAll(BlockState state, RedstoneSide side)
     {
-        if (! (state.getBlock() instanceof RedstoneWireBlock))
+        if (! (state.getBlock() instanceof RedStoneWireBlock))
         {
             return false;
         }
 
-        for (var property : RedstoneWireBlock.PROPERTY_BY_DIRECTION.values())
+        for (var property : RedStoneWireBlock.PROPERTY_BY_DIRECTION.values())
         {
             if (state.getValue(property) != side)
             {

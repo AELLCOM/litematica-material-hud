@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "Lista de zonas...",
   "layerlist.zf.config.zoneSeeThrough.name": "Ver através dos blocos",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Desenha os contornos das zonas por cima de tudo, para você vê-los dentro da construção",
-  "modmenu.descriptionTranslation.layerlist": "Mostra a lista de materiais da camada de renderização selecionada no lugar do painel de informações do Litematica: ela se atualiza enquanto você constrói, muda de página com atalhos e marca baús, barris, baús de cobre e caixas de shulker que contêm os blocos da página atual com pontos coloridos bem visíveis — ao abrir o contêiner, os slots correspondentes são destacados.",
-  "modmenu.summaryTranslation.layerlist": "Lista de materiais ao vivo da camada que você está construindo, com pontos coloridos nos baús que guardam esses blocos."
+  "modmenu.descriptionTranslation.layerlist": "Mostra a lista de materiais do Litematica para a camada atual como HUD e marca os baús, barris e caixas de shulker que contêm os blocos necessários. Inclui os módulos Ghost Alpha e Easy Place.",
+  "modmenu.summaryTranslation.layerlist": "Mostra a lista de materiais do Litematica para a camada atual como HUD e marca os baús, barris e caixas de shulker que contêm os blocos necessários. Inclui os módulos Ghost Alpha e Easy Place."
 }

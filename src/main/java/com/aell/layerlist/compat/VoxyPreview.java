@@ -1,6 +1,6 @@
 package com.aell.layerlist.compat;
 
-import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -62,30 +62,6 @@ public final class VoxyPreview
         try
         {
             return guard(() -> VoxyPreviewImpl.render(x, y, z, yaw, pitch, fov, width, height), false);
-        }
-        finally
-        {
-            rendering = false;
-        }
-    }
-
-    /**
-     * Кадр ортографической проекцией — мир под голограммой 3D «Управления зонами» Zone Focus (API 6): окно
-     * {@code ±halfW × ±halfH} блоков вокруг оси взгляда из точки {@code x, y, z}.
-     */
-    public static boolean renderOrtho(double x, double y, double z, float yaw, float pitch, float halfW, float halfH,
-            float near, float far, int width, int height)
-    {
-        if (! ready())
-        {
-            return false;
-        }
-
-        rendering = true;
-
-        try
-        {
-            return guard(() -> VoxyPreviewImpl.renderOrtho(x, y, z, yaw, pitch, halfW, halfH, near, far, width, height), false);
         }
         finally
         {

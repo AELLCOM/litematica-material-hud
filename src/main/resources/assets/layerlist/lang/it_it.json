@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "Elenco delle zone...",
   "layerlist.zf.config.zoneSeeThrough.name": "Visibili attraverso i blocchi",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Disegna le cornici delle zone sopra a tutto, così le vedi dentro la costruzione",
-  "modmenu.descriptionTranslation.layerlist": "Mostra la lista dei materiali del livello di rendering selezionato al posto del pannello informativo di Litematica: si aggiorna mentre costruisci, si sfoglia con le scorciatoie e segna con punti colorati ben visibili bauli, barili, bauli di rame e shulker box che contengono i blocchi della pagina corrente — all'apertura del contenitore le caselle corrispondenti vengono evidenziate.",
-  "modmenu.summaryTranslation.layerlist": "Lista dei materiali in tempo reale per il livello che stai costruendo, con punti colorati sui contenitori che hanno quei blocchi."
+  "modmenu.descriptionTranslation.layerlist": "Mostra la lista dei materiali di Litematica per il layer attuale come HUD e segna i bauli, i barili e le shulker box che contengono i blocchi necessari. Include i moduli Ghost Alpha ed Easy Place.",
+  "modmenu.summaryTranslation.layerlist": "Mostra la lista dei materiali di Litematica per il layer attuale come HUD e segna i bauli, i barili e le shulker box che contengono i blocchi necessari. Include i moduli Ghost Alpha ed Easy Place."
 }

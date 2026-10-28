@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "구역 목록...",
   "layerlist.zf.config.zoneSeeThrough.name": "블록 너머로 표시",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "구역 테두리를 모든 것 위에 그려서 건물 안에서도 보이게 해요",
-  "modmenu.descriptionTranslation.layerlist": "Litematica의 정보 패널 대신 현재 선택된 렌더 레이어의 재료 목록을 표시합니다. 블록을 놓을 때마다 갱신되고, 단축키로 페이지를 넘길 수 있으며, 현재 페이지의 블록이 든 상자·통·구리 상자·셜커 상자를 눈에 띄는 색 점으로 표시합니다. 컨테이너를 열면 해당 슬롯도 강조됩니다.",
-  "modmenu.summaryTranslation.layerlist": "짓고 있는 레이어의 재료 목록을 실시간으로 보여주고, 해당 블록이 든 보관함에 색 점을 표시합니다."
+  "modmenu.descriptionTranslation.layerlist": "현재 레이어에 필요한 Litematica 재료 목록을 HUD로 표시하고, 필요한 블록이 들어 있는 상자, 통, 셜커 상자를 표시합니다. Ghost Alpha 및 Easy Place 모듈을 포함합니다.",
+  "modmenu.summaryTranslation.layerlist": "현재 레이어에 필요한 Litematica 재료 목록을 HUD로 표시하고, 필요한 블록이 들어 있는 상자, 통, 셜커 상자를 표시합니다. Ghost Alpha 및 Easy Place 모듈을 포함합니다."
 }

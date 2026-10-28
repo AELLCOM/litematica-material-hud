@@ -26,9 +26,6 @@ import net.minecraft.util.Util;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.sdl.SDLEvents;
-import org.lwjgl.sdl.SDLVideo;
-import org.lwjgl.sdl.SDL_Event;
 
 /**
  * Режим {@code selworld}: вкладка «Выделение» — карточка координат сверху справа, кнопки шага «+ / −» и «Смотреть на
@@ -248,8 +245,8 @@ public final class SelWorldTest implements CovJob
                         this.key(mc, InputConstants.KEY_BACKSPACE, '\b');
                     }
 
-                    mc.keyboardHandler.textInput(mc.getWindow().handle(), "9");
-                    mc.keyboardHandler.textInput(mc.getWindow().handle(), "0");
+                    DevInput.textInput(mc.keyboardHandler, mc.getWindow().handle(), "9");
+                    DevInput.textInput(mc.keyboardHandler, mc.getWindow().handle(), "0");
                     this.nextAt = Util.getMillis() + 300L;
                 }
                 case 203 ->
@@ -403,41 +400,21 @@ public final class SelWorldTest implements CovJob
 
     private void mouse(Minecraft mc, int button, int action)
     {
-        mc.mouseHandler.onButton(mc.getWindow().handle(), new MouseButtonInfo(button, 0), action);
+        DevInput.onButton(mc.mouseHandler, mc.getWindow().handle(), new MouseButtonInfo(button, 0), action);
     }
 
-    /**
-     * R — событием в очереди SDL, как от клавиатуры: хоткеи malilib 0.30 узнают зажатые клавиши только из сырого
-     * события SDL, одного {@code keyPress} им мало (см. {@code KHotkey}). Обработается в ближайшем кадре.
-     */
+    /** R — через KeyboardHandler, как настоящая (26.2: событий SDL нет, malilib 0.29 видит клавишу из keyPress). */
     private void pushR()
     {
-        long window = Minecraft.getInstance().getWindow().handle();
-        int windowId = SDLVideo.SDL_GetWindowID(window);
-
-        for (boolean down : new boolean[] { true, false })
-        {
-            SDL_Event event = SDL_Event.calloc();
-
-            try
-            {
-                event.key(key -> key.type(down ? SDLEvents.SDL_EVENT_KEY_DOWN : SDLEvents.SDL_EVENT_KEY_UP).windowID(windowId)
-                        .scancode(InputConstants.KEY_R).key('r').down(down).repeat(false));
-                SDLEvents.SDL_PushEvent(event);
-            }
-            finally
-            {
-                event.free();
-            }
-        }
+        this.key(Minecraft.getInstance(), InputConstants.KEY_R, 'r');
     }
 
     /** Клавиша через KeyboardHandler — тот же путь, что у настоящей (в игре Esc идёт мимо экрана). */
     private void key(Minecraft mc, int key, int code)
     {
         KeyEvent event = new KeyEvent(key, code, 0);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.PRESS, event);
-        mc.keyboardHandler.keyPress(mc.getWindow().handle(), InputConstants.RELEASE, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.PRESS, event);
+        DevInput.keyPress(mc.keyboardHandler, mc.getWindow().handle(), InputConstants.RELEASE, event);
     }
 
     private int cornerX()

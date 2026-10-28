@@ -98,6 +98,6 @@
   "layerlist.zf.config.zoneList.name": "Liste des zones...",
   "layerlist.zf.config.zoneSeeThrough.name": "Visible à travers les blocs",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Dessiner les cadres des zones par-dessus tout, pour les voir à l'intérieur de la construction",
-  "modmenu.descriptionTranslation.layerlist": "Affiche la liste des matériaux de la couche de rendu sélectionnée à la place du panneau d'info de Litematica : elle se met à jour pendant la construction, se feuillette avec des raccourcis et marque les coffres, tonneaux, coffres en cuivre et boîtes de Shulker contenant les blocs de la page actuelle par de gros points colorés — à l'ouverture du conteneur, les emplacements correspondants sont surlignés.",
-  "modmenu.summaryTranslation.layerlist": "Liste des matériaux en direct pour la couche en cours, avec des points colorés sur les coffres qui contiennent ces blocs."
+  "modmenu.descriptionTranslation.layerlist": "Affiche la liste des matériaux Litematica de la couche actuelle sous forme de HUD et repère les coffres, tonneaux et boîtes de shulker qui contiennent les blocs nécessaires. Inclut les modules Ghost Alpha et Easy Place.",
+  "modmenu.summaryTranslation.layerlist": "Affiche la liste des matériaux Litematica de la couche actuelle sous forme de HUD et repère les coffres, tonneaux et boîtes de shulker qui contiennent les blocs nécessaires. Inclut les modules Ghost Alpha et Easy Place."
 }

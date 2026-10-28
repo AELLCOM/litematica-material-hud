@@ -33,9 +33,8 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
-import net.minecraft.client.renderer.texture.UvMapping;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -272,13 +271,6 @@ public final class GhostSubmits
         }
 
         @Override
-        public void submitTextBackground(PoseStack pose, float x0, float y0, float x1, float y1, int color,
-                Font.DisplayMode mode, int light)
-        {
-            this.out.submitTextBackground(pose, x0, y0, x1, y1, color, mode, light);
-        }
-
-        @Override
         public void submitFlame(PoseStack pose, EntityRenderState state, Quaternionf rotation)
         {
             this.out.submitFlame(pose, state, rotation);
@@ -292,16 +284,11 @@ public final class GhostSubmits
 
         @Override
         public <S> void submitModel(Model<? super S> model, S state, PoseStack pose, RenderType type, int light,
-                int overlay, int tint, UvMapping uv, int outline)
+                int overlay, int tint, @Nullable TextureAtlasSprite sprite, int outline,
+                ModelFeatureRenderer.CrumblingOverlay crumbling)
         {
-            this.out.submitModel(model, state, pose, translucent(type), light, overlay, withAlpha(tint, this.alpha), uv, outline);
-        }
-
-        @Override
-        public <S> void submitCrumblingOverlay(Model<? super S> model, S state, PoseStack pose, RenderType type,
-                int light, int overlay, int tint, ModelFeatureRenderer.CrumblingOverlay crumbling)
-        {
-            this.out.submitCrumblingOverlay(model, state, pose, type, light, overlay, tint, crumbling);
+            this.out.submitModel(model, state, pose, translucent(type), light, overlay, withAlpha(tint, this.alpha), sprite,
+                    outline, crumbling);
         }
 
         @Override
@@ -331,9 +318,9 @@ public final class GhostSubmits
         }
 
         @Override
-        public void submitBreakingBlockModel(PoseStack pose, List<BlockStateModelPart> parts, int progress, boolean flag)
+        public void submitBreakingBlockModel(PoseStack pose, List<BlockStateModelPart> parts, int progress)
         {
-            this.out.submitBreakingBlockModel(pose, parts, progress, flag);
+            this.out.submitBreakingBlockModel(pose, parts, progress);
         }
 
         @Override
@@ -345,9 +332,9 @@ public final class GhostSubmits
 
         @Override
         public void submitItem(PoseStack pose, ItemDisplayContext context, int light, int overlay, int outline,
-                int[] tints, ItemQuads quads, ItemStackRenderState.FoilType foil)
+                int[] tints, List<BakedQuad> quads, ItemStackRenderState.FoilType foil)
         {
-            submitQuads(this.out, pose, quads.all(), tints, light, overlay, this.alpha);
+            submitQuads(this.out, pose, quads, tints, light, overlay, this.alpha);
         }
 
         @Override
@@ -455,13 +442,6 @@ public final class GhostSubmits
         public VertexConsumer setUv2(int u, int v)
         {
             this.out.setUv2(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv3(float u, float v)
-        {
-            this.out.setUv3(u, v);
             return this;
         }
 

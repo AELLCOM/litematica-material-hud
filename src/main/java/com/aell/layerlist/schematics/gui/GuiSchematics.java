@@ -1451,7 +1451,7 @@ public final class GuiSchematics extends GuiBase
 
     /** Файлы брошены в окно: копия в текущую папку библиотеки. */
     @Override
-    public boolean onMouseDropFiles(List<Path> paths)
+    public void onFilesDrop(List<Path> paths)
     {
         this.setTab(Tab.LIBRARY);
 
@@ -1461,7 +1461,6 @@ public final class GuiSchematics extends GuiBase
         }
 
         this.files.acceptDropped(paths);
-        return true;
     }
 
     private boolean blurAll()
@@ -2119,7 +2118,7 @@ public final class GuiSchematics extends GuiBase
         {
             if (target != null)
             {
-                Blaze3D.openPath(target);
+                net.minecraft.util.Util.getPlatform().openPath(target);
             }
         }
         catch (RuntimeException e)
