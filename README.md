@@ -4,7 +4,7 @@ Shows the Litematica material list for the current layer as a HUD and marks the 
 
 [Modrinth](https://modrinth.com/mod/material-hud) · [CurseForge](https://www.curseforge.com/minecraft/mc-mods/litematica-material-hud-chest-finder) · [Discord](https://discord.gg/jTU2yawThv)
 
-This branch (`mc/26.2`) is the source of **1.0.33+26.2** for **Minecraft 26.2** (Fabric).
+This branch (`mc/26.2`) is the source of **1.0.34+26.2** for **Minecraft 26.2** (Fabric).
 Branches: `main` (26.3), `mc/26.2` (26.2), `mc/1.21.11` (1.21.11). Release notes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Building
@@ -12,7 +12,7 @@ Branches: `main` (26.3), `mc/26.2` (26.2), `mc/1.21.11` (1.21.11). Release notes
 You need JDK 25+ (Gradle comes with the wrapper).
 
 ```sh
-./libs/fetch-libs.sh   # syncmatica, voxy, sodium, malilib, litematica from Modrinth, SHA-1 checked
+./libs/fetch-libs.sh   # syncmatica, chesttracker, voxy, sodium, malilib, litematica from Modrinth, SHA-1 checked
 ./gradlew build        # the jar lands in build/libs/
 ```
 

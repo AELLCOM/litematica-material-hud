@@ -1,4 +1,5 @@
 syncmatica-fabric-26.2-0.3.20.jar https://cdn.modrinth.com/data/bfneejKo/versions/POv0nHxV/syncmatica-fabric-26.2-0.3.20.jar d1d1095c0923df0718f99fc39b8ed2c2464ff905
+chesttracker-2.8.4+26.2.jar https://cdn.modrinth.com/data/VC2NohMN/versions/NLV8VOf4/chesttracker-2.8.4%2B26.2.jar 560003f49e7a927faac01f5006b934ff8de4ff09
 voxy-0.2.19-beta.jar https://cdn.modrinth.com/data/fxxUqruK/versions/LzyXnE51/voxy-0.2.19-beta.jar a345fbd2b2d1e378452763e2864f1056b212ac98
 sodium-fabric-0.9.1+mc26.2.jar https://cdn.modrinth.com/data/AANobbMI/versions/2Yom1N68/sodium-fabric-0.9.1%2Bmc26.2.jar 14f3388694fa77f870d28262f74562de67eabcbe
 malilib-fabric-26.2-0.29.6.jar https://cdn.modrinth.com/data/GcWjdA9I/versions/KvjmGjAV/malilib-fabric-26.2-0.29.6.jar 8e4959313bec2d413ac898d1a030f1d73d419d5a

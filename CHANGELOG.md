@@ -3,6 +3,21 @@
 English release notes as published on [Modrinth](https://modrinth.com/mod/material-hud/changelog), newest first.
 The original Russian notes are in [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.34 — 2026-11-23
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### New
+- **Placement groups** ([#5](https://github.com/AELLCOM/litematica-material-hud/issues/5)). Put several placements into a group: "Select" → tick them → "To group (N)…", or "To group…" in a row's right-click menu. A group is a header row above its placements: the arrow or a double-click folds it, and on the right it shows how many placements it has and how many are on. "Materials" on the header counts every placement of the group together, checked against the world. The group menu also has "Rename group…", "Enable/Disable all", "Show/Hide all holograms", "Ungroup" and "Delete group with placements…". Groups belong to each world and dimension and survive rejoining.
+- **Rename placements** ([#6](https://github.com/AELLCOM/litematica-material-hud/issues/6)). Schematics → Placements: "Rename…" in a row's right-click menu. Only the placement name changes, like Litematica's own "Rename" field; the schematic file stays as it is. The notification has "Undo". A shared Syncmatica placement cannot be renamed.
+- **"Storage only nearby"** ([#4](https://github.com/AELLCOM/litematica-material-hud/issues/4); Settings → HUD → "Your stash"). "In chests" and "Count storage" count only storages within the "Storage radius" (64 blocks horizontally by default), not every chest you have ever opened on the server. Your ender chest always counts. Off by default.
+- **Chests from Chest Tracker** ([#2](https://github.com/AELLCOM/litematica-material-hud/issues/2)). With [Chest Tracker (unofficial port)](https://modrinth.com/mod/VC2NohMN) installed, the storages it remembers in this world count as stock and show up in the chest search too — no need to open them again. If both mods remember a chest, the newer record wins. Option "Chests from Chest Tracker" in "Your stash", on by default.
+- **Banner recipes at the loom** ([#3](https://github.com/AELLCOM/litematica-material-hud/issues/3)). While a loom is open and the panel lists patterned banners from the schematic, a card next to the loom shows which banner to take, then every pattern with its dye in order, plus the pattern item when one is needed. Steps the banner already has are ticked off, the next one is highlighted; patterns beyond six (the loom limit) are red. Turn it off with "Banner recipes at the loom" (HUD tab).
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
 ## 1.0.33 — 2026-11-21
 
 Minecraft 26.3, 26.2, 1.21.11

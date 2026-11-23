@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.34+26.2 — 23.11.2026
+
+**RU**
+
+**Новое — переименование размещений** (заявка #6). Во вкладке «Схемы» → «Размещения» у строки появился пункт «Переименовать…» в меню ПКМ. Меняется только имя размещения — как полем «Rename» в окне размещения Litematica: файл схемы и другие его размещения остаются как есть. Есть «Отменить» в уведомлении. Общее размещение Syncmatica не переименовать: его имя одно для всех на сервере.
+
+**Новое — группы размещений** (заявка #5). Несколько размещений можно сложить в группу: «Выбрать» → отметить → «В группу (N)…», или «В группу…» в меню ПКМ строки. Группа — строка-заголовок над своими размещениями: стрелка или двойной щелчок сворачивает её, справа — сколько в ней размещений и сколько включено. «Материалы» на заголовке (и «Материалы группы» в его меню) считают все размещения группы вместе, сверяя с миром. В меню группы ещё «Переименовать группу…» (имя другой группы сливает их), «Включить/Выключить все», «Показать/Скрыть все голограммы», «Распустить группу» (размещения остаются) и «Удалить группу с размещениями…». Группы свои у каждого мира и измерения и переживают перезаход: размещения узнаются по постоянному id Litematica.
+
+**Новое — «Склад только рядом»** (заявка #4; «Настройки» → HUD → «Свой склад»). «В сундуках» и «С учётом склада» считают только хранилища не дальше «Радиуса склада» (по умолчанию 64 блока по горизонтали), а не все, что вы когда-либо открывали на сервере. Отошли — дальние сундуки выпадают из счёта, вернулись — снова в нём. Эндер-сундук считается всегда. По умолчанию выключено.
+
+**Новое — сундуки из Chest Tracker** (заявка #2). Если стоит Chest Tracker (неофициальный порт), хранилища, которые он помнит в этом мире, тоже идут в счёт склада и в поиск по сундукам — не нужно открывать их заново. Если сундук помнят оба мода, берётся более свежая запись. Опция «Сундуки из Chest Tracker» там же, в «Свой склад», по умолчанию включена; без Chest Tracker она серая.
+
+**Новое — рецепты флагов у ткацкого станка** (заявка #3). Пока открыт ткацкий станок, а в панели есть узорные флаги из схемы, рядом со станком — карточка: какой флаг взять и по порядку каждый узор с красителем, а если нужен предмет-узор (крипер, цветок и другие) — какой. Положите флаг в станок — сделанные шаги отмечены галочкой, следующий подсвечен. Узоры сверх шести (больше станок не даёт) помечены красным. Выключается опцией «Рецепты флагов у станка» (вкладка HUD).
+
+**EN**
+
+**New — rename placements** (issue #6). In the Schematics → Placements tab a row now has "Rename…" in the right-click menu. Only the placement name changes, like the "Rename" field of Litematica's placement window: the schematic file and its other placements stay as they are. The notification has "Undo". A shared Syncmatica placement cannot be renamed: its name is the same for everyone on the server.
+
+**New — placement groups** (issue #5). Several placements can be put into a group: "Select" → tick them → "To group (N)…", or "To group…" in a row's right-click menu. A group is a header row above its placements: the arrow or a double-click folds it, and on the right it shows how many placements it has and how many are on. "Materials" on the header (and "Group materials" in its menu) counts every placement of the group together, checked against the world. The group menu also has "Rename group…" (the name of another group merges them), "Enable/Disable all", "Show/Hide all holograms", "Ungroup" (the placements stay) and "Delete group with placements…". Groups belong to each world and dimension and survive rejoining: placements are recognised by Litematica's permanent id.
+
+**New — "Storage only nearby"** (issue #4; Settings → HUD → "Your stash"). "In chests" and "Count storage" count only storages within the "Storage radius" (64 blocks horizontally by default), not every chest you have ever opened on the server. Walk away and far chests drop out of the count, come back and they return. Your ender chest always counts. Off by default.
+
+**New — chests from Chest Tracker** (issue #2). With Chest Tracker (unofficial port) installed, the storages it remembers in this world count as stock and show up in the chest search too — no need to open them again. If both mods remember a chest, the newer record wins. The "Chests from Chest Tracker" option is in "Your stash" as well, on by default; without Chest Tracker it is greyed out.
+
+**New — banner recipes at the loom** (issue #3). While a loom is open and the panel lists patterned banners from the schematic, a card next to the loom shows which banner to take and then every pattern with its dye in order, plus the pattern item when one is needed (creeper, flower and others). Put a banner in the loom and the steps it already has are ticked off, the next one is highlighted. Patterns beyond six (the loom limit) are marked in red. Turn it off with "Banner recipes at the loom" (HUD tab).
+
 ## 1.0.33+26.2 — 21.11.2026
 
 **RU**

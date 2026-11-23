@@ -260,9 +260,55 @@ public class StorageIndex
         return this.records.containsKey(scope + "|" + pos.getX() + "," + pos.getY() + "," + pos.getZ());
     }
 
+    /**
+     * Запись хранилища: своя или, если своей нет или она старее, из памяти Chest Tracker
+     * ({@link com.aell.layerlist.compat.ChestTracker}).
+     */
     public Rec get(String scope, BlockPos pos)
     {
-        return this.records.get(scope + "|" + pos.getX() + "," + pos.getY() + "," + pos.getZ());
+        String key = scope + "|" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
+        return newer(this.records.get(key), com.aell.layerlist.compat.ChestTracker.get(key));
+    }
+
+    private static @org.jetbrains.annotations.Nullable Rec newer(@org.jetbrains.annotations.Nullable Rec own,
+            @org.jetbrains.annotations.Nullable Rec foreign)
+    {
+        return foreign == null || (own != null && own.updatedAt >= foreign.updatedAt) ? own : foreign;
+    }
+
+    /** Ключ записи в индексе: {@code область|x,y,z}. */
+    public static String key(Rec rec)
+    {
+        return rec.scope + "|" + rec.x + "," + rec.y + "," + rec.z;
+    }
+
+    /**
+     * Запись по готовому списку предметов (для чужих источников — Chest Tracker): счёт по id и по данным, с содержимым
+     * шалкеров и мешочков, как при открытии хранилища ({@link #update}). В индекс не кладётся.
+     */
+    public static Rec recordOf(String scope, BlockPos pos, Iterable<ItemStack> items, long updatedAt)
+    {
+        LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
+        LinkedHashMap<String, Integer> data = new LinkedHashMap<>();
+
+        for (ItemStack stack : items)
+        {
+            if (stack != null && ! stack.isEmpty())
+            {
+                note(counts, data, stack);
+                forEachInside(stack, inner -> note(counts, data, inner));
+            }
+        }
+
+        Rec rec = new Rec();
+        rec.scope = scope;
+        rec.x = pos.getX();
+        rec.y = pos.getY();
+        rec.z = pos.getZ();
+        rec.counts = counts;
+        rec.data = data;
+        rec.updatedAt = updatedAt;
+        return rec;
     }
 
     public boolean removeNonCanonical(String scope, BlockPos canonical, List<BlockPos> physical)
@@ -320,13 +366,26 @@ public class StorageIndex
         return expectedContainerSize(mc, pos) > 0;
     }
 
+    /**
+     * Все известные хранилища области: свои записи и память Chest Tracker, если он стоит и в счёте (заявка #2); одно и
+     * то же хранилище в обоих — более свежая запись.
+     */
     public List<Rec> recordsInScope(String scope)
     {
         ArrayList<Rec> result = new ArrayList<>();
+        List<Rec> foreign = com.aell.layerlist.compat.ChestTracker.records(scope);
 
         for (Rec rec : this.records.values())
         {
             if (scope.equals(rec.scope))
+            {
+                result.add(foreign.isEmpty() ? rec : newer(rec, com.aell.layerlist.compat.ChestTracker.get(key(rec))));
+            }
+        }
+
+        for (Rec rec : foreign)
+        {
+            if (! this.records.containsKey(key(rec)))
             {
                 result.add(rec);
             }

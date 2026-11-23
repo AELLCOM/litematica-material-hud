@@ -1,6 +1,7 @@
 package com.aell.layerlist.schematics.gui;
 
 import com.aell.layerlist.compat.Syncmatica;
+import com.aell.layerlist.schematics.place.PlacementGroups;
 import com.aell.layerlist.schematics.place.PlacementOps;
 import com.aell.layerlist.shaded.ui.Paint;
 import com.aell.layerlist.shaded.ui.Strings;
@@ -35,7 +36,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Подвкладка «Размещения»: все размещения Litematica в этом мире — таблица (выбрано, вкл/выкл,
  * имя, файл, X Y Z, поворот/отражение) с сортировкой по заголовкам. Действия над выбранной строкой —
- * в подвале и в меню ПКМ: «Двигать», «Сверху», «Материалы», «Выбрать» / «Снять выбор» (переключатель:
+ * в подвале и в меню ПКМ: «Двигать», «Сверху», «Материалы», «Переименовать…» (только меню), «Выбрать» / «Снять выбор» (переключатель:
  * на уже выбранном в Litematica размещении снимает выбор; Litematica в обоих случаях закрывает свой
  * открытый список материалов — сказано в подсказке), «Удалить» (с подтверждением). Точка в первой колонке
  * переключает так же. Двойной клик — «Двигать». Список перечитывается раз в секунду: размещения меняются
@@ -51,11 +52,13 @@ final class PlacementsPane extends Pane
     private static int sortColumn = 3;
     private static boolean sortDescending;
 
-    private final Table<SchematicPlacement> table;
+    private final Table<Row> table;
     private final Button move;
     private final Button materials;
     private final Button choose;
     private final Button delete;
+    /** «В группу (N)» — в режиме «Выбрать», для отмеченных. */
+    private final Button groupButton;
     // ===== Syncmatica: общие размещения сервера =====
     /** Цвет Syncmatica — «чужой» фиолетовый: общее, а не своё. */
     static final int SYNC = Ui.C_FOREIGN;
@@ -72,64 +75,95 @@ final class PlacementsPane extends Pane
     private boolean picking;
     private final java.util.Set<SchematicPlacement> checked = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
     private long loadedAt;
+    private long groupsSeen = -1L;
 
     PlacementsPane(GuiSchematics screen)
     {
         super(screen);
 
-        this.table = new Table<SchematicPlacement>(ROW_H).columns(
-                Table.Column.<SchematicPlacement>fixed("", ROW_H)
+        this.table = new Table<Row>(ROW_H).columns(
+                Table.Column.<Row>fixed("", ROW_H)
                         .headerTooltip(Tr.t("placements.col.selected"))
-                        .cell(this::renderSelectedCell)
-                        .onClick((p, click) -> this.clickSelect(p, click)),
-                Table.Column.<SchematicPlacement>fixed(Tr.t("placements.col.enabled"), 40)
+                        .cell((ctx, r, x, y, w, h, hovered, mouseX, mouseY) ->
+                        {
+                            // Размещение группы — золотая черта слева: видно, где группа кончается
+                            if (r.group() != null)
+                            {
+                                Paint.rect(ctx, x + 1, y + 2, 2, h - 4, Ui.alpha(Theme.GOLD, 0.7F));
+                            }
+
+                            this.renderSelectedCell(ctx, r.placement(), x, y, w, h, hovered, mouseX, mouseY);
+                        })
+                        .onClick((r, click) -> this.clickSelect(r.placement(), click)),
+                Table.Column.<Row>fixed(Tr.t("placements.col.enabled"), 40)
                         .align(Table.Align.CENTER)
-                        .cell(this::renderEnabledCell)
-                        .onClick((p, click) -> this.clickToggle(p, click))
-                        .sort(Comparator.comparing(SchematicPlacement::isEnabled)),
-                Table.Column.<SchematicPlacement>fixed(Tr.t("placements.col.render"), 52)
+                        .cell(on(this::renderEnabledCell))
+                        .onClick((r, click) -> this.clickToggle(r.placement(), click))
+                        .sort(by(Comparator.comparing(SchematicPlacement::isEnabled))),
+                Table.Column.<Row>fixed(Tr.t("placements.col.render"), 52)
                         .align(Table.Align.CENTER)
                         .hideBelow(480)
-                        .cell(this::renderRenderCell)
-                        .onClick((p, click) -> this.clickRender(p, click))
-                        .sort(Comparator.comparing(SchematicPlacement::isRenderingEnabled)),
-                Table.Column.<SchematicPlacement>flex(Tr.t("placements.col.name"), 3)
+                        .cell(on(this::renderRenderCell))
+                        .onClick((r, click) -> this.clickRender(r.placement(), click))
+                        .sort(by(Comparator.comparing(SchematicPlacement::isRenderingEnabled))),
+                Table.Column.<Row>flex(Tr.t("placements.col.name"), 3)
                         .minWidth(60)
-                        .cell(this::renderNameCell)
-                        .sort(Comparator.comparing(SchematicPlacement::getName, String.CASE_INSENSITIVE_ORDER)),
-                Table.Column.<SchematicPlacement>flex(Tr.t("placements.col.file"), 2)
+                        .cell(on(this::renderNameCell))
+                        .sort(by(Comparator.comparing(SchematicPlacement::getName, String.CASE_INSENSITIVE_ORDER))),
+                Table.Column.<Row>flex(Tr.t("placements.col.file"), 2)
                         .hideBelow(520)
-                        .text(PlacementsPane::fileName)
-                        .tooltip(p -> p.getSchematicFile() == null ? Tr.t("placements.no_file") : p.getSchematicFile().toString())
-                        .sort(Comparator.comparing(PlacementsPane::fileName, String.CASE_INSENSITIVE_ORDER)),
-                Table.Column.<SchematicPlacement>fixed(Tr.t("placements.col.origin"), 120)
+                        .text(r -> fileName(r.placement()))
+                        .tooltip(r -> r.placement().getSchematicFile() == null ? Tr.t("placements.no_file")
+                                : r.placement().getSchematicFile().toString())
+                        .sort(by(Comparator.comparing(PlacementsPane::fileName, String.CASE_INSENSITIVE_ORDER))),
+                Table.Column.<Row>fixed(Tr.t("placements.col.origin"), 120)
                         .align(Table.Align.RIGHT)
-                        .text(PlacementsPane::origin)
-                        .sort(Comparator.<SchematicPlacement>comparingInt(p -> p.getOrigin().getX())
+                        .text(r -> origin(r.placement()))
+                        .sort(by(Comparator.<SchematicPlacement>comparingInt(p -> p.getOrigin().getX())
                                 .thenComparingInt(p -> p.getOrigin().getY())
-                                .thenComparingInt(p -> p.getOrigin().getZ())),
-                Table.Column.<SchematicPlacement>fixed(Tr.t("placements.col.transform"), 110)
+                                .thenComparingInt(p -> p.getOrigin().getZ()))),
+                Table.Column.<Row>fixed(Tr.t("placements.col.transform"), 110)
                         .hideBelow(420)
-                        .text(PlacementsPane::transform)
-                        .sort(Comparator.comparing((SchematicPlacement p) -> p.getRotation().ordinal())
-                                .thenComparing(p -> p.getMirror().ordinal())))
+                        .text(r -> transform(r.placement()))
+                        .sort(by(Comparator.comparing((SchematicPlacement p) -> p.getRotation().ordinal())
+                                .thenComparing(p -> p.getMirror().ordinal()))))
                 .onSort((column, descending) ->
                 {
                     sortColumn = column;
                     sortDescending = descending;
                 })
+                .arrange(this::arrange)
+                .wideRows(Row::header, this::renderGroupRow)
                 .listener(new ScrollList.Listener<>()
                 {
                     @Override
-                    public void activate(SchematicPlacement item, int index)
+                    public void activate(Row item, int index)
                     {
-                        PlacementsPane.this.screen.edit(item, false, false);
+                        if (item.header())
+                        {
+                            PlacementsPane.this.toggleCollapsed(item.group());
+                            return;
+                        }
+
+                        PlacementsPane.this.screen.edit(item.placement(), false, false);
                     }
 
                     @Override
-                    public void context(SchematicPlacement item, int index, int mouseX, int mouseY)
+                    public void context(Row item, int index, int mouseX, int mouseY)
                     {
-                        PlacementsPane.this.openMenu(item, mouseX, mouseY);
+                        if (item.header())
+                        {
+                            PlacementsPane.this.openGroupMenu(item.group(), mouseX, mouseY);
+                            return;
+                        }
+
+                        PlacementsPane.this.openMenu(item.placement(), mouseX, mouseY);
+                    }
+
+                    @Override
+                    public boolean click(Row item, int index, int rowX, int rowY, int rowW, int rowH, MouseButtonEvent click)
+                    {
+                        return item.header() && PlacementsPane.this.clickGroupRow(item.group(), rowX, click);
                     }
                 });
         this.table.setSort(sortColumn, sortDescending);
@@ -137,12 +171,14 @@ final class PlacementsPane extends Pane
         this.move = new Button(Tr.t("placements.place"), Button.Style.PRIMARY, () -> this.withSelected(p -> screen.edit(p, false, false)))
                 .accent(Theme.GREEN).tooltip(Tr.t("placements.place.tip"));
         // «Материалы» — пунктир цвета акцента: открывает расчёт, а не меняет размещение
-        this.materials = new Button(Tr.t("placements.materials"), Button.Style.SECONDARY,
-                () -> this.withSelected(p -> screen.showMaterials(null, p))).tooltip(Tr.t("placements.materials.tip"))
+        this.materials = new Button(Tr.t("placements.materials"), Button.Style.SECONDARY, this::showSelectedMaterials)
+                .tooltip(Tr.t("placements.materials.tip"))
                 .edge(Ui.C_ACCENT, false);
         this.choose = new Button(Tr.t("placements.pick"), Button.Style.SECONDARY, this::togglePicking)
                 .tooltip(Tr.t("placements.pick.tip"));
         this.delete = new Button(Tr.t("placements.delete"), Button.Style.DANGER, this::deleteChosen);
+        this.groupButton = new Button(Tr.t("groups.add"), Button.Style.SECONDARY, this::groupChosen)
+                .tooltip(Tr.t("groups.add.tip"));
 
         this.share = new Button(Tr.t("sync.share"), Button.Style.PRIMARY, this::shareOrUnshare).accent(SYNC);
         this.server = new Button(Tr.t("sync.server"), Button.Style.SECONDARY, this::toggleServerView)
@@ -383,6 +419,295 @@ final class PlacementsPane extends Pane
         }
     }
 
+    // ===== Группы (заявка #5) =====
+
+    /**
+     * Строка таблицы: размещение (и его группа, если есть) или заголовок группы ({@code placement == null}).
+     * Заголовков нет в источнике таблицы — их вставляет {@link #arrange} после сортировки.
+     */
+    record Row(@Nullable SchematicPlacement placement, PlacementGroups.@Nullable Group group)
+    {
+        boolean header()
+        {
+            return this.placement == null;
+        }
+
+        /** Та же строка — то же размещение (или заголовок той же группы): выбор не слетает, когда строку кладут в группу. */
+        @Override
+        public boolean equals(Object other)
+        {
+            return other instanceof Row row && (this.header() ? row.header() && row.group == this.group : row.placement == this.placement);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return System.identityHashCode(this.header() ? this.group : this.placement);
+        }
+    }
+
+    private static Table.Cell<Row> on(Table.Cell<SchematicPlacement> cell)
+    {
+        return (ctx, row, x, y, w, h, hovered, mouseX, mouseY) -> cell.render(ctx, row.placement(), x, y, w, h, hovered, mouseX, mouseY);
+    }
+
+    private static Comparator<Row> by(Comparator<SchematicPlacement> comparator)
+    {
+        return Comparator.comparing(Row::placement, comparator);
+    }
+
+    /**
+     * Порядок строк: сначала группы по имени — заголовок, под ним (если не свёрнута) её размещения в порядке сортировки
+     * таблицы, — потом размещения без группы.
+     */
+    private List<Row> arrange(List<Row> sorted)
+    {
+        List<PlacementGroups.Group> groups = PlacementGroups.get().groups();
+
+        if (groups.isEmpty())
+        {
+            return sorted;
+        }
+
+        List<Row> out = new ArrayList<>(sorted.size() + groups.size());
+
+        for (PlacementGroups.Group group : groups)
+        {
+            List<Row> members = new ArrayList<>();
+
+            for (Row row : sorted)
+            {
+                if (row.group() == group)
+                {
+                    members.add(row);
+                }
+            }
+
+            if (members.isEmpty())
+            {
+                continue;
+            }
+
+            out.add(new Row(null, group));
+
+            if (! group.collapsed())
+            {
+                out.addAll(members);
+            }
+        }
+
+        for (Row row : sorted)
+        {
+            if (row.group() == null)
+            {
+                out.add(row);
+            }
+        }
+
+        return out;
+    }
+
+    private List<SchematicPlacement> members(PlacementGroups.Group group)
+    {
+        return PlacementGroups.members(group, this.all);
+    }
+
+    /** Заголовок группы: стрелка, имя, сколько размещений и сколько из них включено. */
+    private void renderGroupRow(GuiContext ctx, Row row, int x, int y, int w, int h, boolean hovered, int mouseX, int mouseY)
+    {
+        var font = Kit.font();
+        PlacementGroups.Group group = row.group();
+        List<SchematicPlacement> members = this.members(group);
+        int enabled = 0;
+
+        for (SchematicPlacement placement : members)
+        {
+            enabled += placement.isEnabled() ? 1 : 0;
+        }
+
+        String[] chevron = group.collapsed() ? Glyphs.CHEVRON_RIGHT : Glyphs.CHEVRON_DOWN;
+        int gx = x + (ROW_H - Glyphs.width(chevron)) / 2;
+        Glyphs.draw(ctx, chevron, gx, y + (h - Glyphs.height(chevron)) / 2, hovered ? Ui.C_TEXT : Ui.C_TEXT_2);
+
+        if (this.picking)
+        {
+            int marked = 0;
+
+            for (SchematicPlacement placement : members)
+            {
+                marked += this.checked.contains(placement) ? 1 : 0;
+            }
+
+            if (marked > 0)
+            {
+                Paint.icon(ctx, Glyphs.CHECK, x + ROW_H + 1, y + (h - 5) / 2, marked == members.size() ? Ui.C_ACCENT : Ui.C_TEXT_3);
+            }
+        }
+
+        String counts = Tr.f("groups.row.count", Tr.num(members.size()), Tr.num(enabled));
+        int countsW = font.width(counts);
+        int nameX = x + ROW_H + Ui.PAD_IN + (this.picking ? 8 : 0);
+        int room = Math.max(0, w - (nameX - x) - countsW - Ui.PAD_IN * 3);
+        Paint.midText(ctx, font, Paint.fit(font, group.name(), room), nameX, y, h, Theme.GOLD, false);
+        Paint.midText(ctx, font, counts, x + w - Ui.PAD_IN - countsW, y, h, Ui.C_TEXT_3, false);
+
+        if (hovered)
+        {
+            Tooltip.offer("placements#group", Tr.t(this.picking ? "groups.row.pick_tip" : "groups.row.tip"));
+        }
+    }
+
+    /** Щелчок по заголовку: по стрелке — свернуть/развернуть; в режиме «Выбрать» — отметить всю группу. */
+    private boolean clickGroupRow(PlacementGroups.Group group, int rowX, MouseButtonEvent click)
+    {
+        if (! Kit.left(click))
+        {
+            return false;
+        }
+
+        if (this.picking)
+        {
+            List<SchematicPlacement> members = this.members(group);
+            Vanilla.click();
+
+            if (this.checked.containsAll(members))
+            {
+                members.forEach(this.checked::remove);
+            }
+            else
+            {
+                this.checked.addAll(members);
+            }
+
+            return true;
+        }
+
+        if (click.x() < rowX + ROW_H + Ui.PAD_IN)
+        {
+            Vanilla.click();
+            this.toggleCollapsed(group);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void toggleCollapsed(PlacementGroups.Group group)
+    {
+        PlacementGroups.get().setCollapsed(group, ! group.collapsed());
+        this.reload();
+    }
+
+    /** «Материалы»: у размещения — его, у заголовка группы — всех её размещений вместе. */
+    private void showSelectedMaterials()
+    {
+        PlacementGroups.Group group = this.selectedGroup();
+
+        if (group != null)
+        {
+            this.screen.showGroupMaterials(group);
+            return;
+        }
+
+        this.withSelected(p -> this.screen.showMaterials(null, p));
+    }
+
+    /** «В группу (N)» в режиме «Выбрать». */
+    private void groupChosen()
+    {
+        if (this.checked.isEmpty())
+        {
+            return;
+        }
+
+        List<SchematicPlacement> chosen = new ArrayList<>();
+
+        for (SchematicPlacement placement : this.all)
+        {
+            if (this.checked.contains(placement))
+            {
+                chosen.add(placement);
+            }
+        }
+
+        PlacementGroupFlow.assign(this.screen, chosen, () ->
+        {
+            this.checked.clear();
+            this.picking = false;
+            this.reload();
+        });
+    }
+
+    private void setAll(List<SchematicPlacement> members, boolean enabled)
+    {
+        for (SchematicPlacement placement : members)
+        {
+            if (placement.isEnabled() != enabled)
+            {
+                this.screen.toggleEnabled(placement);
+            }
+        }
+    }
+
+    private void renderAll(List<SchematicPlacement> members, boolean render)
+    {
+        for (SchematicPlacement placement : members)
+        {
+            if (placement.isRenderingEnabled() != render)
+            {
+                this.screen.toggleRender(placement);
+            }
+        }
+    }
+
+    private void openGroupMenu(PlacementGroups.Group group, int mouseX, int mouseY)
+    {
+        List<SchematicPlacement> members = this.members(group);
+        boolean anyOn = members.stream().anyMatch(SchematicPlacement::isEnabled);
+        boolean anyShown = members.stream().anyMatch(SchematicPlacement::isRenderingEnabled);
+        List<ContextMenu.Item> items = new ArrayList<>();
+        items.add(ContextMenu.Item.of(Tr.t("groups.materials"), () -> this.screen.showGroupMaterials(group))
+                .withTooltip(Tr.t("groups.materials.tip")));
+        items.add(ContextMenu.Item.of(Tr.t(group.collapsed() ? "groups.expand" : "groups.collapse"), () -> this.toggleCollapsed(group)));
+        items.add(ContextMenu.Item.of(Tr.t("groups.rename"), () -> PlacementGroupFlow.rename(this.screen, group))
+                .withTooltip(Tr.t("groups.rename.tip")));
+        items.add(ContextMenu.Item.separator());
+        items.add(ContextMenu.Item.of(Tr.t(anyOn ? "groups.disable_all" : "groups.enable_all"), () -> this.setAll(members, ! anyOn)));
+        items.add(ContextMenu.Item.of(Tr.t(anyShown ? "groups.hide_all" : "groups.show_all"), () -> this.renderAll(members, ! anyShown)));
+        items.add(ContextMenu.Item.separator());
+        items.add(ContextMenu.Item.of(Tr.t("groups.dissolve"), () ->
+        {
+            PlacementGroups.get().dissolve(group);
+            this.reload();
+        }).withTooltip(Tr.t("groups.dissolve.tip")));
+        items.add(ContextMenu.Item.danger(Tr.t("groups.delete"), () -> this.confirmDeleteGroup(group))
+                .withTooltip(Tr.t("groups.delete.tip")));
+        ContextMenu.open(this.screen.layers, mouseX, mouseY, 0, items);
+    }
+
+    private void confirmDeleteGroup(PlacementGroups.Group group)
+    {
+        List<SchematicPlacement> doomed = this.members(group);
+        com.aell.layerlist.ui.kit.Modal.confirm(this.screen.layers, Tr.t("groups.delete.title"),
+                Tr.f("groups.delete.text", group.name(), doomed.size()), Tr.t("delete.yes"), true, () ->
+                {
+                    for (SchematicPlacement p : doomed)
+                    {
+                        try
+                        {
+                            PlacementOps.remove(p);
+                        }
+                        catch (RuntimeException e)
+                        {
+                            this.screen.toast(Tr.f("delete.failed", Tr.reason(e)), Ui.C_DANGER);
+                        }
+                    }
+
+                    PlacementGroups.get().dissolve(group);
+                    this.reload();
+                }, Tr.t("cancel"));
+    }
+
     int count()
     {
         return this.all.size();
@@ -401,7 +726,16 @@ final class PlacementsPane extends Pane
             this.all = List.of();
         }
 
-        this.table.setItems(this.all);
+        PlacementGroups.get().prune(this.all);
+        this.groupsSeen = PlacementGroups.get().revision();
+        List<Row> rows = new ArrayList<>(this.all.size());
+
+        for (SchematicPlacement placement : this.all)
+        {
+            rows.add(new Row(placement, PlacementGroups.get().of(placement)));
+        }
+
+        this.table.setItems(rows);
         this.table.setEmptyText(Minecraft.getInstance().level == null ? Tr.t("placements.no_world") : Tr.t("placements.empty"));
 
         this.remote = Syncmatica.active() ? Syncmatica.remote() : List.of();
@@ -417,7 +751,7 @@ final class PlacementsPane extends Pane
     @Override
     void tick()
     {
-        if (Util.getMillis() - this.loadedAt >= RELOAD_MS)
+        if (Util.getMillis() - this.loadedAt >= RELOAD_MS || this.groupsSeen != PlacementGroups.get().revision())
         {
             this.reload();
         }
@@ -462,12 +796,25 @@ final class PlacementsPane extends Pane
 
     private void withSelected(Consumer<SchematicPlacement> action)
     {
-        SchematicPlacement selected = this.table.selectedItem();
+        SchematicPlacement selected = this.selectedPlacement();
 
         if (selected != null)
         {
             action.accept(selected);
         }
+    }
+
+    /** Выбранное размещение; выбран заголовок группы или ничего — {@code null}. */
+    private @Nullable SchematicPlacement selectedPlacement()
+    {
+        Row row = this.table.selectedItem();
+        return row == null ? null : row.placement();
+    }
+
+    private PlacementGroups.@Nullable Group selectedGroup()
+    {
+        Row row = this.table.selectedItem();
+        return row != null && row.header() ? row.group() : null;
     }
 
     /**
@@ -624,6 +971,22 @@ final class PlacementsPane extends Pane
         List<ContextMenu.Item> items = new ArrayList<>();
         items.add(ContextMenu.Item.of(Tr.t("placements.place"), () -> this.screen.edit(placement, false, false)));
         items.add(ContextMenu.Item.of(Tr.t("placements.materials"), () -> this.screen.showMaterials(null, placement)));
+        items.add(PlacementRenameFlow.allowed(placement)
+                ? ContextMenu.Item.of(Tr.t("placements.rename"), () -> this.rename(placement)).withTooltip(Tr.t("placements.rename.tip"))
+                : ContextMenu.Item.disabled(Tr.t("placements.rename"), Tr.t("placements.rename.shared")));
+        PlacementGroups.Group group = PlacementGroups.get().of(placement);
+        items.add(ContextMenu.Item.of(Tr.t(group == null ? "groups.add_one" : "groups.move_one"),
+                () -> PlacementGroupFlow.assign(this.screen, List.of(placement))).withTooltip(Tr.t("groups.add_one.tip")));
+
+        if (group != null)
+        {
+            items.add(ContextMenu.Item.of(Tr.f("groups.remove_one", group.name()), () ->
+            {
+                PlacementGroups.get().ungroup(List.of(placement));
+                this.reload();
+            }));
+        }
+
         boolean chosen = placement == litematicaSelected();
         items.add(ContextMenu.Item.of(Tr.t(chosen ? "placements.deselect" : "placements.select"), () -> this.toggleSelect(placement))
                 .withTooltip(Tr.t(chosen ? "placements.deselect.tip" : "placements.select.tip")));
@@ -706,15 +1069,15 @@ final class PlacementsPane extends Pane
     @Override
     List<Button> footerActions()
     {
-        SchematicPlacement row = this.table.selectedItem();
+        SchematicPlacement row = this.selectedPlacement();
         boolean any = row != null;
-
-        for (Button button : List.of(this.move, this.materials))
-        {
-            button.setEnabled(any);
-        }
-
-        this.materials.dashed(any);
+        boolean header = this.selectedGroup() != null;
+        this.move.setEnabled(any);
+        this.materials.setEnabled(any || header);
+        this.materials.dashed(any || header);
+        this.materials.tooltip(Tr.t(header ? "groups.materials.tip" : "placements.materials.tip"));
+        this.groupButton.setEnabled(! this.checked.isEmpty());
+        this.groupButton.label(this.checked.isEmpty() ? Tr.t("groups.add") : Tr.f("groups.add_n", this.checked.size()));
 
         this.choose.setEnabled(! this.all.isEmpty());
         this.choose.label(Tr.t(this.picking ? "placements.pick.done" : "placements.pick"));
@@ -725,7 +1088,8 @@ final class PlacementsPane extends Pane
 
         if (! Syncmatica.installed())
         {
-            return List.of(this.move, this.materials, this.choose, this.delete);
+            return this.picking ? List.of(this.move, this.materials, this.choose, this.groupButton, this.delete)
+                    : List.of(this.move, this.materials, this.choose, this.delete);
         }
 
         if (! Syncmatica.active())
@@ -738,7 +1102,8 @@ final class PlacementsPane extends Pane
             this.server.label(Tr.t("sync.server"));
             this.server.tooltip(Tr.t("sync.error.inactive"));
             this.server.setEnabled(false);
-            return List.of(this.move, this.materials, this.choose, this.delete, this.share, this.server);
+            return this.picking ? List.of(this.move, this.materials, this.choose, this.groupButton, this.delete, this.share, this.server)
+                    : List.of(this.move, this.materials, this.choose, this.delete, this.share, this.server);
         }
 
         this.server.setEnabled(true);
@@ -760,7 +1125,8 @@ final class PlacementsPane extends Pane
         this.share.style(shared ? Button.Style.DANGER : Button.Style.PRIMARY);
         this.share.tooltip(Tr.t(shared ? "sync.remove.tip" : "sync.share.tip"));
         this.share.setEnabled(any && ! this.picking);
-        return List.of(this.move, this.materials, this.choose, this.delete, this.share, this.server);
+        return this.picking ? List.of(this.move, this.materials, this.choose, this.groupButton, this.delete, this.share, this.server)
+                : List.of(this.move, this.materials, this.choose, this.delete, this.share, this.server);
     }
 
     @Override
@@ -799,6 +1165,12 @@ final class PlacementsPane extends Pane
     public boolean mouseScrolled(double mouseX, double mouseY, double amount)
     {
         return this.current().mouseScrolled(mouseX, mouseY, amount);
+    }
+
+    /** «Переименовать…» (меню ПКМ): новое имя размещения, таблица сразу перечитывается. */
+    private void rename(SchematicPlacement placement)
+    {
+        PlacementRenameFlow.open(this.screen, placement, this::reload);
     }
 
     @Override
