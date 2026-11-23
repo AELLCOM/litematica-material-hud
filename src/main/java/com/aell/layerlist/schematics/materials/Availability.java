@@ -3,6 +3,7 @@ package com.aell.layerlist.schematics.materials;
 import com.aell.layerlist.config.LayerListConfigs;
 import com.aell.layerlist.core.DataItems;
 import com.aell.layerlist.storage.ChosenStorages;
+import com.aell.layerlist.storage.StockArea;
 import com.aell.layerlist.storage.StorageIndex;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,7 +32,8 @@ import org.jetbrains.annotations.Nullable;
  * а баннер с узором здесь ещё и не засчитывается за баннер без узора (и наоборот).
  *
  * <p>Сундуки — индекс складов (M05) текущего сервера и измерения: только контейнеры, которые
- * игрок открывал (с «Только выбранные сундуки» — только выбранные из них), вместе с содержимым шалкеров и
+ * игрок открывал или помнит Chest Tracker (с «Только выбранные сундуки» — только выбранные из них, со «Склад только
+ * рядом» — только в радиусе от игрока), вместе с содержимым шалкеров и
  * мешков в них, и эндер-сундук игрока. Предмет с данными (узорный флаг, расписной горшок, голова игрока, свет) ищется
  * по тем же данными, «обычный» того же вида — без узорных ({@link StorageIndex#stored}); записи, сделанные до 1.0.32,
  * состава не знают — предметы с данными в них не видны, пока хранилище не откроют заново (это в подсказке колонки).
@@ -93,6 +95,16 @@ public final class Availability
             String scope = StorageIndex.scope(mc);
             hint.append(". ").append(I18n.get("layerlist.schematics.materials.hint.chests_chosen",
                     scope.isEmpty() ? 0 : ChosenStorages.getInstance().count(scope)));
+        }
+
+        if (StockArea.active())
+        {
+            hint.append(". ").append(I18n.get("layerlist.schematics.materials.hint.chests_near", StockArea.radius()));
+        }
+
+        if (com.aell.layerlist.compat.ChestTracker.active())
+        {
+            hint.append(". ").append(I18n.get("layerlist.schematics.materials.hint.chests_tracker"));
         }
 
         if (LayerListConfigs.COUNT_ENDER_CHEST.getBooleanValue())
@@ -207,7 +219,7 @@ public final class Availability
 
         for (StorageIndex.Rec rec : StorageIndex.getInstance().recordsInScope(scope))
         {
-            if (rec.counts != null && (chosen == null || chosen.contains(rec.pos())))
+            if (rec.counts != null && (chosen == null || chosen.contains(rec.pos())) && StockArea.inRange(mc, rec.pos()))
             {
                 records.add(rec);
             }

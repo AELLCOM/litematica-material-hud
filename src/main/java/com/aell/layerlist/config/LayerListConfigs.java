@@ -39,6 +39,16 @@ public class LayerListConfigs implements IConfigHandler
     public static final ConfigBoolean COUNT_CHOSEN_CHESTS    = new ConfigBoolean("countChosenChests", false);
     /** 29.10.2026: эндер-сундук игрока — тоже склад (снимок при открытии, общий для измерений сервера). */
     public static final ConfigBoolean COUNT_ENDER_CHEST      = new ConfigBoolean("countEnderChest", true);
+    /**
+     * 23.11.2026 (заявка #4 на GitHub): склад — только хранилища не дальше {@link #STOCK_RADIUS} блоков от игрока по
+     * горизонтали; дальние в счёт не идут. Эндер-сундук не ограничивается — он с собой в любом месте. По умолчанию выкл.
+     */
+    public static final ConfigBoolean STOCK_NEAR_ONLY        = new ConfigBoolean("stockNearOnly", false);
+    public static final ConfigInteger STOCK_RADIUS           = new ConfigInteger("stockRadius", 64, 8, 4096);
+    /** 23.11.2026 (заявка #2): склад дополняется памятью Chest Tracker, если он стоит. По умолчанию вкл. */
+    public static final ConfigBoolean STOCK_CHEST_TRACKER    = new ConfigBoolean("stockChestTracker", true);
+    /** 23.11.2026 (заявка #3): у открытого ткацкого станка — рецепты узорных флагов из списка материалов. */
+    public static final ConfigBoolean LOOM_GUIDE             = new ConfigBoolean("loomGuide", true);
     public static final ConfigBoolean SHORTFALL_ONLY_MISSING = new ConfigBoolean("shortfallOnlyMissing", true);
     public static final ConfigBoolean SHOW_SHORTFALL         = new ConfigBoolean("showShortfall", false);
     public static final ConfigBoolean SHOW_PROGRESS_BAR      = new ConfigBoolean("showProgressBar", true);
@@ -178,7 +188,7 @@ public class LayerListConfigs implements IConfigHandler
      * списком — malilib сохраняет их вместе с остальными, «Сбросить всё» сбрасывает и их.
      */
     public static final List<IConfigBase> OPTIONS = ImmutableList.<IConfigBase>builder().add(
-            REPLACE_LITEMATICA_HUD, ONLY_MISSING, USE_STOCK, COUNT_CHOSEN_CHESTS, COUNT_ENDER_CHEST, PIN_ACROSS_DIMENSIONS, COUNT_ENTITIES, SHORTFALL_ONLY_MISSING, SHOW_SHORTFALL,
+            REPLACE_LITEMATICA_HUD, ONLY_MISSING, USE_STOCK, COUNT_CHOSEN_CHESTS, COUNT_ENDER_CHEST, STOCK_NEAR_ONLY, STOCK_RADIUS, STOCK_CHEST_TRACKER, LOOM_GUIDE, PIN_ACROSS_DIMENSIONS, COUNT_ENTITIES, SHORTFALL_ONLY_MISSING, SHOW_SHORTFALL,
             SHOW_PROGRESS_BAR, HUD_COUNT_IN_BOXES, SORT_BY_NAME,
             SHOW_SEARCH_MARKERS, SEARCH_ITEM_FRAMES, SEARCH_FOLLOWS_PAGE,
             SKIP_ITEMS_IN_INVENTORY, SEARCH_RADIUS, SEARCH_ALL_CHESTS,

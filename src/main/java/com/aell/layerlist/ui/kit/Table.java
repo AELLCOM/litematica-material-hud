@@ -211,6 +211,11 @@ public final class Table<T> extends Widget
     private boolean descending;
     private @Nullable SortListener sortListener;
     private ScrollList.Listener<T> outer = new ScrollList.Listener<>() {};
+    /** Порядок строк после сортировки (группы: заголовок и под ним свои строки); {@code null} — как отсортировано. */
+    private @Nullable java.util.function.UnaryOperator<List<T>> arranger;
+    /** Строки на всю ширину (заголовки групп): колонки не рисуются, щелчок — слушателю таблицы. */
+    private @Nullable java.util.function.Predicate<T> wide;
+    private @Nullable Cell<T> wideCell;
 
     public Table(int rowHeight)
     {
@@ -255,6 +260,35 @@ public final class Table<T> extends Widget
     {
         this.outer = listener;
         return this;
+    }
+
+    /**
+     * Порядок строк поверх сортировки по колонке: получает отсортированные строки источника и возвращает те, что
+     * показать (может вставить свои строки — например, заголовки групп — и убрать свёрнутые).
+     */
+    public Table<T> arrange(java.util.function.UnaryOperator<List<T>> value)
+    {
+        this.arranger = value;
+        return this;
+    }
+
+    /** Строки, для которых {@code test} истинно, рисуются {@code cell} на всю ширину строки, без колонок. */
+    public Table<T> wideRows(java.util.function.Predicate<T> test, Cell<T> cell)
+    {
+        this.wide = test;
+        this.wideCell = cell;
+        return this;
+    }
+
+    /** Пересобрать строки из того же источника (сменился порядок {@link #arrange}). */
+    public void rearrange()
+    {
+        this.applySort();
+    }
+
+    private boolean isWide(T item)
+    {
+        return this.wide != null && this.wideCell != null && this.wide.test(item);
     }
 
     public Table<T> onSort(SortListener listener)
@@ -320,6 +354,11 @@ public final class Table<T> extends Widget
             {
                 rows.sort(this.descending ? comparator.reversed() : comparator);
             }
+        }
+
+        if (this.arranger != null)
+        {
+            rows = this.arranger.apply(rows);
         }
 
         this.body.setItems(rows);
@@ -470,6 +509,12 @@ public final class Table<T> extends Widget
     {
         Font font = Kit.font();
 
+        if (this.isWide(item))
+        {
+            this.wideCell.render(ctx, item, x, y, w, h, hovered, mouseX, mouseY);
+            return;
+        }
+
         for (Column<T> column : this.columns)
         {
             if (! column.shown || column.layoutW <= 0)
@@ -531,6 +576,11 @@ public final class Table<T> extends Widget
 
     private boolean clickCell(T item, MouseButtonEvent click)
     {
+        if (this.isWide(item))
+        {
+            return false;
+        }
+
         for (Column<T> column : this.columns)
         {
             if (column.shown && column.onClick != null

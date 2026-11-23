@@ -84,6 +84,16 @@ public final class Glyphs
             "  ###  ",
             "   #   "};
 
+    /** Свёрнутая группа 4×7 (раскрытая — {@link #CHEVRON_DOWN}). */
+    public static final String[] CHEVRON_RIGHT = {
+            "#   ",
+            "##  ",
+            " ## ",
+            "  ##",
+            " ## ",
+            "##  ",
+            "#   "};
+
     /** Сортировка по возрастанию 5×3. */
     public static final String[] SORT_ASC = {
             "  #  ",

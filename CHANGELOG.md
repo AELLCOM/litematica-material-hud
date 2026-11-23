@@ -3,6 +3,20 @@
 English release notes as published on [Modrinth](https://modrinth.com/mod/material-hud/changelog), newest first.
 The original Russian notes are in [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## Unreleased — GitHub issues #2–#6
+
+Minecraft 26.3. Not released yet; it will ship in the next version.
+
+**New — rename placements** (issue #6). In the Schematics → Placements tab a row now has "Rename…" in the right-click menu. Only the placement name changes, like the "Rename" field of Litematica's placement window: the schematic file and its other placements stay as they are. The notification has "Undo". A shared Syncmatica placement cannot be renamed: its name is the same for everyone on the server.
+
+**New — placement groups** (issue #5). Several placements can be put into a group: "Select" → tick them → "To group (N)…", or "To group…" in a row's right-click menu. A group is a header row above its placements: the arrow or a double-click folds it, and on the right it shows how many placements it has and how many are on. "Materials" on the header (and "Group materials" in its menu) counts every placement of the group together, checked against the world. The group menu also has "Rename group…" (the name of another group merges them), "Enable/Disable all", "Show/Hide all holograms", "Ungroup" (the placements stay) and "Delete group with placements…". Groups belong to each world and dimension and survive rejoining: placements are recognised by Litematica's permanent id.
+
+**New — "Storage only nearby"** (issue #4; Settings → HUD → "Your stash"). "In chests" and "Count storage" count only storages within the "Storage radius" (64 blocks horizontally by default), not every chest you have ever opened on the server. Walk away and far chests drop out of the count, come back and they return. Your ender chest always counts. Off by default.
+
+**New — chests from Chest Tracker** (issue #2). With Chest Tracker (unofficial port) installed, the storages it remembers in this world count as stock and show up in the chest search too — no need to open them again. If both mods remember a chest, the newer record wins. The "Chests from Chest Tracker" option is in "Your stash" as well, on by default; without Chest Tracker it is greyed out.
+
+**New — banner recipes at the loom** (issue #3). While a loom is open and the panel lists patterned banners from the schematic, a card next to the loom shows which banner to take and then every pattern with its dye in order, plus the pattern item when one is needed (creeper, flower and others). Put a banner in the loom and the steps it already has are ticked off, the next one is highlighted. Patterns beyond six (the loom limit) are marked in red. Turn it off with "Banner recipes at the loom" (HUD tab).
+
 ## 1.0.33 — 2026-11-21
 
 Minecraft 26.3, 26.2, 1.21.11

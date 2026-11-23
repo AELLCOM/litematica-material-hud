@@ -132,6 +132,8 @@ public final class BlockReplacements
         NO_FILE,
         /** Схема ещё не загружена. */
         NO_SCHEMATIC,
+        /** Группа размещений: строки из нескольких схем сразу — заменять и отключать в самой схеме. */
+        GROUP,
         /** Вода или лава (строка — ведро): отключить можно, заменить на другой блок — нет. */
         FLUID
     }
@@ -204,6 +206,7 @@ public final class BlockReplacements
                 case INSIDE -> I18n.get(KEY + "why.inside", name);
                 case NO_FILE -> I18n.get(KEY + "why.no_file");
                 case NO_SCHEMATIC -> I18n.get(KEY + "why.no_schematic");
+                case GROUP -> I18n.get(KEY + "why.group");
                 case FLUID -> I18n.get(KEY + "why.fluid", name);
             };
         }
@@ -441,6 +444,14 @@ public final class BlockReplacements
      * @param hud       источник — «Список HUD»
      * @return ключ строки ({@link MaterialRow#key()}) → состояние
      */
+    /** Строки группы размещений: ни заменить, ни отключить — это делается в схеме одного размещения. */
+    public static Map<String, RowState> groupRows(List<MaterialRow> rows)
+    {
+        Map<String, RowState> out = new HashMap<>();
+        rows.forEach(row -> out.put(row.key(), new RowState(Refusal.GROUP, List.of())));
+        return out;
+    }
+
     public static Map<String, RowState> rows(@Nullable LitematicaSchematic schematic, List<MaterialRow> rows, boolean hud)
     {
         Map<String, RowState> out = new HashMap<>();

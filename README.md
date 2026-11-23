@@ -12,7 +12,7 @@ Branches: `main` (26.3), `mc/26.2` (26.2), `mc/1.21.11` (1.21.11). Release notes
 You need JDK 25+ (Gradle comes with the wrapper).
 
 ```sh
-./libs/fetch-libs.sh   # malilib, litematica, syncmatica, voxy, sodium from Modrinth, SHA-1 checked
+./libs/fetch-libs.sh   # malilib, litematica, syncmatica, chesttracker, voxy, sodium from Modrinth, SHA-1 checked
 ./gradlew build        # the jar lands in build/libs/
 ```
 

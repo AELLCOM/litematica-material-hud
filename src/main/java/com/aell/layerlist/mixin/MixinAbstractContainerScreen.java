@@ -35,6 +35,7 @@ public abstract class MixinAbstractContainerScreen
             CallbackInfo ci)
     {
         com.aell.layerlist.hud.LayerHudRenderer.renderUnderTooltip(graphics, mouseX, mouseY);
+        com.aell.layerlist.hud.LoomGuide.render(graphics, (net.minecraft.client.gui.screens.Screen) (Object) this);
     }
 
     // Клавиша панели материалов (Y) в инвентаре и контейнерах — перед ванильной проверкой клавиши инвентаря:

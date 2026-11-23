@@ -295,7 +295,13 @@ public final class LayerListSettings implements SettingsModel
                         Model.Option.toggle("countChosenChests", Values.of(LayerListConfigs.COUNT_CHOSEN_CHESTS))
                                 .swatch(() -> com.aell.layerlist.storage.ChestPicker.C_CHOSEN),
                         key("pickChestsKey", LayerListConfigs.PICK_CHESTS)
-                                .swatch(() -> com.aell.layerlist.storage.ChestPicker.C_CHOSEN)),
+                                .swatch(() -> com.aell.layerlist.storage.ChestPicker.C_CHOSEN),
+                        // 23.11.2026, заявки #4 и #2: склад только рядом и память Chest Tracker
+                        Model.Option.toggle("stockNearOnly", Values.of(LayerListConfigs.STOCK_NEAR_ONLY)),
+                        Model.Option.integer("stockRadius", Values.of(LayerListConfigs.STOCK_RADIUS), Num.Scale.LOG)
+                                .child().gate(LayerListSettings::stockRadiusGate),
+                        Model.Option.toggle("stockChestTracker", Values.of(LayerListConfigs.STOCK_CHEST_TRACKER))
+                                .gate(LayerListSettings::chestTrackerGate)),
                 new Model.Section("layerlist.section.panel_content")
                         .warning(() -> warningText("layerlist.section.panel_content"))
                         .add(
@@ -312,6 +318,7 @@ public final class LayerListSettings implements SettingsModel
                         Model.Option.toggle("showProgressBar", Values.of(LayerListConfigs.SHOW_PROGRESS_BAR))
                                 .swatch(LayerHudRenderer::okColor),
                         Model.Option.toggle("hudCountInBoxes", Values.of(LayerListConfigs.HUD_COUNT_IN_BOXES)),
+                        Model.Option.toggle("loomGuide", Values.of(LayerListConfigs.LOOM_GUIDE)),
                         Model.Option.toggle("sortByName", Values.of(LayerListConfigs.SORT_BY_NAME)),
                         Model.Option.integer("itemsPerPage", Values.of(LayerListConfigs.ITEMS_PER_PAGE),
                                 Num.Scale.LINEAR)),
@@ -687,6 +694,20 @@ public final class LayerListSettings implements SettingsModel
         return LayerListConfigs.MATERIAL_CUTOFF.getBooleanValue()
                 ? null
                 : new Model.Reason(text("gate.cutoff_off"), false);
+    }
+
+    private static @Nullable Model.Reason stockRadiusGate()
+    {
+        return LayerListConfigs.STOCK_NEAR_ONLY.getBooleanValue()
+                ? null
+                : new Model.Reason(text("gate.stock_near_off"), false);
+    }
+
+    private static @Nullable Model.Reason chestTrackerGate()
+    {
+        return com.aell.layerlist.compat.ChestTracker.installed()
+                ? null
+                : new Model.Reason(text("gate.no_chest_tracker"), true);
     }
 
     private static @Nullable Model.Reason dockGate()

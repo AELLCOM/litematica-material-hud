@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
  * загруженный: загрузку и счёт делает {@link MaterialsJob}.
  */
 @Environment(EnvType.CLIENT)
-public sealed interface TableSource permits TableSource.File, TableSource.Placed, TableSource.Hud, TableSource.Area
+public sealed interface TableSource permits TableSource.File, TableSource.Placed, TableSource.Group, TableSource.Hud, TableSource.Area
 {
     /** Имя для «Схема: &lt;имя&gt;» и заголовка выгрузки; у списка HUD — пусто. */
     String name();
@@ -79,6 +79,25 @@ public sealed interface TableSource permits TableSource.File, TableSource.Placed
             {
                 return null;
             }
+        }
+    }
+
+    /**
+     * Группа размещений (заявка #5): все её размещения вместе, по их id ({@code PlacementGroups.id}). Строки — только
+     * сверкой с миром (схемы у группы нет — у размещений разные файлы), замен и отключений нет.
+     */
+    record Group(String name, java.util.Set<String> members) implements TableSource
+    {
+        public Group
+        {
+            Objects.requireNonNull(name, "name");
+            members = java.util.Set.copyOf(members);
+        }
+
+        @Override
+        public @Nullable SchematicEntry entry()
+        {
+            return null;
         }
     }
 

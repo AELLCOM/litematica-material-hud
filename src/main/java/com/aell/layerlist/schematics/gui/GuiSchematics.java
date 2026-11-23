@@ -2099,6 +2099,13 @@ public final class GuiSchematics extends GuiBase
         this.materials.openArea(area);
     }
 
+    /** Подвкладка «Материалы» со всеми размещениями группы вместе (заявка #5). */
+    void showGroupMaterials(com.aell.layerlist.schematics.place.PlacementGroups.Group group)
+    {
+        this.materials.openGroup(group);
+        this.setTab(Tab.MATERIALS);
+    }
+
     void showMaterials(@Nullable SchematicEntry entry, @Nullable SchematicPlacement placement)
     {
         this.materials.open(entry, placement);
