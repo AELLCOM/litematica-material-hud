@@ -73,12 +73,21 @@ public class LayerListClient implements ClientModInitializer
                 changed -> LeanInnerSides.refreshRenderers());
         LayerListConfigs.GHOST_INVENTORY_ONLY.setValueChangeCallback(
                 changed -> com.aell.layerlist.ghost.InventoryGhosts.onModeToggled(changed.getBooleanValue()));
-        LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setValueChangeCallback(
+        LayerListConfigs.GHOST_HIDE_PORTALS.setValueChangeCallback(
                 changed -> com.aell.layerlist.ghost.InventoryGhosts.refreshRenderers());
+        // Обе опции опоры действуют и на список HUD (19.11.2026) — он пересчитывается сразу, а не по таймеру
+        LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setValueChangeCallback(changed ->
+        {
+            com.aell.layerlist.ghost.InventoryGhosts.refreshRenderers();
+            LayerCountManager.getInstance().markDirty();
+        });
         LayerListConfigs.GHOST_FLAT_NO_FILL.setValueChangeCallback(
                 changed -> com.aell.layerlist.ghost.InventoryGhosts.refreshRenderers());
-        LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setValueChangeCallback(
-                changed -> com.aell.layerlist.ghost.GhostSupport.markDirty());
+        LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setValueChangeCallback(changed ->
+        {
+            com.aell.layerlist.ghost.GhostSupport.markDirty();
+            LayerCountManager.getInstance().markDirty();
+        });
 
         InputEventHandler.getKeybindManager().registerKeybindProvider(InputHandler.getInstance());
         InputHandler.getInstance().registerKeyCallbacks();
@@ -90,6 +99,19 @@ public class LayerListClient implements ClientModInitializer
         SchematicsModule.init();
 
         StorageIndex.getInstance().load();
+        com.aell.layerlist.storage.ChosenStorages.getInstance().load();
+        // Сменились правила счёта склада — панель и «В сундуках» пересчитываются по ревизии индекса, подсветка поиска
+        // тоже: со «Своим складом» отметки только на выбранных
+        LayerListConfigs.COUNT_CHOSEN_CHESTS.setValueChangeCallback(changed ->
+        {
+            StorageIndex.getInstance().touch();
+            com.aell.layerlist.storage.StorageSearch.getInstance().requestRefresh();
+        });
+        LayerListConfigs.COUNT_ENDER_CHEST.setValueChangeCallback(changed ->
+        {
+            StorageIndex.getInstance().touch();
+            com.aell.layerlist.storage.StorageSearch.getInstance().requestRefresh();
+        });
         registerColorCacheReset();
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
@@ -114,9 +136,11 @@ public class LayerListClient implements ClientModInitializer
 
         LevelRenderEvents.BEFORE_GIZMOS.register(context -> {
             StorageHighlightRenderer.render();
+            com.aell.layerlist.storage.ChestPicker.render();
             LayerVerifyRenderer.render();
             ShelfRenderer.render();
             com.aell.layerlist.ghost.GhostSupport.renderFrames();
+            com.aell.layerlist.ghost.EntityOverlay.render();
         });
 
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) ->
@@ -131,11 +155,13 @@ public class LayerListClient implements ClientModInitializer
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             LayerCountManager.getInstance().onClientTick(client);
             ContainerObserver.onClientTick(client);
+            com.aell.layerlist.storage.ChestPicker.onClientTick(client);
             com.aell.layerlist.storage.AllChestsSearch.tick(client);
             StorageSearch.getInstance().onClientTick(client);
             LayerVerifier.getInstance().onClientTick(client);
             com.aell.layerlist.ghost.InventoryGhosts.onClientTick(client);
             com.aell.layerlist.ghost.GhostSupport.onClientTick(client);
+            com.aell.layerlist.ghost.EntityOverlay.onClientTick(client);
             com.aell.layerlist.hud.TransferButton.onClientTick(client);
             ShelfIndex.getInstance().onClientTick(client);
             ForeignSuppressor.onClientTick(client);

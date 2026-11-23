@@ -75,6 +75,9 @@ public final class LayerListSettings implements SettingsModel
     public static final net.minecraft.resources.Identifier TAB_GHOST_ICON =
             net.minecraft.resources.Identifier.fromNamespaceAndPath(MOD_ID, "textures/gui/tab_ghost.png");
 
+    /** Карточка-хотбар с замками во вкладке Easy Place; одна на игру — её ячейки щёлкает самопроверка. */
+    public static final HotbarLockCard HOTBAR_LOCKS = new HotbarLockCard();
+
     public static final net.minecraft.resources.Identifier TAB_EASY_PLACE_ICON =
             net.minecraft.resources.Identifier.fromNamespaceAndPath(MOD_ID, "textures/gui/tab_easy_place.png");
 
@@ -283,11 +286,22 @@ public final class LayerListSettings implements SettingsModel
                         .add(
                         Model.Option.choice("uiStyle", Values.choice(LayerListConfigs.UI_STYLE,
                                 com.aell.layerlist.shaded.ui.Style.LEVEL_KEYS))),
+                // Свой склад (29.10.2026): отдельная маленькая плитка с зелёным акцентом сразу под стилем — считать
+                // только выбранные сундуки и клавиша выбора; цвет тот же, что у отметок выбранных в мире
+                new Model.Section("layerlist.section.chosen_chests")
+                        .note("layerlist.section.chosen_chests.note")
+                        .accent(com.aell.layerlist.storage.ChestPicker.C_CHOSEN)
+                        .add(
+                        Model.Option.toggle("countChosenChests", Values.of(LayerListConfigs.COUNT_CHOSEN_CHESTS))
+                                .swatch(() -> com.aell.layerlist.storage.ChestPicker.C_CHOSEN),
+                        key("pickChestsKey", LayerListConfigs.PICK_CHESTS)
+                                .swatch(() -> com.aell.layerlist.storage.ChestPicker.C_CHOSEN)),
                 new Model.Section("layerlist.section.panel_content")
                         .warning(() -> warningText("layerlist.section.panel_content"))
                         .add(
                         Model.Option.toggle("onlyMissing", Values.of(LayerListConfigs.ONLY_MISSING)),
                         Model.Option.toggle("useStock", Values.of(LayerListConfigs.USE_STOCK)),
+                        Model.Option.toggle("countEnderChest", Values.of(LayerListConfigs.COUNT_ENDER_CHEST)),
                         Model.Option.toggle("pinAcrossDimensions",
                                 Values.of(LayerListConfigs.PIN_ACROSS_DIMENSIONS)),
                         Model.Option.toggle("countEntities", Values.of(LayerListConfigs.COUNT_ENTITIES)),
@@ -504,6 +518,12 @@ public final class LayerListSettings implements SettingsModel
                         .note("layerlist.section.ghost_alpha.note").add(
                         Model.Option.decimal("ghostTransparency", ghostTransparency(), "%.0f%%"),
                         Model.Option.toggle("ghostFlatNoFill", Values.of(LayerListConfigs.GHOST_FLAT_NO_FILL))),
+                new Model.Section("layerlist.section.ghost_mobs").add(
+                        Model.Option.toggle("ghostShowMobs", Values.of(LayerListConfigs.GHOST_SHOW_MOBS))
+                                .preview(new com.aell.layerlist.ghost.MobPreview()),
+                        Model.Option.toggle("ghostEntityOverlay", Values.of(LayerListConfigs.GHOST_ENTITY_OVERLAY))),
+                new Model.Section("layerlist.section.ghost_portals").add(
+                        Model.Option.toggle("ghostHidePortals", Values.of(LayerListConfigs.GHOST_HIDE_PORTALS))),
                 new Model.Section("layerlist.section.ghost_translucency").add(
                         Model.Option.toggle("translucentInnerSides",
                                         Values.of(fi.dy.masa.litematica.config.Configs.Visuals.RENDER_TRANSLUCENT_INNER_SIDES))
@@ -540,6 +560,10 @@ public final class LayerListSettings implements SettingsModel
                         Model.Option.toggle("easyPlaceStrictBlock",
                                         Values.of(EP_SHARED.bool(LayerListConfigs.EP_STRICT_BLOCK)))
                                 .swatch(() -> 0xFFE0902E)),
+                // Запертые ячейки хотбара: список — настройка Litematica, поэтому от тумблера исправлений не зависит
+                new Model.Section("layerlist.section.hotbar_locks").note("layerlist.section.hotbar_locks.note")
+                        .accent(Ui.C_GOLD).add(
+                        Model.Option.card("layerlist.config.hotbarLocks", HOTBAR_LOCKS, () -> { })),
                 new Model.Section("layerlist.section.easy_place_tools")
                         .note("layerlist.section.easy_place_tools.note").add(
                         Model.Option.toggle("easyPlaceFixLit", Values.of(EP_SHARED.bool(LayerListConfigs.EP_FIX_LIT)))

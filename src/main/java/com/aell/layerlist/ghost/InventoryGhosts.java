@@ -134,6 +134,31 @@ public final class InventoryGhosts
         return false;
     }
 
+    /**
+     * Прятать ли голограмму сущности схемы (подушка, стойка, рамка, картина…): режим включён, и ни одного из
+     * предметов, которыми она ставится, у игрока нет (жалоба 16.11.2026: подушки светились без подушек с собой).
+     * Сущность без предмета остаётся, как и блок без предмета.
+     */
+    public static boolean hidesItems(java.util.List<ItemStack> needed)
+    {
+        if (! active() || needed.isEmpty())
+        {
+            return false;
+        }
+
+        Set<Item> have = held;
+
+        for (ItemStack stack : needed)
+        {
+            if (have.contains(stack.getItem()))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /** Из рабочего потока сборки чанка: прятать ли голограмму этого состояния схемы. */
     public static boolean hides(BlockState schematicState)
     {
@@ -328,12 +353,23 @@ public final class InventoryGhosts
      * и изголовья кровати предмета не называет (считает его по нижней половине), а горшку с растением
      * отдаёт само растение — здесь первым нужен пустой горшок (растение в уже стоящий горшок вызывающий
      * передаёт состоянием растения). {@link Items#AIR} — предмета нет вовсе (вода без источника, огонь).
+     *
+     * <p>Головка поршня — часть выдвинутого поршня: Litematica предмета для неё не называет (поршень считается
+     * по основанию), а своего предмета у блока нет. Выходил «блок без предмета», который режим не прячет:
+     * поршней с собой нет, основание скрыто, а головка светится и числится пропущенной в {@code Ctrl+B}
+     * (жалоба 19.11.2026). Ей нужен тот же предмет, что основанию, — обычный или липкий поршень.
      */
     static Item requiredItem(BlockState state)
     {
         if (com.aell.layerlist.easyplace.Potting.plant(state) != null)
         {
             return Items.FLOWER_POT;
+        }
+
+        if (state.is(net.minecraft.world.level.block.Blocks.PISTON_HEAD))
+        {
+            return state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.PISTON_TYPE)
+                    == net.minecraft.world.level.block.state.properties.PistonType.STICKY ? Items.STICKY_PISTON : Items.PISTON;
         }
 
         try

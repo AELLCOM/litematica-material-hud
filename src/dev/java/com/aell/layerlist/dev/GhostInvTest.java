@@ -93,6 +93,16 @@ public final class GhostInvTest implements CovJob
         DataManager.getSchematicPlacementManager().addSchematicPlacement(placement, false);
         DataManager.getSchematicPlacementManager().setSelectedSchematicPlacement(placement);
         LayerListConfigs.GHOST_INVENTORY_ONLY.setBooleanValue(false);
+        // В творческом режим молчит (09.10.2026), а мир помнит режим игры прошлого прогона — стенд меряет выживание
+        var server = mc.getSingleplayerServer();
+
+        if (server != null)
+        {
+            server.execute(() -> server.getCommands().performPrefixedCommand(
+                    server.createCommandSourceStack().withSuppressedOutput(), "gamemode survival @a"));
+        }
+
+        CovOut.log("[ghostinv] режим игры на входе: " + (mc.gameMode == null ? "?" : mc.gameMode.getPlayerMode()));
         // Счётчик общий на весь прогон: убранное предыдущими режимами сюда не относится
         InventoryGhosts.takeCulled();
         this.nextAt = Util.getMillis() + 8_000L;

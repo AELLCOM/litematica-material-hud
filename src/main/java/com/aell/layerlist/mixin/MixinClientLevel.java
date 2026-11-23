@@ -41,6 +41,7 @@ public abstract class MixinClientLevel
         {
             LayerVerifier.getInstance().onBlockChanged(pos, current);
             com.aell.layerlist.ghost.GhostSupport.onBlockChanged(pos);
+            LayerCountManager.getInstance().onWorldBlockChanged(pos);
         }
     }
 }

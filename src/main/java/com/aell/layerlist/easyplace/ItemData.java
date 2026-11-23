@@ -49,6 +49,32 @@ public final class ItemData
                 || state.getBlock() instanceof LightBlock;
     }
 
+    /**
+     * Статуя медного голема (слово владельца 19.11.2026: «набираются, игнорируя позу; учитывается только окисленность
+     * и воск»). Окисленность и воск — разные блоки и предметы, а поза — свойство блока, которое предмет носит в
+     * компоненте {@code block_state}: статуи из разных поз не складываются в стопку и не равны при строгой сверке,
+     * хотя клетке схемы годится любая — позу мод доводит кликами ({@link StateFix}).
+     */
+    public static boolean statue(BlockState state)
+    {
+        return state.getBlock() instanceof net.minecraft.world.level.block.CopperGolemStatueBlock;
+    }
+
+    public static boolean statue(ItemStack stack)
+    {
+        return stack.getItem() instanceof net.minecraft.world.item.BlockItem item
+                && item.getBlock() instanceof net.minecraft.world.level.block.CopperGolemStatueBlock;
+    }
+
+    /**
+     * Предмет статуи для клетки схемы: обычный, как из верстака (у него в игре записана поза «стоит»), а не с позой
+     * клетки — годится статуя в любой позе.
+     */
+    public static ItemStack statueStack(BlockState state)
+    {
+        return state.getBlock().asItem().getDefaultInstance();
+    }
+
     /** Требуемый предмет вместе с данными блока (узором, черепками, профилем). */
     public static ItemStack required(LevelReader schematicWorld, BlockPos pos, BlockState state)
     {

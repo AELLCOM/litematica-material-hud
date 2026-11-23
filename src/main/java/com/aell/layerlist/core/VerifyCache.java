@@ -2,6 +2,7 @@ package com.aell.layerlist.core;
 
 import fi.dy.masa.malilib.util.StringUtils;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -91,9 +92,21 @@ public class VerifyCache
     public void put(long chunkKey, Object2IntOpenHashMap<BlockState> missing, Object2IntOpenHashMap<BlockState> mismatch,
                     @Nullable DataCounts data)
     {
-        ChunkCounts previous = this.chunks.put(chunkKey, new ChunkCounts(missing, mismatch, data));
+        this.put(chunkKey, missing, mismatch, data, null);
+    }
 
-        if (previous == null || ! previous.missing().equals(missing) || ! previous.mismatch().equals(mismatch))
+    /**
+     * {@code hidden} — клетки чанка, убранные из счёта режимом «Скрывать блоки без опоры» ({@link BlockPos#asLong});
+     * {@code null} — режим не действует. Пишутся и в файл: незагруженный чанк пропускает те же клетки, что пропускал,
+     * пока был виден, — иначе «всего» у него включало бы блоки, которых в «не хватает» уже нет.
+     */
+    public void put(long chunkKey, Object2IntOpenHashMap<BlockState> missing, Object2IntOpenHashMap<BlockState> mismatch,
+                    @Nullable DataCounts data, @Nullable LongOpenHashSet hidden)
+    {
+        ChunkCounts previous = this.chunks.put(chunkKey, new ChunkCounts(missing, mismatch, data, hidden));
+
+        if (previous == null || ! previous.missing().equals(missing) || ! previous.mismatch().equals(mismatch)
+                || ! java.util.Objects.equals(previous.hidden(), hidden))
         {
             this.dirty = true;
         }
@@ -163,6 +176,12 @@ public class VerifyCache
             tag.putLong("pos", chunkEntry.getLongKey());
             tag.put("missing", writeCounts(chunkEntry.getValue().missing()));
             tag.put("mismatch", writeCounts(chunkEntry.getValue().mismatch()));
+
+            if (chunkEntry.getValue().hidden() != null && ! chunkEntry.getValue().hidden().isEmpty())
+            {
+                tag.putLongArray("hidden", chunkEntry.getValue().hidden().toLongArray());
+            }
+
             list.add(tag);
         }
 
@@ -217,7 +236,8 @@ public class VerifyCache
                     {
                         this.chunks.put(chunk.getLongOr("pos", 0L),
                                 new ChunkCounts(readCounts(blocks, chunk.getListOrEmpty("missing")),
-                                        readCounts(blocks, chunk.getListOrEmpty("mismatch")), null));
+                                        readCounts(blocks, chunk.getListOrEmpty("mismatch")), null,
+                                        new LongOpenHashSet(chunk.getLongArray("hidden").orElse(new long[0]))));
                     }
                 }
 
@@ -283,7 +303,7 @@ public class VerifyCache
      * этой игре, — раскладка клеток с данными по ключам; из файла кэша она не читается.
      */
     public record ChunkCounts(Object2IntOpenHashMap<BlockState> missing, Object2IntOpenHashMap<BlockState> mismatch,
-                              @Nullable DataCounts data) {}
+                              @Nullable DataCounts data, @Nullable LongOpenHashSet hidden) {}
 
     /** Клетки с данными: недостача по ключам и та же недостача по состоянию — сколько её сидит в счёте чанка. */
     public record DataCounts(Object2IntOpenHashMap<DataItems.Key> missing, Object2IntOpenHashMap<DataItems.Key> mismatch,

@@ -13,7 +13,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * @param files     записанные файлы (пусто — выгрузка в буфер или ошибка)
  * @param clipboard текст, который надо положить в буфер обмена; {@code null} — не надо
- * @param open      что открыть в браузере (таблица команды, sheets.new); {@code null} — ничего
+ * @param open      что открыть в браузере (sheets.new); {@code null} — ничего
  * @param error     текст ошибки для игрока; {@code null} — всё получилось
  */
 @Environment(EnvType.CLIENT)

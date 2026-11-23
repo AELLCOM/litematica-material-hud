@@ -49,6 +49,7 @@ public final class PlaceWorldTest implements CovJob
     private Mirror startMirror = Mirror.NONE;
     private boolean startLocked;
     private int typedX;
+    private int savedX;
     private int yBefore;
 
     @Override
@@ -223,6 +224,112 @@ public final class PlaceWorldTest implements CovJob
                     this.check("отражение как при открытии", this.placement.getMirror() == this.startMirror);
                     this.check("замок как при открытии (" + this.startLocked + ")", this.placement.isLocked() == this.startLocked);
                     this.check("HUD игры вернулся", ! mc.gui.hud.isHidden());
+                    // Дальше — «любой выход сохраняет»: Esc, закрытие мимо кнопок, Esc у нового размещения
+                    PlacementEditorScreen.open(null, this.placement, false, false);
+                    this.nextAt = Util.getMillis() + 2500L;
+                }
+                case 17 ->
+                {
+                    this.editor = PlacementEditorScreen.TestHooks.current(mc.gui.screen());
+                    this.check("редактор открыт второй раз", this.editor != null);
+                    this.click(mc, PlacementEditorScreen.TestHooks.stepButton(this.editor, 0, 1));
+                    this.nextAt = Util.getMillis() + 400L;
+                }
+                case 18 ->
+                {
+                    this.savedX = this.placement.getOrigin().getX();
+                    this.check("«+» X сдвинул: " + this.startOrigin.getX() + " → " + this.savedX,
+                            this.savedX != this.startOrigin.getX());
+                    this.key(mc, InputConstants.KEY_ESCAPE, 0x1B);
+                    this.nextAt = Util.getMillis() + 700L;
+                }
+                case 19 ->
+                {
+                    this.check("Esc — редактор закрыт", mc.gui.screen() == null);
+                    this.check("Esc сохранил положение: X " + this.placement.getOrigin().getX(),
+                            this.placement.getOrigin().getX() == this.savedX);
+                    this.check("HUD игры вернулся после Esc", ! mc.gui.hud.isHidden());
+                    PlacementEditorScreen.open(null, this.placement, false, false);
+                    this.nextAt = Util.getMillis() + 2500L;
+                }
+                case 20 ->
+                {
+                    this.editor = PlacementEditorScreen.TestHooks.current(mc.gui.screen());
+                    this.check("редактор открыт третий раз", this.editor != null);
+                    int[] field = PlacementEditorScreen.TestHooks.fieldBounds(this.editor, 0);
+                    SupportTest.click(mc, field[0] + field[2] / 2.0, field[1] + field[3] / 2.0);
+                    this.nextAt = Util.getMillis() + 250L;
+                }
+                case 21 ->
+                {
+                    this.check("поле X в вводе перед закрытием", PlacementEditorScreen.TestHooks.editingAxis(this.editor) == 0);
+                    this.typedX = this.startOrigin.getX() + 11;
+
+                    for (char c : Integer.toString(this.typedX).toCharArray())
+                    {
+                        mc.keyboardHandler.textInput(mc.getWindow().handle(), String.valueOf(c));
+                    }
+
+                    // Закрытие мимо кнопок, без Enter: экран сняли снаружи
+                    mc.gui.setScreen(null);
+                    this.nextAt = Util.getMillis() + 500L;
+                }
+                case 22 ->
+                {
+                    this.check("закрытие мимо кнопок применило набранное: X " + this.placement.getOrigin().getX()
+                            + " (ждали " + this.typedX + ")", this.placement.getOrigin().getX() == this.typedX);
+                    this.check("HUD игры вернулся после закрытия", ! mc.gui.hud.isHidden());
+                    PlacementEditorScreen.open(null, this.placement, true, false);
+                    this.nextAt = Util.getMillis() + 2500L;
+                }
+                case 23 ->
+                {
+                    this.check("редактор «нового» размещения открыт",
+                            PlacementEditorScreen.TestHooks.current(mc.gui.screen()) != null);
+                    this.key(mc, InputConstants.KEY_ESCAPE, 0x1B);
+                    this.nextAt = Util.getMillis() + 700L;
+                }
+                case 24 ->
+                {
+                    this.check("Esc у нового — редактор закрыт", mc.gui.screen() == null);
+                    this.check("Esc новое размещение не удалил", DataManager.getSchematicPlacementManager()
+                            .getAllSchematicsPlacements().contains(this.placement));
+                    this.check("положение нового на месте", this.placement.getOrigin().getX() == this.typedX);
+                    // Карточка в «Смотреть на мир»: число набрано, экран-курсор сняли мимо кнопок
+                    PlacementEditorScreen.open(null, this.placement, false, false);
+                    this.nextAt = Util.getMillis() + 2500L;
+                }
+                case 25 ->
+                {
+                    this.editor = PlacementEditorScreen.TestHooks.current(mc.gui.screen());
+                    this.check("редактор открыт для карточки", this.editor != null);
+                    this.click(mc, PlacementEditorScreen.TestHooks.worldButton(this.editor));
+                    this.nextAt = Util.getMillis() + 900L;
+                }
+                case 26 ->
+                {
+                    this.check("карточка в игре", PlacementHud.active() && mc.gui.screen() == null);
+                    this.pushR();
+                    this.nextAt = Util.getMillis() + 600L;
+                }
+                case 27 ->
+                {
+                    this.check("курсор у карточки", mc.gui.screen() instanceof PlacementCursorScreen);
+                    this.click(mc, PlacementHud.TestHooks.field(mc.getWindow().getGuiScaledWidth(), 0));
+                    this.nextAt = Util.getMillis() + 300L;
+                }
+                case 28 ->
+                {
+                    this.savedX = this.placement.getOrigin().getX();
+                    mc.keyboardHandler.textInput(mc.getWindow().handle(), "5");
+                    // Без Enter и без клика мимо: экран сняли снаружи
+                    mc.gui.setScreen(null);
+                    this.nextAt = Util.getMillis() + 500L;
+                }
+                case 29 ->
+                {
+                    this.check("карточка: набранное применено при закрытии мимо кнопок: X " + this.savedX + " → "
+                            + this.placement.getOrigin().getX(), this.placement.getOrigin().getX() != this.savedX);
                     this.cleanup();
                     CovOut.log(TAG + "итог: " + (this.failed ? "FAIL" : "PASS"));
                     return true;

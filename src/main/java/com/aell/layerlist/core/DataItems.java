@@ -82,7 +82,78 @@ public final class DataItems
         }
     }
 
+    /**
+     * Строковый ключ предмета с данными для записей складов ({@code storage.StorageIndex}): id предмета и то, что
+     * отличает его от «обычного» того же вида — узор флага, черепки горшка, профиль головы, уровень света. Одинаков
+     * между запусками игры (запись склада живёт в файле), у равных по {@link Key} предметов совпадает. {@code null} —
+     * данных нет.
+     */
+    public static @Nullable String dataId(ItemStack stack)
+    {
+        if (stack.isEmpty() || ! hasData(stack))
+        {
+            return null;
+        }
+
+        StringBuilder data = new StringBuilder();
+
+        for (BannerPatternLayers.Layer layer : stack.getOrDefault(DataComponents.BANNER_PATTERNS, BannerPatternLayers.EMPTY).layers())
+        {
+            // Узор не из реестра (свой узор сервера или набора данных) имени не имеет — берём его содержимое, иначе
+            // все такие узоры одного цвета слились бы в один ключ
+            String pattern = layer.pattern().getRegisteredNameIfPresent()
+                    .orElseGet(() -> String.valueOf(layer.pattern().value()));
+            data.append("p:").append(pattern).append('.').append(layer.color().getName()).append(';');
+        }
+
+        PotDecorations decorations = stack.getOrDefault(DataComponents.POT_DECORATIONS, PotDecorations.EMPTY);
+
+        if (! decorations.equals(PotDecorations.EMPTY))
+        {
+            for (Optional<ItemStackTemplate> side : List.of(decorations.back(), decorations.left(), decorations.right(), decorations.front()))
+            {
+                data.append("d:").append(side.map(template -> template.item().getRegisteredName()).orElse("-")).append(';');
+            }
+        }
+
+        ResolvableProfile profile = stack.get(DataComponents.PROFILE);
+
+        if (profile != null)
+        {
+            com.mojang.authlib.GameProfile game = profile.partialProfile();
+            data.append("h:").append(game.name()).append('/').append(game.id()).append('/');
+
+            for (com.mojang.authlib.properties.Property property : game.properties().values())
+            {
+                data.append(property.name()).append('=').append(Integer.toHexString(property.value().hashCode())).append(',');
+            }
+
+            data.append(';');
+        }
+
+        int light = ItemData.lightLevel(stack);
+
+        if (light >= 0)
+        {
+            data.append("l:").append(light).append(';');
+        }
+
+        // Узор бывает длинным (шесть слоёв с полными именами) — в запись идёт его свёртка; длина рядом — от совпадений
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()) + "#" + Integer.toHexString(data.toString().hashCode())
+                + "." + data.length();
+    }
+
     /** Есть ли у предмета данные, ради которых его стоит считать отдельно от состояния блока. */
+    /**
+     * Предмет из тех, у кого данные бывают (флаг, горшок, голова, свет), — даже если у этой стопки их нет. Такой
+     * предмет годится строке только при точном совпадении данных: обычный флаг — не узорный.
+     */
+    public static boolean canCarry(ItemStack stack)
+    {
+        return stack.getItem() instanceof net.minecraft.world.item.BlockItem block
+                && ItemData.matters(block.getBlock().defaultBlockState());
+    }
+
     public static boolean hasData(ItemStack stack)
     {
         return ! stack.getOrDefault(DataComponents.BANNER_PATTERNS, BannerPatternLayers.EMPTY).layers().isEmpty()

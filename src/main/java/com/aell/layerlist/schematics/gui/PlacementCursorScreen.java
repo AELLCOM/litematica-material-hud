@@ -168,7 +168,9 @@ public final class PlacementCursorScreen extends GuiBase
     @Override
     public void removed()
     {
-        // Ваниль при смене экрана ввод текста уже выключила; фокус полей снимаем сами
+        // Любой выход сохраняет набранное: экран сняли мимо кнопок (чужой экран, смерть) — число из поля
+        // применяем, как при уходе в игру. Ваниль ввод текста уже выключила; фокус полей снимаем сами
+        this.card.commitAll();
         this.card.blur();
         super.removed();
     }

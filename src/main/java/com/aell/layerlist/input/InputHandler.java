@@ -134,6 +134,12 @@ public class InputHandler implements IKeybindProvider, IHotkeyCallback
             return true;
         }
 
+        if (key == LayerListConfigs.PICK_CHESTS.getKeybind())
+        {
+            com.aell.layerlist.storage.ChestPicker.toggleFromHotkey();
+            return true;
+        }
+
         if (key == LayerListConfigs.CLEAR_SEARCH.getKeybind())
         {
             if (! isSearchKeyAllowedHere() || ! StorageSearch.getInstance().isActive())

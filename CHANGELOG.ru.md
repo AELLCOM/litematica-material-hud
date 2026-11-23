@@ -1,5 +1,191 @@
 # Changelog
 
+## 1.0.33+26.3 — 21.11.2026
+
+**RU**
+
+**Убрано — «Таблица команды».** Отправка материалов в общую Google Таблицу через скрипт Apps Script убрана целиком. Из окна выгрузки пропал раздел «Таблица команды» («Отправить в таблицу команды», «Скопировать скрипт», «Как установить»), из меню «Экспорт списка материалов» — пункт «Таблица команды», из настроек схем — поля «Таблица команды: адрес скрипта» и «Таблица команды: ключ». Скрипта в файле мода больше нет, по сети выгрузка ничего не отправляет. Сохранённые адрес и ключ стираются из файла настроек при первом же сохранении. Excel, «Google Таблицы» (файл для импорта) и остальные форматы работают как раньше.
+
+**EN**
+
+**Removed — "Team sheet".** Sending materials to a shared Google Sheet through an Apps Script web app is gone completely. The export window no longer has the "Team sheet" section ("Send to team sheet", "Copy script", "How to set up"), the "Export material list" menu no longer has the "Team sheet" item, and the Schematics settings no longer have "Team sheet: script address" and "Team sheet: key". The script is no longer shipped inside the mod, and exporting sends nothing over the network. A saved address and key are wiped from the config file on the next save. Excel, "Google Sheets" (a file to import) and the other formats work as before.
+
+## 1.0.32+26.3 — 20.11.2026
+
+**RU**
+
+**Новое — «Запертые ячейки хотбара»** (вкладка «Easy Place», раздел «Ячейки хотбара»). В настройках — хотбар как в игре, с вашими предметами и замком в каждой ячейке. Щелчок по замку запирает ячейку: замок становится золотым и медленно пульсирует. В запертую ячейку мод не кладёт блоки и не забирает из неё предмет — меч, кирка или еда остаются на месте. Запертое обходят Easy Place, взятие блока схемы, инструменты доводки, полки и перенос из сундука. По умолчанию все ячейки открыты. Сама Litematica берёт блоки только в ячейки из своей настройки `pickBlockableSlots` (по умолчанию 1–5) — запреты действуют поверх неё.
+
+**fix — «Скрывать блоки без опоры» не действовала на список панели.** Опция прятала голограмму и рамки `Ctrl+B`, а в списке «Материалы слоя» такие блоки оставались, будто их можно ставить. Теперь правило одно для голограмм и списка: блок, который сейчас не поставить (опоры нет ни в мире, ни среди блоков схемы этого слоя), скрыт полностью — и из списка, и из счёта «N / M блоков»; внизу панели написано, сколько клеток скрыто. Если опора — блок схемы, который ещё не построен, блок и его опора остаются в списке: поставили опору — появилась и голограмма блока. Работает и цепочкой (кирпичи → нажимная пластина → ковёр), и для посевов над землёй, которую осталось вспахать, и для сахарного тростника с песком и водой из схемы.
+
+**fix — опора с соседнего слоя попадала в список, даже когда «Опора с соседнего слоя» выключена.** При включённой «Скрывать блоки без опоры» блок слоя, чья опора лежит на соседнем слое, теперь есть в списке только вместе с включённой «Опорой с соседнего слоя» — тогда в списке и он, и опора; без неё блока в списке нет, пока опору не построят. Без «Скрывать блоки без опоры» список прежний.
+
+**fix — настенная подвесная табличка без блока сбоку показывалась голограммой.** Игра проверяет её опору только при установке, и мод считал, что она держится всегда. Теперь такая табличка скрыта, пока сбоку нет блока, — как и обещает подсказка опции.
+
+**fix — со «Скрывать блоки без опоры» большая бросянка не показывалась вовсе, даже когда глина под ней уже стоит.** Стебель держится только вместе с листом над ним, а лист — на стебле: по отдельности мод считал оба без опоры. Теперь столбик проверяется целиком.
+
+**fix — во вкладке «Материалы» при «С учётом склада» пропадали флаги с узорами, которых не хватает.** Сундуки запоминали предметы только по виду, без узора: любые белые флаги в сундуках «закрывали» все строки белых флагов сразу — и обычных, и с каждым узором, — и «Только недостающее» + «С учётом склада» прятал их. Теперь склад помнит узор флага, черепки узорчатой вазы, скин головы и уровень света: узорный флаг закрывается только таким же, обычный — только обычным, а один и тот же запас не засчитывается нескольким строкам. Так же считает и панель HUD (раньше она просто не учитывала сундуки для таких строк). Хранилища, открытые до обновления, узоров не помнят — откройте их ещё раз.
+
+**fix — пустая таблица «Материалов» писала «Ничего не найдено», когда строки спрятал не поиск.** Если поиск строки находит, а их скрыли «Только недостающее» или «С учётом склада», таблица так и говорит: всё уже стоит или всего хватает на складе.
+
+**fix — «Считать до Y» во вкладке «Материалы» ничего не менял для схемы, размещённой в мире.** Граница высоты действовала только на счёт по файлу схемы; теперь и сверенный с миром счёт вкладки считает до заданной высоты, как панель.
+
+**fix — узорный флаг на месте обычного считался построенным.** Схема просит флаг без узора (узорчатую вазу без черепков, голову без скина), а стоит такой же с узором — теперь это «стоит не то», а не готовая клетка.
+
+**fix — статуи медного голема набираются без учёта позы.** Поза хранится в самом предмете статуи, и статуя «не той» позы не бралась в руку для Easy Place и по средней кнопке. Теперь клетке годится статуя любой позы — различаются только окисленность и воск; позу мод доводит кликами сам, в том числе когда схема просит стоячую. Статуя той же меди, стоящая в другой позе, в списке считается построенной (в проверке `Ctrl+B` она остаётся «не тем состоянием», пока позу не довели).
+
+**fix — в режиме «Только блоки из инвентаря» головка выдвинутого поршня показывалась без поршней с собой.** Основание поршня пряталось, а головка оставалась голограммой и числилась пропущенной в проверке `Ctrl+B`. Теперь головке нужен тот же предмет, что основанию, — обычный или липкий поршень: нет его в инвентаре — головки не видно.
+
+**EN**
+
+**New — "Locked hotbar slots"** (Easy Place tab, "Hotbar slots" section). The settings show a hotbar just like in game, with your items and a padlock in every slot. Click a padlock to lock the slot: it turns gold and pulses slowly. The mod never puts blocks into a locked slot and never takes its item away — your sword, pickaxe or food stays put. Easy Place, schematic pick block, finishing tools, shelves and the chest transfer all skip locked slots. All slots are open by default. Litematica itself only picks blocks into the slots from its own `pickBlockableSlots` option (1–5 by default) — the locks apply on top of it.
+
+**fix — "Hide blocks without support" did not affect the panel list.** The option hid the hologram and the `Ctrl+B` frames, but such blocks stayed in the "Layer materials" list as if they could be placed. There is now one rule for holograms and the list: a block that cannot be placed right now (no support in the world or among the schematic blocks of this layer) is hidden completely — from the list and from the "N / M blocks" count; the panel footer says how many cells are hidden. If the support is a schematic block that is not built yet, the block and its support stay in the list: place the support and the block hologram appears. It works as a chain too (bricks → pressure plate → carpet), for crops over dirt that still has to be tilled, and for sugar cane with sand and water from the schematic.
+
+**fix — a support on the next layer was listed even with "Support from the next layer" off.** With "Hide blocks without support" on, a layer block whose support lies on the next layer is now listed only together with "Support from the next layer" — then both the block and the support are in the list; without it the block is not listed until the support is built. Without "Hide blocks without support" the list is unchanged.
+
+**fix — a wall hanging sign with no block at its side was shown as a hologram.** The game checks its support only on placement, so the mod assumed it always holds. Such a sign is now hidden until there is a block at its side, as the option tooltip promises.
+
+**fix — with "Hide blocks without support" a big dripleaf was never shown, even with clay already below it.** A stem holds only with a leaf above it, and a leaf only on a stem: taken one by one the mod counted both as unsupported. The column is now checked as a whole.
+
+**fix — in the Materials tab, "Count storage" hid patterned banners that were actually missing.** Chests remembered items by kind only, without the pattern: any white banners in chests "covered" every white banner row at once — plain and each pattern — so "Only missing" + "Count storage" hid them. Storage now remembers the banner pattern, pot sherds, head skin and light level: a patterned banner is covered only by the same one, a plain one only by a plain one, and the same stock is no longer credited to several rows. The HUD panel counts the same way (it used to ignore chests for such rows). Storages opened before the update do not remember patterns — open them once more.
+
+**fix — the empty Materials table said "Nothing found" when the search was not what hid the rows.** If the search does match rows and "Only missing" or "Count storage" hid them, the table says so: everything is already placed or there is enough in storage.
+
+**fix — "Count up to Y" in the Materials tab did nothing for a schematic placed in the world.** The height limit only applied to the count from the schematic file; the world-checked count of the tab now stops at that height too, like the panel.
+
+**fix — a patterned banner in place of a plain one counted as built.** The schematic asks for a banner without a pattern (a plain pot, a head without a skin) and the same one with a pattern stands there — this is now "wrong block", not a finished cell.
+
+**fix — copper golem statues are gathered regardless of pose.** The pose is stored in the statue item itself, so a statue in the "wrong" pose was not taken in hand for Easy Place or pick block. A cell now accepts a statue in any pose — only oxidation and wax matter; the mod adjusts the pose with clicks itself, including when the schematic wants the standing one. A statue of the same copper standing in another pose counts as built in the list (in the `Ctrl+B` check it stays "wrong state" until the pose is adjusted).
+
+**fix — in "Only blocks from inventory" mode the head of an extended piston was shown without pistons on hand.** The piston base was hidden, but the head stayed as a hologram and counted as missing in the `Ctrl+B` check. The head now needs the same item as the base — a piston or a sticky piston: without it in your inventory the head is hidden.
+
+## 1.0.31+26.3 — 19.11.2026
+
+**RU**
+
+**fix — отключённый в списке материалов блок продолжал подсвечиваться проверкой блоков как пропущенный.** Проверка (`Ctrl+B`) не отслеживала отключения и замены блоков в списке материалов и читала блоки из мира схемы Litematica до того, как его чанки успевали перестроиться в фоне. Теперь проверка сразу пересобирается при любом отключении или включении блока (целиком, на слое или в списке HUD), читает состояния напрямую из контейнеров схемы и не подсвечивает отключённые клетки ни как пропущенные, ни как лишние.
+
+**EN**
+
+**fix — a block disabled in the material list was still highlighted as missing by the block check.** The block check (`Ctrl+B`) did not track block disables and replacements from the material list and read blocks from Litematica's schematic world before its chunks finished rebuilding in the background. The check now rebuilds immediately whenever a block is disabled or re-enabled (as a whole, on a layer, or in the HUD list), reads states directly from the schematic containers, and never highlights disabled cells as missing or extra.
+
+## 1.0.30+26.3 — 17.11.2026
+
+**RU**
+
+**fix — поставленные подушки, стойки и рамки издалека считались пропущенными.** Сервер присылает сущности только в своём радиусе вокруг игрока, и он меньше дальности чанков. Дальше него мод не находил сущность и показывал её как непоставленную — и в проверке Ctrl+B, и в списке материалов. Теперь за этим радиусом берётся последняя сверка, сделанная вблизи; если её не было, сущность не считается пропущенной.
+
+**fix — Easy Place не ставил блок под подушкой.** Подушка лежит на любом блоке с контуром, часто в одной с ним клетке: кнопка, нажимная плита, ковёр, снег, полублок, люк, котёл, воронка, компостер и другие. Голограмма подушки закрывала такой блок, и клик в него не попадал. Теперь клик по голограмме подушки сначала ставит блок под ней, а следующим кликом — саму подушку.
+
+**fix — в режиме «Только блоки из инвентаря» подушки и другие сущности показывались без предмета с собой.** Теперь голограмма сущности, её рамка в проверке Ctrl+B и подсветка видны, только когда предмет для неё есть в инвентаре, — как у блоков.
+
+**Новое — «Подсветка сущностей»** (вкладка «Ghost Alpha», по умолчанию вкл.). Подушки, стойки для брони, рамки, картины и другие сущности схемы, которых ещё нет в мире, подсвечиваются так же, как недостающие блоки, — тем же цветом из Litematica. Недостающий блок под подушкой обведён поверх её голограммы, чтобы его было видно.
+
+**EN**
+
+**fix — placed cushions, armor stands and item frames counted as missing from a distance.** The server only sends entities within its own radius around the player, which is smaller than the chunk distance. Beyond it the mod could not find the entity and showed it as not placed, both in the Ctrl+B check and in the material list. Beyond that radius the mod now uses the last check made up close; if there was none, the entity is not counted as missing.
+
+**fix — Easy Place did not place the block under a cushion.** A cushion rests on any block with an outline, often in the same cell: a button, pressure plate, carpet, snow, slab, trapdoor, cauldron, hopper, composter and others. The cushion hologram covered such a block and the click never reached it. Clicking the cushion hologram now places the block under it first, and the cushion itself with the next click.
+
+**fix — in "Only blocks from inventory" mode cushions and other entities were shown without the item on hand.** An entity hologram, its frame in the Ctrl+B check and its highlight now show only when you carry the item for it, just like blocks.
+
+**New — "Highlight entities"** (Ghost Alpha tab, on by default). Cushions, armor stands, item frames, paintings and other schematic entities that are not in the world yet are highlighted just like missing blocks, in the same Litematica color. A missing block under a cushion is outlined on top of its hologram so you can see it.
+
+## 1.0.29+26.3 — 14.11.2026
+
+**RU**
+
+**Новое — «Скрывать порталы»** (вкладка «Ghost Alpha», по умолчанию выкл.). Голограммы рамок портала Энда и самих порталов — Портал Незера, Портал Энда, Врата Энда — не рисуются, и прицел проходит такие клетки насквозь, к блокам за ними. Обсидиан и остальная схема видны как обычно. В списке материалов и проверке Ctrl+B порталы остаются.
+
+**EN**
+
+**New — "Hide portals"** (Ghost Alpha tab, off by default). Holograms of End portal frames and of the portals themselves — Nether Portal, End Portal, End Gateway — are not drawn, and the crosshair passes through those cells to the blocks behind them. Obsidian and the rest of the schematic look as usual. Portals stay in the material list and in the Ctrl+B check.
+
+## 1.0.28+26.3 — 14.11.2026
+
+**RU**
+
+**fix — блок пропадал из HUD, если на его месте лежит снежный покров.** Выпавший снег занимал клетку, и она считалась «стоит не тот блок», а с включённой опцией «Только пустые места» (по умолчанию) такие клетки в нехватку не идут — блок исчезал из списка. Теперь снежный покров на месте блока схемы — это пустая клетка: блок в HUD остаётся, сколько бы слоёв снега ни лежало. Если схема сама просит снежный покров, сверка прежняя.
+
+**fix — «Перенести всё необходимое» брал узорные флаги вместо обычных.** Если в схеме есть обычный флаг и флаг того же цвета с узором, перенос из сундука засчитывал узорные строке обычного: брал их, потом сверка возвращала и добирала их по кругу, а узорные в рюкзаке считались «уже есть». Теперь строке обычного флага годятся только флаги без узора, строке с узором — только с тем же узором. Так же с горшками с черепками и головами.
+
+**Новое — «Мобы в голограммах»** (вкладка «Ghost Alpha», по умолчанию выкл.). Курицы, жители, лошади и другие мобы, сохранённые в схеме, больше не рисуются в голограмме. Включите опцию, чтобы видеть их, как раньше. Стойки для брони, рамки и картины видны всегда. Рядом с опцией — курица в 3D.
+
+**EN**
+
+**fix — a block vanished from the HUD when a snow layer lay in its place.** Fallen snow filled the cell, so it counted as "wrong block", and with "Only empty spots" on (the default) such cells are left out of the shortfall — the block disappeared from the list. A snow layer where the schematic wants another block now counts as an empty cell: the block stays in the HUD however many snow layers there are. When the schematic itself asks for a snow layer, checking works as before.
+
+**fix — "Move everything needed" grabbed patterned banners instead of plain ones.** When the schematic has a plain banner and a patterned banner of the same color, the chest transfer counted patterned ones toward the plain row: it took them, then the check returned and re-took them in a loop, and patterned banners in the backpack counted as "already have". Now the plain banner row only takes banners without a pattern, and a patterned row only takes the same pattern. The same goes for decorated pots and heads.
+
+**New — "Mobs in holograms"** (Ghost Alpha tab, off by default). Chickens, villagers, horses and other mobs saved in the schematic are no longer drawn in the hologram. Turn the option on to see them as before. Armor stands, item frames and paintings are always shown. A 3D chicken sits next to the option.
+
+## 1.0.27+26.3 — 13.11.2026
+
+**RU**
+
+**fix — 3D-превью «Выделения» было пустым (одна рамка) рядом с VoxyMap Addon.** Превью рисует Voxy, а карта, чтобы не грузить игру, глушит его вне себя — и вместе с миром игры глушила и наш кадр. Раньше превью договаривалось с картой по имени её класса; карта его сменила, договорённость молча пропала. Теперь превью ни с какими модами не связано: оно само проверяет, что Voxy действительно нарисовал кадр, и если кто-то не дал (любой мод, или у Voxy пусто), рисует своё превью до повторного открытия экрана. Касается и 3D «Управления зонами» Zone Focus.
+
+**EN**
+
+**fix — the Selection 3D preview was empty (only the frame) next to VoxyMap Addon.** Voxy draws the preview, and the map mutes Voxy outside itself to spare the game — muting our frame along with the game world. The preview used to agree with the map by its class name; the map renamed it and the agreement silently broke. The preview is no longer tied to any mod: it checks that Voxy really drew the frame, and if something held it back (any mod, or Voxy has nothing loaded) it draws its own preview until the screen is reopened. Also covers the Zone Focus zone manager 3D view.
+
+## 1.0.26+26.3 — 11.11.2026
+
+**RU**
+
+**fix — выход из редактора размещения по Esc возвращал схему на прежнее место.** Теперь любой выход сохраняет то, что вы успели задать: Esc, Enter, «Готово», а также закрытие окна любым другим способом — вместе с недотащенным сдвигом и числом, набранным в поле X/Y/Z. Только что созданное размещение по Esc больше не удаляется. Вернуть всё как было можно только кнопкой «Отмена».
+
+**EN**
+
+**fix — leaving the placement editor with Esc put the schematic back where it was.** Now every way out keeps what you have set: Esc, Enter, Done, and closing the window any other way — including an unfinished drag and a number typed into the X/Y/Z field. A placement that was just created is no longer removed by Esc. Only the Cancel button puts everything back.
+
+## 1.0.25+26.3 — 06.11.2026
+
+**RU**
+
+**fix — панель у инвентаря ложилась на вкладки книги рецептов.** Когда книга открыта, а справа места нет (например, там столбец эффектов), панель встаёт слева от книги — но ставилась вплотную к самой книге и закрывала её вкладки слева. Теперь встаёт левее вкладок; не помещается — ужимается, как раньше.
+
+**EN**
+
+**fix — the panel beside the inventory covered the recipe book tabs.** With the recipe book open and no room on the right (for example, the effects column is there), the panel moves to the left of the book — but it was placed right against the book and covered its tabs. Now it sits left of the tabs and shrinks if it does not fit, as before.
+
+## 1.0.24+26.3 — 29.10.2026 (хотфикс)
+
+**RU**
+
+**fix — поиск по сундукам не подсвечивал эндер-сундук.** Если искомый предмет (клавиша «Поиск по хранилищам», «Найти в сундуках» из таблицы «Материалы», «Подсветить все сундуки») лежит в вашем эндер-сундуке, теперь светится каждый эндер-сундук рядом, с названием предмета над ним, — у всех одно содержимое. Только пока включено «Эндер-сундук в счёт».
+
+**fix — «Найти в сундуках» говорило, что предмет не встречался,** если он лежал только в эндер-сундуке, а рядом не было ни одного эндер-сундука. Теперь говорит, что предмет в эндер-сундуке, и поиск остаётся включённым, пока не подойдёте к любому.
+
+**EN**
+
+**fix — the storage search did not light up your ender chest.** When the item you are looking for (the Search storages key, Find in chests in the Materials table, Highlight all chests) is in your ender chest, every ender chest nearby now glows with the item name above it — they all open the same contents. Only while Count ender chest is on.
+
+**fix — Find in chests said the item was never seen** when it lay only in your ender chest and no ender chest was nearby. Now it says the item is in your ender chest, and the search stays on until you come close to one.
+
+## 1.0.23+26.3 — 29.10.2026
+
+**RU**
+
+**new — «Свой склад»: материалы считаются только из тех сундуков, которые вы выбрали.** Раньше «В сундуках» считало всё, что вы когда-либо открывали на сервере: сундуки друзей, общий склад, случайную бочку. Теперь в настройках, во вкладке HUD сразу под «Оформлением», есть маленькая плитка «Свой склад». Назначьте клавишу «Выбрать сундуки», нажмите её в игре и кликайте ПКМ по своим сундукам, бочкам и шалкерам — они добавляются в счёт или убираются из него. Сундук при этом не открывается и блок из руки не ставится, с Easy Place и без. Выбранные светятся зелёным, выбранные, но ещё не открытые — оранжевым: что в них лежит, мод узнает, только когда вы их откроете. Первая отметка сама включает «Только выбранные сундуки», и дальше «В сундуках», «С учётом склада» и подсветка поиска по сундукам берут только ваш склад. Выбранный сундук, ставший двойным, остаётся выбранным; сломанный сам уходит из списка. По умолчанию выключено, клавиша не назначена.
+
+**new — эндер-сундук считается складом** — как в моде litematica-enderchest-materials, только умнее. Откройте его один раз — содержимое вместе с шалкерами и мешками внутри пойдёт в «В сундуках» и «С учётом склада». Снимок помнится между заходами в игру, общий для всех измерений сервера и свой у каждого аккаунта. Считается и в режиме «Только выбранные сундуки»: эндер-сундук только ваш. В режиме выбора ПКМ по эндер-сундуку включает и выключает его счёт. Опция «Эндер-сундук в счёт» — рядом с «С учётом склада», по умолчанию включена.
+
+**new — подсказка колонки «В сундуках» говорит, что сейчас в счёте:** только выбранные сундуки (и сколько их), эндер-сундук.
+
+**new — «Найти в сундуках» из таблицы «Материалы» говорит, если предмет лежит только в невыбранных сундуках.**
+
+**EN**
+
+**new — Your stash: materials are counted only from the chests you pick.** "In chests" used to count every storage you had ever opened on the server: friends' chests, the shared warehouse, a stray barrel. Now there is a small *Your stash* tile in Settings → HUD, right under *Look*. Bind *Pick chests*, press it in game and right-click your chests, barrels and shulker boxes to add them or take them out. The chest does not open and nothing is placed from your hand, Easy Place on or off. Picked storages glow green; picked but never opened ones glow orange, because the mod learns what is inside only when you open them. The first pick turns *Only chosen chests* on, and from then on "In chests", *Count storage* and the storage search highlight use only your stash. A picked chest stays picked when it becomes a double chest; a broken one leaves the list by itself. Off by default, the key is not set.
+
+**new — your ender chest counts as storage** — like litematica-enderchest-materials, but smarter. Open it once and its contents, with shulker boxes and bundles inside, go into "In chests" and *Count storage*. The snapshot is kept after you leave the game, shared by all dimensions of the server and separate for each account. It counts in *Only chosen chests* mode too: nobody else can take from it. In picking mode, right-click the ender chest to count it or not. *Count ender chest* sits next to *Count storage*, on by default.
+
+**new — the "In chests" column hint says what counts right now:** only chosen chests (and how many), the ender chest.
+
+**new — Find in chests from the Materials table tells you when the item is only in chests you have not picked.**
+
 ## 1.0.22+26.3 — 26.10.2026
 
 **RU**

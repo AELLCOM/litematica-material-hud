@@ -285,10 +285,10 @@ public final class StateFix
             return true;
         }
 
+        // Статуя медного голема встаёт в позе, которую несёт предмет (из «чистого» предмета — стоя): в руку берётся
+        // статуя любой позы, поэтому дожим нужен и когда схема просит стоячую
         return schematic.getBlock() instanceof net.minecraft.world.level.block.CopperGolemStatueBlock
-                && schematic.hasProperty(BlockStateProperties.COPPER_GOLEM_POSE)
-                && schematic.getValue(BlockStateProperties.COPPER_GOLEM_POSE)
-                        != net.minecraft.world.level.block.CopperGolemStatueBlock.Pose.STANDING;
+                && schematic.hasProperty(BlockStateProperties.COPPER_GOLEM_POSE);
     }
 
     /**
@@ -467,7 +467,7 @@ public final class StateFix
         return new Fix("toggle", Path.BLOCK_ACTION, null, false, false, null);
     }
 
-    // Поза статуи медного голема: установка всегда даёт standing, а любой клик без
+    // Поза статуи медного голема: установка даёт позу из предмета (из «чистого» — standing), а любой клик без
     // топора циклит standing → sitting → running → star. Кликаем пустой рукой (топор в
     // главной руке снял бы окисление), по шагу за клик, пока поза не совпадёт со схемой.
     private static @Nullable Fix pose(BlockState schematic, BlockState world)

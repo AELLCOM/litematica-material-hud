@@ -1,14 +1,13 @@
 package com.aell.layerlist.schematics.export;
 
 import com.aell.layerlist.schematics.SchematicsConfig;
-import com.google.gson.JsonObject;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 /**
  * Цвета «Таблицы сбора» по ролям: фон листа, строки, панели, шапки, итоги, рамка ввода ников,
  * статусы, диаграмма. Лист строится одной разметкой, палитра решает только цвета — одна на
- * Excel, Google Таблицы и таблицу команды (опция {@link SchematicsConfig#SHEETS_PALETTE});
+ * Excel и Google Таблицы (опция {@link SchematicsConfig#SHEETS_PALETTE});
  * выбирается в окне перед выгрузкой и в настройках вкладки «Схемы».
  *
  * <ul>
@@ -71,7 +70,7 @@ public record SheetPalette(
             INK, CanonPalette.VIOLET,
             CanonPalette.GRID, CanonPalette.GREEN_RIGHT, INK);
 
-    /** Палитра таблиц из настроек: Excel, Google Таблицы, таблица команды. */
+    /** Палитра таблиц из настроек: Excel и Google Таблицы. */
     static SheetPalette forTables()
     {
         return of(SchematicsConfig.sheetsPalette());
@@ -90,34 +89,5 @@ public record SheetPalette(
     public int nick(int index)
     {
         return CanonPalette.nick(index);
-    }
-
-    /**
-     * Цвета для скрипта таблицы команды (поле {@code palette} запроса) — его роли {@code C}:
-     * скрипт накладывает их поверх своих по умолчанию, а скрипт без поддержки поля его просто
-     * не читает.
-     */
-    JsonObject forScript()
-    {
-        JsonObject out = new JsonObject();
-        out.addProperty("violet", CanonPalette.hex(this.titleFill));
-        out.addProperty("white", CanonPalette.hex(this.headText));
-        out.addProperty("deep", CanonPalette.hex(this.headFill));
-        out.addProperty("sub", CanonPalette.hex(this.total));
-        out.addProperty("frame", CanonPalette.hex(this.total));
-        out.addProperty("night", CanonPalette.hex(this.sumText));
-        out.addProperty("grid", CanonPalette.hex(this.hintText));
-        out.addProperty("border", CanonPalette.hex(this.border));
-        out.addProperty("done", CanonPalette.hex(this.doneFill));
-        out.addProperty("taking", CanonPalette.hex(this.takenFill));
-        out.addProperty("barTotal", CanonPalette.hex(this.chartTotal));
-        out.addProperty("barDone", CanonPalette.hex(this.chartDone));
-        out.addProperty("canvas", CanonPalette.hex(this.canvas));
-        out.addProperty("row", CanonPalette.hex(this.row));
-        out.addProperty("rowAlt", CanonPalette.hex(this.rowAlt));
-        out.addProperty("panel", CanonPalette.hex(this.panel));
-        out.addProperty("text", CanonPalette.hex(this.text));
-        out.addProperty("chip", CanonPalette.hex(this.chipText));
-        return out;
     }
 }

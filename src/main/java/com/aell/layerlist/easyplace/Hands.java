@@ -115,7 +115,15 @@ public final class Hands
 
         if (sample != null && mc.gameMode != null)
         {
-            int slot = inventory.getSelectedSlot();
+            // Запертую ячейку не затираем: образец встаёт в открытую, рука переходит на неё
+            int slot = com.aell.layerlist.core.HotbarLocks.target(inventory);
+
+            if (slot < 0)
+            {
+                return null;
+            }
+
+            inventory.setSelectedSlot(slot);
             inventory.setItem(slot, sample);
             mc.gameMode.handleCreativeModeItemAdd(sample, 36 + slot);
 

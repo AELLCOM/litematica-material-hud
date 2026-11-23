@@ -5,6 +5,7 @@ import com.aell.layerlist.ghost.GhostSupport;
 import com.aell.layerlist.ghost.HiddenGhosts;
 import com.aell.layerlist.ghost.InventoryGhosts;
 import com.aell.layerlist.ghost.LeanInnerSides;
+import com.aell.layerlist.ghost.PortalGhosts;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import fi.dy.masa.litematica.render.schematic.BlockModelRendererSchematic;
@@ -59,8 +60,9 @@ public abstract class MixinChunkRendererSchematicVbo
     {
         boolean inventory = InventoryGhosts.active();
         boolean support = GhostSupport.hideUnsupported();
+        boolean portals = PortalGhosts.active();
 
-        if (! inventory && ! support)
+        if (! inventory && ! support && ! portals)
         {
             return;
         }
@@ -69,6 +71,13 @@ public abstract class MixinChunkRendererSchematicVbo
         HiddenGhosts.building(this.clientWorldView);
         BlockState schematic = this.schematicWorldView.getBlockState(pos);
         BlockState client = this.clientWorldView.getBlockState(pos);
+
+        // «Скрывать порталы»: рамка портала Края и сами порталы — ни голограммы, ни оверлея
+        if (portals && PortalGhosts.portal(schematic))
+        {
+            ci.cancel();
+            return;
+        }
 
         if (inventory)
         {

@@ -32,6 +32,7 @@ import fi.dy.masa.malilib.util.position.IntBoundingBox;
 import fi.dy.masa.malilib.util.position.LayerRange;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -88,6 +89,19 @@ public class LayerCountManager
     private static final LayerCountManager INSTANCE = new LayerCountManager(Target.HUD, VerifyCache.getInstance());
     /** Сколько живут найденные опоры вне слоя, если подпись счёта не менялась (правку схемы на месте она не видит). */
     private static final long SUPPORTS_TTL_MS = 10_000L;
+    /**
+     * Срок годности решённых вердиктов опоры: мир меняется и мимо наших крючков (догрузка чанка, кэш Bobby). У каждого
+     * чанка срок свой — от одного до двух таких: вердикты устаревают вразбивку, а не все разом (слой из десятков тысяч
+     * ковров иначе раз в срок решался бы заново целиком).
+     */
+    private static final long STAND_TTL_MS = 30_000L;
+    /**
+     * Во сколько клеток счёта обходится один шаг проверки опоры ({@link GhostSupport#takeStandWork}) — платится из
+     * бюджета тика. Замер 19.11.2026 (listperf, слой 192×192 ковров): при 24 первый расчёт давал тики до 80 мс.
+     */
+    private static final long STAND_WORK_COST = 96L;
+    /** Клетка ближе стольких блоков к незагруженному чанку: её опора может стоять там — «не поставить» не утверждаем. */
+    private static final int UNLOADED_MARGIN = 2;
 
     /** Строки на экране: {@link #allEntries} за вычетом склада, если он учитывается ({@link #syncStock}). */
     private List<MaterialListEntry> entries = Collections.emptyList();
@@ -118,6 +132,30 @@ public class LayerCountManager
     private String supportsSignature = "";
     private long supportsBuiltAt;
     private boolean supportsReady;
+    /**
+     * «Скрывать блоки без опоры» действует и на список (правило владельца 19.11.2026): клетка, которую не поставить
+     * ни сейчас, ни после опор из схемы ({@link GhostSupport.Stand#NEVER}), в счёт не идёт вовсе — ни «всего», ни
+     * «не хватает». Только у панели HUD: вкладка «Материалы» и выгрузки считают постройку целиком.
+     */
+    private boolean hideMode;
+    /** При {@link #hideMode}: включена «Опора с соседнего слоя» — опора вне слоя строится в этой работе и идёт в счёт. */
+    private boolean hideFromLayers;
+    /** Блоки схем для вердиктов {@link GhostSupport#stand}; есть, только пока идёт проход в {@link #hideMode}. */
+    private @Nullable SchematicBlocks hideView;
+    /**
+     * Скрытые клетки загруженных чанков, решённые по миру: годны, пока в чанке и у соседей ничего не менялось
+     * ({@link #onWorldBlockChanged}), подпись счёта та же и не вышел срок. Без этого слой из тысяч ковров или рельсов
+     * перепроверял бы опоры каждую секунду и на каждый поставленный блок.
+     */
+    private final Long2ObjectOpenHashMap<LongOpenHashSet> standKnown = new Long2ObjectOpenHashMap<>();
+    /** Когда решён чанк из {@link #standKnown} ({@code Util.getMillis}). */
+    private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap standKnownAt = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+    private String standSignature = "";
+    /** Скрытых клеток в идущем проходе и в последнем опубликованном. */
+    private long hiddenCounting;
+    private long blocksHidden;
+    /** Для самопроверки: в скольких чанках последнего прохода опора решалась по миру заново, а не бралась готовой. */
+    private int standChunksComputed;
     private long blocksTotal;
     private long blocksMissing;
     private int unverifiedChunks;
@@ -165,7 +203,7 @@ public class LayerCountManager
                     Object2IntOpenHashMap<DataItems.Key> entityTotal,
                     Object2IntOpenHashMap<DataItems.Key> entityMissing,
                     Object2IntOpenHashMap<DataItems.Key> entityMismatch,
-                    long blocksTotal, long blocksMissing,
+                    long blocksTotal, long blocksMissing, long blocksHidden,
                     String placements, String dimension) {}
 
     private final LinkedHashSet<String> placementNames = new LinkedHashSet<>();
@@ -263,7 +301,8 @@ public class LayerCountManager
 
     /**
      * Сколько ещё не хватает по строке: недостающее минус инвентарь, а «С учётом склада» — минус и известные
-     * сундуки. Строки с данными (узор, черепки) сундуками не покрываются: склад помнит предметы только по id.
+     * сундуки. Строка с данными (узор, черепки) покрывается только предметами с теми же данными, обычная — без
+     * узорных ({@code StorageIndex.stored}); записи сундуков старше 1.0.32 состава не знают — для строк с данными там 0.
      */
     public int getShortfall(MaterialListEntry entry)
     {
@@ -273,8 +312,9 @@ public class LayerCountManager
 
     private long inStock(MaterialListEntry entry)
     {
+        // Склад сверяет и данные предмета: узорный флаг — только с тем же узором, обычный — без узорных
         Availability stock = this.stock;
-        return stock == null || DataItems.hasData(entry.getStack()) ? 0L : stock.inChests(entry.getStack());
+        return stock == null ? 0L : stock.inChests(entry.getStack());
     }
 
     /**
@@ -360,6 +400,15 @@ public class LayerCountManager
     public long getBlocksMissing()
     {
         return this.blocksMissing;
+    }
+
+    /**
+     * Клетки, убранные из счёта режимом «Скрывать блоки без опоры»: поставить их пока нельзя. Их нет ни во «всего», ни
+     * в «не хватает», но постройка с ними не закончена — панель об этом говорит, а аддоны видят их через API.
+     */
+    public long getBlocksHidden()
+    {
+        return this.blocksHidden;
     }
 
     public int getUnverifiedChunks()
@@ -458,6 +507,12 @@ public class LayerCountManager
         this.hasData = false;
         this.blocksTotal = 0L;
         this.blocksMissing = 0L;
+        this.blocksHidden = 0L;
+        // Другой мир или измерение: вердикты опоры прежнего мира к его чанкам не относятся
+        this.standKnown.clear();
+        this.standKnownAt.clear();
+        this.standSignature = "";
+        this.hideView = null;
         this.unverifiedChunks = 0;
         this.cachedChunks = 0;
         this.page = 0;
@@ -476,6 +531,8 @@ public class LayerCountManager
     {
         this.counting = false;
         this.schematicBlocks = null;
+        this.hideView = null;
+        this.hiddenCounting = 0L;
         this.supportsActive = false;
         this.supportsBuilding = null;
         this.pendingChunks.clear();
@@ -498,6 +555,7 @@ public class LayerCountManager
     {
         if (mc.level == null || mc.player == null)
         {
+            SchematicEntities.forget();
             if (this.hasData) { this.reset(); }
             return;
         }
@@ -534,12 +592,22 @@ public class LayerCountManager
         }
     }
 
+    /**
+     * Счётчик без слоёв (вкладка «Материалы») с включённым «Считать до Y»: считает до этой высоты, как панель.
+     * До 1.0.32 граница действовала только на счёт по файлу схемы — у схемы, размещённой в мире (счёт сверен с
+     * миром), тумблер во вкладке ничего не менял.
+     */
+    private boolean cutoffOnly()
+    {
+        return ! this.target.layers() && LayerListConfigs.MATERIAL_CUTOFF.getBooleanValue();
+    }
+
     private String rangeSignature()
     {
         if (! this.target.scope() && ! this.target.layers())
         {
-            // Размещения целиком: ни слои, ни область счёт не меняют
-            return "whole";
+            // Размещения целиком: ни слои, ни область счёт не меняют — только «Считать до Y»
+            return this.cutoffOnly() ? "whole:y" + LayerListConfigs.MATERIAL_CUTOFF_Y.getIntegerValue() : "whole";
         }
 
         CountScope scope = this.target.scope() ? LayerListApi.getCountScope() : null;
@@ -573,7 +641,7 @@ public class LayerCountManager
         this.placementNames.clear();
 
         LayerRange range = MaterialCutoff.countRange();
-        boolean useLayers = this.target.layers() && (! scopeActive || scope.applyLayerRange())
+        boolean useLayers = (this.target.layers() || this.cutoffOnly()) && (! scopeActive || scope.applyLayerRange())
                 && range.getLayerMode() != LayerMode.ALL;
         Predicate<SchematicPlacement> only = this.target.placements();
         // Опоры зависят и от того, чего нет в подписи кэша: поворот и отражение размещения при той же рамке, сам объект схемы
@@ -585,6 +653,20 @@ public class LayerCountManager
         cacheSig.append("|gp1");
         // sp1 — опоры вне слоя считаются по схеме и лежат в счёте чанка (13.10.2026)
         cacheSig.append("|sp1");
+        // sn1 — слой снега в мире на месте другого блока считается пустой клеткой (13.11.2026)
+        cacheSig.append("|sn1");
+        // dm1 — статуя медного голема в другой позе — построено; обычный флаг, горшок, голова, а в мире с данными —
+        // «стоит не то» (19.11.2026)
+        cacheSig.append("|dm1");
+        // hu1 — «Скрывать блоки без опоры» убирает клетки из счёта (19.11.2026): свой счёт и свои записи кэша, с
+        // «Опорой с соседнего слоя» — третьи. Без режима подпись прежняя — старые записи кэша годятся
+        this.hideMode = this.target.hud() && mc.level != null && GhostSupport.hideUnsupported();
+        this.hideFromLayers = this.hideMode && GhostSupport.supportFromLayers();
+
+        if (this.hideMode)
+        {
+            cacheSig.append(this.hideFromLayers ? "|hu1L" : "|hu1");
+        }
 
         for (SchematicPlacement placement : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements())
         {
@@ -683,6 +765,7 @@ public class LayerCountManager
             this.hasData = false;
             this.blocksTotal = 0L;
             this.blocksMissing = 0L;
+            this.blocksHidden = 0L;
             this.unverifiedChunks = 0;
             this.cachedChunks = 0;
             // Схем больше нет — поиск должен разжать старый набор предметов, иначе
@@ -692,7 +775,10 @@ public class LayerCountManager
             return;
         }
 
-        this.supportsActive = useLayers && mc.level != null;
+        // «Скрывать блоки без опоры» без «Опоры с соседнего слоя»: опоры вне слоя в счёт не идут — и не ищутся
+        // «Считать до Y» у вкладки «Материалы» (счёт без слоёв) опор выше границы в счёт не тянет: граница — про высоту
+        this.supportsActive = this.target.layers() && useLayers && mc.level != null
+                && (! this.hideMode || this.hideFromLayers);
 
         if (this.supportsActive)
         {
@@ -709,6 +795,28 @@ public class LayerCountManager
                 this.supportsSignature = signature;
                 this.supportsReady = false;
             }
+        }
+
+        this.standChunksComputed = 0;
+
+        if (this.hideMode)
+        {
+            this.hideView = this.schematicBlocks != null ? this.schematicBlocks
+                    : new SchematicBlocks(DataManager.getSchematicPlacementManager().getAllSchematicsPlacements(), mc.level);
+            String standSig = dimensionId(mc) + "#" + cacheSig + "#" + supportSig;
+
+            if (! standSig.equals(this.standSignature))
+            {
+                this.standKnown.clear();
+                this.standKnownAt.clear();
+                this.standSignature = standSig;
+            }
+        }
+        else
+        {
+            this.standKnown.clear();
+            this.standKnownAt.clear();
+            this.standSignature = "";
         }
 
         this.cache.ensure(mc, cacheSig.toString());
@@ -813,7 +921,7 @@ public class LayerCountManager
         // Тот же диапазон, что у отбора боксов и сущностей в startRecount: с «Считать до Y» — от низа мира до этой
         // высоты, а не текущий слой рендера (иначе блоки считались только на слое, а сущности — до высоты)
         LayerRange range = MaterialCutoff.countRange();
-        boolean rangeAll = ! this.target.layers() || range.getLayerMode() == LayerMode.ALL
+        boolean rangeAll = ! (this.target.layers() || this.cutoffOnly()) || range.getLayerMode() == LayerMode.ALL
                 || (scope != null && scope.isActive() && ! scope.applyLayerRange());
         boolean ignoreState = Configs.Generic.MATERIAL_LIST_IGNORE_STATE.getBooleanValue();
         boolean onlyEmpty = LayerListConfigs.SHORTFALL_ONLY_MISSING.getBooleanValue();
@@ -832,6 +940,25 @@ public class LayerCountManager
         Direction[] outBelow = {layerUp.getOpposite()};
         Direction[] outAbove = {layerUp};
         Direction[] outBoth = {layerUp, layerUp.getOpposite()};
+        // «Скрывать блоки без опоры»: что из схемы строится в этой работе — клетки самого счёта (слой, область
+        // аддона) и, при «Опоре с соседнего слоя», сосед вне слоя вдоль оси слоёв (как у голограмм и LayerSupports)
+        final boolean hide = this.hideMode && this.hideView != null;
+        final SchematicBlocks hideView = this.hideView;
+        final boolean scopeOn = scope != null && scope.isActive();
+        final List<Box> scopeBoxes = hide && scopeOn ? scope.getBoxes() : List.of();
+        final boolean outsideAllowed = this.hideFromLayers && ! rangeAll && axis != null;
+        final GhostSupport.Reach reach = ! hide ? null : (near, side) ->
+        {
+            if (scopeOn && ! inScope(scopeBoxes, near))
+            {
+                return false;
+            }
+
+            return rangeAll || GhostSupport.rawWithinRange(range, near.getX(), near.getY(), near.getZ())
+                    || (outsideAllowed && side.getAxis() == axis);
+        };
+        GhostSupport.takeStandWork();
+        final long standNow = Util.getMillis();
 
         while (budget > 0 && ! this.pendingChunks.isEmpty())
         {
@@ -869,6 +996,34 @@ public class LayerCountManager
             // Опоры, найденные в чанке в этом проходе, — в supportsBuilding после чанка
             LongArrayList foundCells = blocks != null ? new LongArrayList() : null;
             ArrayList<BlockState> foundStates = blocks != null ? new ArrayList<>() : null;
+            // Клетка слоя, которой нужна опора: скрытая клетка свою опору в счёт не тянет
+            LongArrayList foundOwners = blocks != null ? new LongArrayList() : null;
+            // Скрытые клетки чанка: уже решённые (загруженный чанк — пока рядом ничего не менялось, незагруженный —
+            // что запомнил кэш проверки) или решаемые в этом проходе по миру
+            LongOpenHashSet hiddenKnown = null;
+            LongOpenHashSet hiddenFound = null;
+            boolean hiddenUnsure = false;
+
+            if (hide)
+            {
+                if (verified)
+                {
+                    hiddenKnown = this.standKnown.get(chunkKey);
+
+                    if (hiddenKnown != null && standNow - this.standKnownAt.get(chunkKey) >= standTtl(chunkKey))
+                    {
+                        hiddenKnown = null;
+                    }
+
+                    hiddenFound = hiddenKnown == null ? new LongOpenHashSet() : null;
+                }
+                else
+                {
+                    this.standKnown.remove(chunkKey);
+                    this.standKnownAt.remove(chunkKey);
+                    hiddenKnown = cached != null ? cached.hidden() : null;
+                }
+            }
 
             for (ChunkBox chunkBox : this.boxesInChunks.get(pos))
             {
@@ -1034,10 +1189,9 @@ public class LayerCountManager
 
                                 if (below || above)
                                 {
-                                    final boolean verifiedChunk = verified;
-                                    final VerifyCache.ChunkCounts cachedChunk = cached;
-                                    final Object2IntOpenHashMap<BlockState> supportMissing = chunkMissing;
-                                    final Object2IntOpenHashMap<BlockState> supportMismatch = chunkMismatch;
+                                    // Опоры зависят только от схемы и слоя и живут дольше прохода ({@link #supports}),
+                                    // поэтому запоминаются у любой клетки, а в счёт идут после чанка — см. ниже
+                                    final long owner = BlockPos.asLong(x, y, z);
                                     LayerSupports.collect(stateSchematic, new BlockPos(x, y, z),
                                             below && above ? outBoth : below ? outBelow : outAbove, blocks, cell ->
                                             {
@@ -1047,10 +1201,45 @@ public class LayerCountManager
                                                 {
                                                     foundCells.add(cell);
                                                     foundStates.add(wanted);
-                                                    this.countSupport(mc, wanted, cell, verifiedChunk, cachedChunk,
-                                                            ignoreState, supportMissing, supportMismatch);
+                                                    foundOwners.add(owner);
                                                 }
                                             });
+                                }
+                            }
+
+                            if (hiddenKnown != null || hiddenFound != null)
+                            {
+                                long cellKey = BlockPos.asLong(x, y, z);
+                                boolean never;
+
+                                if (hiddenKnown != null)
+                                {
+                                    never = hiddenKnown.contains(cellKey);
+                                }
+                                else
+                                {
+                                    posMutable.set(x, y, z);
+                                    never = GhostSupport.stand(stateSchematic, mc.level.getBlockState(posMutable), posMutable,
+                                            mc.level, hideView, reach) == GhostSupport.Stand.NEVER;
+
+                                    // У края загруженного мира опора может стоять в соседнем, ещё не присланном чанке:
+                                    // там мир отвечает пустотой. Клетку показываем и вердикт чанка не запоминаем
+                                    if (never && nearUnloaded(mc, x, z))
+                                    {
+                                        never = false;
+                                        hiddenUnsure = true;
+                                    }
+
+                                    if (never)
+                                    {
+                                        hiddenFound.add(cellKey);
+                                    }
+                                }
+
+                                if (never)
+                                {
+                                    ++this.hiddenCounting;
+                                    continue;
                                 }
                             }
 
@@ -1137,7 +1326,11 @@ public class LayerCountManager
                                 // недостроенный: горшок готов, нужен только цветок (сажается кликом)
                                 chunkMissing.addTo(Potting.plantState(stateSchematic), 1);
                             }
-                            else if (differs(stateSchematic, stateClient, ignoreState))
+                            else if (differs(stateSchematic, stateClient, ignoreState)
+                                    // Схема просит обычный флаг (горшок, голову), а стоит узорный того же вида: состояние
+                                    // то же, предмет — другой. Клетки с данными сверяются выше, обычные — здесь
+                                    || (! snapshot && region.blockEntities() != null && ItemData.matters(stateSchematic)
+                                            && DataItems.hasData(ItemData.required(mc.level, posMutable, stateClient))))
                             {
                                 chunkMismatch.addTo(stateSchematic, 1);
                             }
@@ -1148,23 +1341,57 @@ public class LayerCountManager
                 budget -= (long) (endX - startX + 1) * (endY - startY + 1) * (endZ - startZ + 1);
             }
 
+            LongOpenHashSet hiddenNow = hiddenKnown != null ? hiddenKnown : hiddenFound;
+            SupportCells chunkSupports = null;
+
             if (knownSupports != null)
             {
-                SupportCells known = knownSupports.get(chunkKey);
+                chunkSupports = knownSupports.get(chunkKey);
+            }
+            else if (foundCells != null && ! foundCells.isEmpty())
+            {
+                chunkSupports = new SupportCells(foundCells.toLongArray(), foundStates.toArray(new BlockState[0]),
+                        foundOwners.toLongArray());
 
-                if (known != null)
+                if (this.supportsBuilding != null)
                 {
-                    for (int i = 0; i < known.cells().length; ++i)
-                    {
-                        this.countSupport(mc, known.wanted()[i], known.cells()[i], verified, cached, ignoreState,
-                                chunkMissing, chunkMismatch);
-                    }
+                    this.supportsBuilding.put(chunkKey, chunkSupports);
                 }
             }
-            else if (foundCells != null && ! foundCells.isEmpty() && this.supportsBuilding != null)
+
+            // Без режима — как с 13.10.2026: опора вне слоя в счёте всегда. В режиме «скрывать без опоры» она строится
+            // в этой работе только при «Опоре с соседнего слоя», и только для клетки, которая сама в счёте
+            if (chunkSupports != null && (! hide || this.hideFromLayers))
             {
-                this.supportsBuilding.put(chunkKey, new SupportCells(foundCells.toLongArray(),
-                        foundStates.toArray(new BlockState[0])));
+                for (int i = 0; i < chunkSupports.cells().length; ++i)
+                {
+                    if (hiddenNow != null && hiddenNow.contains(chunkSupports.owners()[i]))
+                    {
+                        continue;
+                    }
+
+                    this.countSupport(mc, chunkSupports.wanted()[i], chunkSupports.cells()[i], verified, cached, ignoreState,
+                            chunkMissing, chunkMismatch);
+                }
+            }
+
+            if (hiddenFound != null)
+            {
+                // Проверки опоры дороже простой сверки клетки — платим ими из бюджета тика, чтобы большой слой
+                // с опорами разложился на несколько тиков, а не подвесил один
+                budget -= GhostSupport.takeStandWork() * STAND_WORK_COST;
+                ++this.standChunksComputed;
+
+                if (! hiddenUnsure)
+                {
+                    this.standKnown.put(chunkKey, hiddenFound);
+                    this.standKnownAt.put(chunkKey, standNow);
+                }
+                else
+                {
+                    this.standKnown.remove(chunkKey);
+                    this.standKnownAt.remove(chunkKey);
+                }
             }
 
             List<SchematicEntities.Wanted> chunkEntities = this.entitiesInChunks.get(pos);
@@ -1179,7 +1406,8 @@ public class LayerCountManager
                 accumulate(this.countsMissing, this.countsMismatch, chunkMissing, chunkMismatch, onlyEmpty);
                 accumulate(this.dataMissing, this.dataMismatch, chunkMissingData, chunkMismatchData, onlyEmpty);
                 cache.put(chunkKey, merged(chunkMissing, foldMissing), merged(chunkMismatch, foldMismatch),
-                        new VerifyCache.DataCounts(chunkMissingData, chunkMismatchData, foldMissing, foldMismatch));
+                        new VerifyCache.DataCounts(chunkMissingData, chunkMismatchData, foldMissing, foldMismatch),
+                        hide ? hiddenNow : null);
             }
             else if (cached != null)
             {
@@ -1255,9 +1483,9 @@ public class LayerCountManager
                 new Object2IntOpenHashMap<>(this.entityTotal),
                 new Object2IntOpenHashMap<>(this.entityMissing),
                 new Object2IntOpenHashMap<>(this.entityMismatch),
-                total, missing, String.join(", ", this.placementNames), dimensionId(mc));
+                total, missing, this.hiddenCounting, String.join(", ", this.placementNames), dimensionId(mc));
         this.showingPinned = false;
-        this.publish(list, total, missing, this.unverifiedCounting, this.cachedCounting);
+        this.publish(list, total, missing, this.hiddenCounting, this.unverifiedCounting, this.cachedCounting);
     }
 
     /**
@@ -1280,7 +1508,7 @@ public class LayerCountManager
                 new MaterialRows.Counts<>(snap.dataTotal(), snap.dataMissing(), snap.dataMismatch()),
                 new MaterialRows.Counts<>(snap.entityTotal(), snap.entityMissing(), snap.entityMismatch()),
                 mc.player);
-        this.publish(list, snap.blocksTotal(), snap.blocksMissing(), 0, 0);
+        this.publish(list, snap.blocksTotal(), snap.blocksMissing(), snap.blocksHidden(), 0, 0);
         this.showingPinned = true;
         return true;
     }
@@ -1290,7 +1518,7 @@ public class LayerCountManager
         return mc.level != null ? mc.level.dimension().identifier().toString() : "";
     }
 
-    private void publish(List<MaterialListEntry> list, long total, long missing, int unverified, int cached)
+    private void publish(List<MaterialListEntry> list, long total, long missing, long hidden, int unverified, int cached)
     {
         // Таблице нужны и готовые строки («Всё» — вся постройка); прятать готовое — дело только HUD
         if (this.target.hud() && LayerListConfigs.ONLY_MISSING.getBooleanValue())
@@ -1315,6 +1543,7 @@ public class LayerCountManager
         this.applyStock(this.stockSignature != -1L);
         this.blocksTotal = total;
         this.blocksMissing = missing;
+        this.blocksHidden = hidden;
         this.unverifiedChunks = unverified;
         this.cachedChunks = cached;
         this.hasData = true;
@@ -1350,11 +1579,14 @@ public class LayerCountManager
                 continue;
             }
 
-            Entity ghost = SchematicEntities.ghost(schematicWorld, entity);
-            SchematicEntities.Match match = ghost != null
-                    ? SchematicEntities.match(mc.level, ghost)
-                    : SchematicEntities.matchApprox(mc.level, entity);
-            List<SchematicEntities.Status> statuses = match.statuses();
+            // Чанк загружен, но сущность дальше радиуса сущностей сервера — у клиента её нет в любом случае:
+            // берётся последняя сверка вблизи, без неё — как в незагруженном чанке
+            List<SchematicEntities.Status> statuses = SchematicEntities.verdict(mc, schematicWorld, entity);
+
+            if (statuses == null)
+            {
+                continue;
+            }
 
             for (int i = 0; i < items.size() && i < statuses.size(); ++i)
             {
@@ -1430,7 +1662,12 @@ public class LayerCountManager
         }
         else
         {
-            for (var keyEntry : data.entrySet())
+            // Файл кэша раскладки по ключам не хранит: недостачу состояния получают клетки с данными по очереди. Очередь —
+            // всегда одна и та же (по ключу предмета), иначе при каждом заходе в игру её получали бы разные строки
+            List<Map.Entry<DataItems.Key, Object2IntOpenHashMap<BlockState>>> ordered = new ArrayList<>(data.entrySet());
+            ordered.sort(Comparator.comparing(e -> String.valueOf(DataItems.dataId(e.getKey().sample()))));
+
+            for (var keyEntry : ordered)
             {
                 for (var entry : keyEntry.getValue().object2IntEntrySet())
                 {
@@ -1534,6 +1771,17 @@ public class LayerCountManager
             return false;
         }
 
+        // Статуя медного голема: поза и поворот — не материал (предмет тот же, позу меняет клик, поворот — как у
+        // остальных блоков, по «Игнорировать состояние»). Окисленность и воск — другой блок, сюда не доходят
+        if (schematic.getBlock() instanceof net.minecraft.world.level.block.CopperGolemStatueBlock
+                && client.is(schematic.getBlock()))
+        {
+            return client.getValue(net.minecraft.world.level.block.CopperGolemStatueBlock.FACING)
+                    != schematic.getValue(net.minecraft.world.level.block.CopperGolemStatueBlock.FACING)
+                    || client.getValue(net.minecraft.world.level.block.CopperGolemStatueBlock.WATERLOGGED)
+                    != schematic.getValue(net.minecraft.world.level.block.CopperGolemStatueBlock.WATERLOGGED);
+        }
+
         // Полка: «запитана» и цепочка зависят от редстоуна рядом, а не от того, какую полку
         // поставили, — разница в них не про материал. Важны сторона и вода.
         if (schematic.getBlock() instanceof ShelfBlock && client.is(schematic.getBlock()))
@@ -1546,7 +1794,7 @@ public class LayerCountManager
     }
 
     /**
-     * Клетка «пуста» для подсчёта: воздух или жидкость. Ламинария и водоросли ставятся в
+     * Клетка «пуста» для подсчёта: воздух, жидкость или выпавший слой снега. Ламинария и водоросли ставятся в
      * воду — вода в их клетке значит «не поставлено», а не «стоит не то» (с «Нехватка —
      * только пустые» они иначе вовсе выпадали из нехватки).
      */
@@ -1562,6 +1810,13 @@ public class LayerCountManager
         if (client.getBlock() instanceof LiquidBlock)
         {
             return ! (schematic.getBlock() == client.getBlock() && client.getValue(LiquidBlock.LEVEL) == 0);
+        }
+
+        // Снег, выпавший сверху, на месте блока схемы — клетка не построена, а не «стоит не то»: иначе с
+        // «Только пустые места» блок пропадал из HUD (13.11.2026). Схема сама просит слой снега — сверка как обычно
+        if (client.is(Blocks.SNOW) && ! schematic.is(Blocks.SNOW))
+        {
+            return true;
         }
 
         return false;
@@ -1606,7 +1861,58 @@ public class LayerCountManager
 
     private static long chunkKey(ChunkPos pos)
     {
-        return ((long) pos.z() << 32) | (pos.x() & 0xFFFFFFFFL);
+        return chunkKey(pos.x(), pos.z());
+    }
+
+    private static long chunkKey(int chunkX, int chunkZ)
+    {
+        return ((long) chunkZ << 32) | (chunkX & 0xFFFFFFFFL);
+    }
+
+    /** Срок годности вердиктов чанка: от одного до двух {@link #STAND_TTL_MS}, у каждого чанка свой. */
+    private static long standTtl(long chunkKey)
+    {
+        return STAND_TTL_MS + Math.floorMod(chunkKey * 0x9E3779B97F4A7C15L >>> 20, STAND_TTL_MS);
+    }
+
+    /** Клетка стоит у границы с чанком, которого у клиента нет: что там в мире — неизвестно. */
+    private static boolean nearUnloaded(Minecraft mc, int x, int z)
+    {
+        int chunkX = x >> 4;
+        int chunkZ = z >> 4;
+        int inX = x & 15;
+        int inZ = z & 15;
+        int sideX = inX < UNLOADED_MARGIN ? -1 : inX > 15 - UNLOADED_MARGIN ? 1 : 0;
+        int sideZ = inZ < UNLOADED_MARGIN ? -1 : inZ > 15 - UNLOADED_MARGIN ? 1 : 0;
+
+        return (sideX != 0 && ! WorldUtils.isClientChunkLoaded(mc.level, chunkX + sideX, chunkZ))
+                || (sideZ != 0 && ! WorldUtils.isClientChunkLoaded(mc.level, chunkX, chunkZ + sideZ))
+                || (sideX != 0 && sideZ != 0 && ! WorldUtils.isClientChunkLoaded(mc.level, chunkX + sideX, chunkZ + sideZ));
+    }
+
+    /**
+     * Блок в мире сменился: вердикты опоры этого чанка и соседних больше не годятся (опору поставили или сломали —
+     * клетки рядом и через границу чанка решаются заново в следующем проходе). Сам пересчёт будит {@link #markDirty}.
+     */
+    public void onWorldBlockChanged(BlockPos pos)
+    {
+        if (this.standKnown.isEmpty())
+        {
+            return;
+        }
+
+        int chunkX = pos.getX() >> 4;
+        int chunkZ = pos.getZ() >> 4;
+
+        for (int dx = -1; dx <= 1; ++dx)
+        {
+            for (int dz = -1; dz <= 1; ++dz)
+            {
+                long key = chunkKey(chunkX + dx, chunkZ + dz);
+                this.standKnown.remove(key);
+                this.standKnownAt.remove(key);
+            }
+        }
     }
 
     /** {@code blockEntities} — данные блоков региона из файла схемы, по координатам контейнера. */
@@ -1616,6 +1922,9 @@ public class LayerCountManager
 
     private record ChunkBox(IntBoundingBox box, RegionRef region) {}
 
-    /** Опоры вне слоя одного чанка слоя: клетки ({@link BlockPos#asLong}) и блоки схемы в них, по порядку находки. */
-    private record SupportCells(long[] cells, BlockState[] wanted) {}
+    /**
+     * Опоры вне слоя одного чанка слоя: клетки ({@link BlockPos#asLong}), блоки схемы в них и клетки слоя, которым
+     * они нужны ({@code owners}), по порядку находки.
+     */
+    private record SupportCells(long[] cells, BlockState[] wanted, long[] owners) {}
 }

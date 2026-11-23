@@ -56,7 +56,7 @@ import org.jetbrains.annotations.Nullable;
  *       облёт, сверху);</li>
  *   <li>облёт: O, вращение ПКМ (рыскание/тангаж меняются, расстояние — нет), пределы тангажа, колесо в
  *       пределах расстояния, F, перетаскивание схемы за курсором, панорама СКМ и Shift+ПКМ; «Готово»,
- *       «Отмена», Esc — камера игрока как была; переключатель вида в панели и T;</li>
+ *       «Отмена», Esc (выход с сохранением) — камера игрока как была; переключатель вида в панели и T;</li>
  *   <li>большая схема игрока: зажатие «+» не перекладывает размещение Litematica на каждом повторе.</li>
  * </ul>
  * Снимки: панель с «−»/«+», подсказка, ручка угла, облёт с трёх ракурсов, вид сверху — при GUI 2 и 3,
@@ -294,8 +294,9 @@ final class KEdit
         s.add(step("большая: держим ~1,5 с", 30_000L, mc -> this.bigHolding()));
         s.add(step("большая: отпустить", 3_000L, mc -> this.bigRelease()));
         s.add(step("большая: после отпускания 4 с", 30_000L, this.k.settleThen(4_000L, mc -> this.bigAfter())));
-        s.add(step("большая: Esc", 3_000L, mc -> this.key(InputConstants.KEY_ESCAPE)));
-        s.add(step("большая: Esc — как при открытии", 20_000L, mc -> this.bigReverted()));
+        // Откат — только кнопкой «Отмена»: Esc с 1.0.26 выходит с сохранением
+        s.add(step("большая: «Отмена»", 3_000L, mc -> this.clickCancel()));
+        s.add(step("большая: «Отмена» — как при открытии", 20_000L, mc -> this.bigReverted()));
         s.add(step("большая: убрать", 10_000L, mc -> this.removeBig()));
         return s;
     }
@@ -499,6 +500,21 @@ final class KEdit
     {
         PlacementEditorScreen e = editor();
         this.realMove(2.0, e == null ? 100.0 : PlacementEditorScreen.TestHooks.freeBottom(e) - 4.0);
+        return true;
+    }
+
+    private boolean clickCancel()
+    {
+        PlacementEditorScreen e = editor();
+
+        if (e == null)
+        {
+            this.k.fail(T + "«Отмена»: нет редактора");
+            return true;
+        }
+
+        int[] r = PlacementEditorScreen.TestHooks.footerButton(e, false);
+        KProbe.click(e, r[0] + r[2] / 2.0, r[1] + r[3] / 2.0);
         return true;
     }
 
@@ -1888,7 +1904,7 @@ final class KEdit
             return false;
         }
 
-        this.check("большая: Esc вернул как при открытии", this.beforeState, p == null ? null : EditHistory.State.of(p));
+        this.check("большая: «Отмена» вернула как при открытии", this.beforeState, p == null ? null : EditHistory.State.of(p));
         return true;
     }
 

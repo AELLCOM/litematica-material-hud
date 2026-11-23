@@ -32,6 +32,13 @@ public class LayerListConfigs implements IConfigHandler
     public static final ConfigBoolean PIN_ACROSS_DIMENSIONS  = new ConfigBoolean("pinAcrossDimensions", true);
     /** С 1.0.20: «С учётом склада» — HUD и таблица «Материалы» прячут то, что уже есть в инвентаре и известных сундуках. */
     public static final ConfigBoolean USE_STOCK              = new ConfigBoolean("useStock", false);
+    /**
+     * 29.10.2026: склад («В сундуках», «С учётом склада») — только из выбранных сундуков, а не из всех открытых. Выбор —
+     * клавишей {@link #PICK_CHESTS} и щелчком по сундуку; по умолчанию выкл.
+     */
+    public static final ConfigBoolean COUNT_CHOSEN_CHESTS    = new ConfigBoolean("countChosenChests", false);
+    /** 29.10.2026: эндер-сундук игрока — тоже склад (снимок при открытии, общий для измерений сервера). */
+    public static final ConfigBoolean COUNT_ENDER_CHEST      = new ConfigBoolean("countEnderChest", true);
     public static final ConfigBoolean SHORTFALL_ONLY_MISSING = new ConfigBoolean("shortfallOnlyMissing", true);
     public static final ConfigBoolean SHOW_SHORTFALL         = new ConfigBoolean("showShortfall", false);
     public static final ConfigBoolean SHOW_PROGRESS_BAR      = new ConfigBoolean("showProgressBar", true);
@@ -74,6 +81,11 @@ public class LayerListConfigs implements IConfigHandler
 
     public static final ConfigBoolean GHOST_LEAN_INNER_SIDES = new ConfigBoolean("ghostLeanInnerSides", true);
     public static final ConfigBoolean GHOST_INVENTORY_ONLY   = new ConfigBoolean("ghostInventoryOnly", false);
+    /** С 13.11.2026: мобы схемы (курица, житель…) в голограмме Litematica. Стойки, рамки, картины — всегда. */
+    public static final ConfigBoolean GHOST_SHOW_MOBS        = new ConfigBoolean("ghostShowMobs", false);
+    /** С 14.11.2026: не рисовать голограммы рамок портала Края и самих порталов (Нижнего мира, Края, шлюза). */
+    public static final ConfigBoolean GHOST_HIDE_PORTALS     = new ConfigBoolean("ghostHidePortals", false);
+    public static final ConfigBoolean GHOST_ENTITY_OVERLAY   = new ConfigBoolean("ghostEntityOverlay", true);
     /** С 1.0.4: не рисовать голограммы блоков, которым в мире не на чем держаться (табличка без потолка, лиана в воздухе). */
     public static final ConfigBoolean GHOST_HIDE_UNSUPPORTED = new ConfigBoolean("ghostHideUnsupported", false);
     /** С 1.0.4: показывать и давать ставить опору с соседнего слоя для блока видимого слоя. */
@@ -126,6 +138,8 @@ public class LayerListConfigs implements IConfigHandler
     public static final ConfigInteger BLOCKS_PER_TICK        = new ConfigInteger("blocksPerTick", 250000, 10000, 4000000);
     /** Оформление (22.10.2026): 0 — Aell UI (по умолчанию), 1 — Vanilla (настройки плитками), 2 — Vanilla+ (строками, как Litematica). */
     public static final ConfigInteger UI_STYLE = new ConfigInteger("uiStyle", 0, 0, 2);
+    /** Запертые ячейки хотбара — биты 0–8 ({@code core.HotbarLocks}); правится карточкой-хотбаром во вкладке Easy Place. */
+    public static final ConfigInteger LOCKED_HOTBAR_SLOTS    = new ConfigInteger("lockedHotbarSlots", 0, 0, 511);
     /** Список считает всё на высоте Y и ниже, рендер слоёв не меняется (22.10.2026). Выключено — список идёт за слоями. */
     public static final ConfigBoolean MATERIAL_CUTOFF        = new ConfigBoolean("materialCutoff", false);
     public static final ConfigInteger MATERIAL_CUTOFF_Y      = new ConfigInteger("materialCutoffY", 64, -60, 321);
@@ -153,6 +167,8 @@ public class LayerListConfigs implements IConfigHandler
     public static final ConfigHotkey TOGGLE_SEARCH_ALL_CHESTS = new ConfigHotkey("toggleSearchAllChests", "", SEARCH_SETTINGS);
     public static final ConfigHotkey VERIFY_KEY = new ConfigHotkey("verifyBlocksKey", "LEFT_CONTROL,B");
     public static final ConfigHotkey GHOST_INVENTORY_KEY = new ConfigHotkey("ghostInventoryKey", "");
+    /** Режим выбора сундуков для счёта: ПКМ по хранилищу отмечает его вместо открытия; по умолчанию клавиши нет. */
+    public static final ConfigHotkey PICK_CHESTS = new ConfigHotkey("pickChestsKey", "");
     /** Переключатели защит Easy Place; с Easy Place Fix+ 1.0.18+ — его же клавиши (LayerListSettings.epHotkey). */
     public static final ConfigHotkey TOGGLE_STRICT_SCHEMATIC = new ConfigHotkey("toggleStrictSchematic", "");
     public static final ConfigHotkey TOGGLE_DIG_GUARD = new ConfigHotkey("toggleDigGuard", "");
@@ -162,7 +178,7 @@ public class LayerListConfigs implements IConfigHandler
      * списком — malilib сохраняет их вместе с остальными, «Сбросить всё» сбрасывает и их.
      */
     public static final List<IConfigBase> OPTIONS = ImmutableList.<IConfigBase>builder().add(
-            REPLACE_LITEMATICA_HUD, ONLY_MISSING, USE_STOCK, PIN_ACROSS_DIMENSIONS, COUNT_ENTITIES, SHORTFALL_ONLY_MISSING, SHOW_SHORTFALL,
+            REPLACE_LITEMATICA_HUD, ONLY_MISSING, USE_STOCK, COUNT_CHOSEN_CHESTS, COUNT_ENDER_CHEST, PIN_ACROSS_DIMENSIONS, COUNT_ENTITIES, SHORTFALL_ONLY_MISSING, SHOW_SHORTFALL,
             SHOW_PROGRESS_BAR, HUD_COUNT_IN_BOXES, SORT_BY_NAME,
             SHOW_SEARCH_MARKERS, SEARCH_ITEM_FRAMES, SEARCH_FOLLOWS_PAGE,
             SKIP_ITEMS_IN_INVENTORY, SEARCH_RADIUS, SEARCH_ALL_CHESTS,
@@ -177,9 +193,9 @@ public class LayerListConfigs implements IConfigHandler
             EP_STRIP_LOGS, EP_FINISH_TOOLS,
             EP_PLAIN_HITS, EP_NO_TURN, EP_POSE_AHEAD,
             EP_JITTER, EP_DIG_GUARD, EP_DIG_GUARD_OUTSIDE, EP_DIG_GUARD_CORRECT, EP_DIG_GUARD_EP_ONLY, EP_AUTO_TOOL, EP_REPLACE_SOIL, EP_DIRT_FOR_GRASS, EP_ENTITIES,
-            VERIFY_SHELVES, SHELF_SHOW_EMPTY, GHOST_LEAN_INNER_SIDES, GHOST_INVENTORY_ONLY,
+            VERIFY_SHELVES, SHELF_SHOW_EMPTY, GHOST_LEAN_INNER_SIDES, GHOST_INVENTORY_ONLY, GHOST_SHOW_MOBS, GHOST_HIDE_PORTALS, GHOST_ENTITY_OVERLAY,
             GHOST_HIDE_UNSUPPORTED, GHOST_SUPPORT_FROM_LAYERS, GHOST_FLAT_NO_FILL,
-            EP_DEBUG, EP_PLACE_RATE, EP_CONFIRM_WINDOW, EP_AUTOMATION_WINDOW)
+            EP_DEBUG, EP_PLACE_RATE, EP_CONFIRM_WINDOW, EP_AUTOMATION_WINDOW, LOCKED_HOTBAR_SLOTS)
             .addAll(SchematicsConfig.OPTIONS)
             .build();
 
@@ -198,7 +214,7 @@ public class LayerListConfigs implements IConfigHandler
 
     public static final List<ConfigHotkey> HOTKEYS = ImmutableList.<ConfigHotkey>builder().add(
             TOGGLE_HUD, SCROLL_UP, SCROLL_DOWN, OPEN_CONFIG, OPEN_HUD_POSITION,
-            SEARCH_STORAGE, CLEAR_SEARCH, TOGGLE_SEARCH_ALL_CHESTS, VERIFY_KEY, GHOST_INVENTORY_KEY,
+            SEARCH_STORAGE, CLEAR_SEARCH, TOGGLE_SEARCH_ALL_CHESTS, VERIFY_KEY, GHOST_INVENTORY_KEY, PICK_CHESTS,
             TOGGLE_STRICT_SCHEMATIC, TOGGLE_DIG_GUARD)
             .addAll(SchematicsConfig.HOTKEYS)
             .build();

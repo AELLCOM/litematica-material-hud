@@ -59,9 +59,10 @@ import org.jetbrains.annotations.Nullable;
  * когда мышь замерла с зажатой кнопкой). Схема больше — тумблер выключен, и прямо под ним сказано
  * почему: иначе переключение «ничего не меняло». Вся такая серия — один шаг «Отменить шаг».
  *
- * <p>«Готово»/Enter — оставить как есть; «Отмена»/Esc — вернуть исходные origin, поворот и
- * отражение, а только что созданное размещение убрать. Закрытие мимо этих кнопок (выход из мира,
- * смерть, чужой экран) ничего не откатывает и не применяет недотащенное.
+ * <p>Любой выход сохраняет то, что игрок успел задать: «Готово», Enter и Esc — оставить как есть;
+ * закрытие мимо кнопок (выход из мира, смерть, чужой экран) — тоже, вместе с недотащенным и набранным
+ * в поле числом. Откат — только кнопка «Отмена»: исходные origin, поворот и отражение, а только что
+ * созданное размещение убрать.
  */
 @Environment(EnvType.CLIENT)
 public final class PlacementEditorScreen extends GuiBase
@@ -590,19 +591,29 @@ public final class PlacementEditorScreen extends GuiBase
     {
         try
         {
-            // Закрыли мимо «Готово»/«Отмены»: недотащенное не применяем, остальное — как есть.
-            // Недонабранное число тоже: поле выходит из ввода и отпускает ввод текста SDL
-            this.gesture = Gesture.NONE;
-            this.releaseHeld();
-            this.liftCorner = -1;
-            this.stopCamera();
-
+            // Закрыли мимо «Готово»/«Отмены» (экран сменили снаружи): всё, что игрок успел задать, остаётся —
+            // недотащенное применяем, набранное число тоже. Неверное число бросаем: поле в любом случае
+            // выходит из ввода и отпускает ввод текста SDL. После «Отмены» сюда приходим уже с closing —
+            // тогда ничего не применяем, откат сделан
             EditorControls.NumberField field = this.editingField();
 
             if (field != null)
             {
-                field.cancel();
+                if (this.closing || ! PlacementOps.exists(this.placement) || ! field.finish())
+                {
+                    field.cancel();
+                }
             }
+
+            if (! this.closing && PlacementOps.exists(this.placement))
+            {
+                this.finishGesture(true);
+            }
+
+            this.gesture = Gesture.NONE;
+            this.releaseHeld();
+            this.liftCorner = -1;
+            this.stopCamera();
 
             if (this.liveGhostsChanged)
             {
@@ -2287,8 +2298,8 @@ public final class PlacementEditorScreen extends GuiBase
 
         switch (key)
         {
-            case InputConstants.KEY_ESCAPE -> this.cancel();
-            case InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> this.done();
+            // Esc — выход с сохранением, как «Готово»: откат остался только за кнопкой «Отмена»
+            case InputConstants.KEY_ESCAPE, InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> this.done();
             case InputConstants.KEY_UP, InputConstants.KEY_DOWN, InputConstants.KEY_LEFT, InputConstants.KEY_RIGHT ->
             {
                 this.finishGesture(true);

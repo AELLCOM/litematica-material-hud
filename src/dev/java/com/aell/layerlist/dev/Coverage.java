@@ -170,6 +170,7 @@ public final class Coverage
                 case "frames" -> JOBS.add(new SupportFrameTest());
                 case "entghost" -> JOBS.add(new EntityGhostShot());
                 case "cushion" -> JOBS.add(new CushionTest());
+                case "cushionstack" -> JOBS.add(new CushionStackTest());
                 case "refuse" -> JOBS.add(new RefuseTest());
                 case "toggles" -> JOBS.add(new ToggleKeysTest());
                 case "longlines" -> JOBS.add(new LongLinesTest());
@@ -188,9 +189,18 @@ public final class Coverage
                 case "y", "click" -> JOBS.add(new TransferClickTest());
                 case "transferclose" -> JOBS.add(new TransferCloseTest());
                 case "nestedsearch" -> JOBS.add(new NestedSearchTest());
+                case "chosen" -> JOBS.add(new ChosenChestsTest());
                 case "stockhud" -> JOBS.add(new StockHudTest());
                 case "countformat" -> JOBS.add(new CountFormatTest());
                 case "escguard" -> JOBS.add(new EscGuardTest());
+                case "snow" -> JOBS.add(new SnowTest());
+                case "bannertake" -> JOBS.add(new BannerTakeTest());
+                case "mobs" -> JOBS.add(new MobsTest());
+                case "portals" -> JOBS.add(new PortalsTest());
+                case "hotbarlock" -> JOBS.add(new HotbarLockTest());
+                case "supportlist" -> JOBS.add(new SupportListTest());
+                case "statuepose" -> JOBS.add(new StatuePoseTest());
+                case "bannerstock" -> JOBS.add(new BannerStockTest());
                 case "transferbox" -> JOBS.add(new TransferBoxTest());
                 case "s", "epfsupport" -> JOBS.add(new EpfSupportTest());
                 case "m", "settingsshot" -> JOBS.add(new SettingsShot());
@@ -381,6 +391,10 @@ public final class Coverage
             boolean bypass = "1".equals(System.getenv("LL_SP_BYPASS"));
             fi.dy.masa.litematica.config.Configs.Generic.ITEM_USE_PACKET_CHECK_BYPASS.setBooleanValue(bypass);
             CovOut.log("проверка точки клика на сервере: " + (bypass ? "снята (как в одиночной игре)" : "как на настоящем сервере"));
+            // Опции опоры с 19.11.2026 действуют и на список панели. Стенды, которые их не выставляют сами, не должны
+            // зависеть от того, что осталось в layerlist.json после прошлого прогона: прогон начинается с умолчаний
+            com.aell.layerlist.config.LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setBooleanValue(false);
+            com.aell.layerlist.config.LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setBooleanValue(false);
         }
 
         if (stageTicks < SETTLE_TICKS)

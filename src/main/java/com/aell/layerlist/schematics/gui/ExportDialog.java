@@ -113,7 +113,7 @@ final class ExportDialog
 
     /**
      * Меню «Выгрузить ▾» под кнопкой {@code anchor}: форматы (выбор открывает окно с этим форматом —
-     * осталось проверить ники и нажать), «Таблица команды» (если настроена) и «Все форматы…».
+     * осталось проверить ники и нажать) и «Все форматы…».
      */
     static void menu(GuiSchematics screen, Widget anchor, @Nullable SchematicEntry entry)
     {
@@ -122,13 +122,6 @@ final class ExportDialog
         for (ExportFormat format : ExportFormat.grid())
         {
             items.add(ContextMenu.Item.of(format.label(), () -> open(screen, entry, format)).withTooltip(format.tooltip()));
-        }
-
-        if (ExportFormat.teamConfigured())
-        {
-            items.add(ContextMenu.Item.separator());
-            items.add(ContextMenu.Item.of(ExportFormat.TEAM.label(), () -> open(screen, entry, ExportFormat.TEAM))
-                    .withTooltip(ExportFormat.TEAM.tooltip()));
         }
 
         items.add(ContextMenu.Item.separator());

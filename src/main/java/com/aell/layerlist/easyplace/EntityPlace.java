@@ -96,7 +96,19 @@ public final class EntityPlace
     /** Ставить нельзя, и человеку стоит сказать почему. */
     private record Skip(String reasonKey) {}
 
+    /**
+     * Клетка-опора подушки под прицелом, которую надо поставить раньше самой подушки. Живёт один вызов
+     * обработчика: {@link #run} её сбрасывает, прицел Litematica ({@code MixinLitematicaRayTraceUtils}) забирает.
+     */
+    private static @Nullable BlockHitResult pendingSupport;
+
     private EntityPlace() {}
+
+    /** Опора подушки, на голограмму которой смотрит игрок: её клетку Easy Place ставит этим кликом. */
+    public static @Nullable BlockHitResult pendingSupport()
+    {
+        return pendingSupport;
+    }
 
     public static void clear()
     {
@@ -112,6 +124,7 @@ public final class EntityPlace
             return false;
         }
 
+        pendingSupport = null;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
@@ -253,6 +266,12 @@ public final class EntityPlace
                 continue;
             }
 
+            // Голограмму без предмета с собой режим «только из инвентаря» не рисует — и прицел её не видит
+            if (SchematicEntities.hiddenByInventory(ghost))
+            {
+                continue;
+            }
+
             // Рамка и картина толщиной в шестнадцатую — чуть раздуваем, чтобы попасть было легко
             Optional<Vec3> hit = ghost.getBoundingBox().inflate(0.0625D).clip(eyes, end);
 
@@ -298,6 +317,25 @@ public final class EntityPlace
         {
             EpDebug.say("сущность " + best.ghost().getType() + ": заслоняет блок " + EpDebug.at(wall.getBlockPos()));
             return null;
+        }
+
+        // Подушка лежит на блоке схемы, которого ещё нет (кнопка, плита, ковёр, снег, котёл — часто в той же
+        // клетке, что и сама подушка): сначала он. Голограмма подушки закрывает его собой, и луч Litematica в
+        // мелкий контур под ней не попадает, — клетку называем сами, клик уйдёт сквозь голограмму подушки
+        if (best.kind() == SchematicEntities.Kind.CUSHION)
+        {
+            BlockPos support = cushionSupport(level, schematic, best.ghost());
+
+            if (support != null)
+            {
+                // Точка клика — середина контура самой опоры, грань — сбоку, со стороны игрока: высота точки
+                // решает половину у плиты и люка (вход луча в клетку сверху дал бы верхнюю плиту вместо нижней)
+                VoxelShape shape = schematic.getBlockState(support).getShape(schematic, support);
+                Vec3 middle = shape.isEmpty() ? Vec3.atCenterOf(support) : shape.bounds().move(support).getCenter();
+                pendingSupport = new BlockHitResult(middle, player.getDirection().getOpposite(), support, false);
+                EpDebug.say("сущность " + best.ghost().getType() + ": сначала опора " + EpDebug.at(support));
+                return null;
+            }
         }
 
         // Клетка схемы ближе голограммы — сначала её ставит Litematica
@@ -433,6 +471,29 @@ public final class EntityPlace
 
         return new Action("подушка", stack -> stack.is(item.getItem()), item,
                 Direction.fromYRot(ghost.getYRot()).toYRot(), hit, null, needsSneak(level, hit), SPAWN_WAIT_MS);
+    }
+
+    /**
+     * Блок схемы, на котором лежит подушка и которого в мире ещё нет, — или {@code null}
+     * ({@link SchematicEntities#cushionSupports}). Клетка годится, если Easy Place есть что в ней делать и есть чем.
+     */
+    private static @Nullable BlockPos cushionSupport(ClientLevel level, WorldSchematic schematic, Entity ghost)
+    {
+        for (BlockPos pos : SchematicEntities.cushionSupports(schematic, ghost.getBoundingBox()))
+        {
+            BlockState wanted = schematic.getBlockState(pos);
+            BlockState world = level.getBlockState(pos);
+
+            if (world.canBeReplaced() && DataManager.getRenderLayerRange().isPositionWithinRange(pos)
+                    && SchematicTarget.actionable(pos)
+                    && ! (com.aell.layerlist.ghost.HiddenGhosts.any()
+                            && com.aell.layerlist.ghost.HiddenGhosts.hidden(wanted, world, pos, level, schematic)))
+            {
+                return pos;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -709,7 +770,15 @@ public final class EntityPlace
             return hand;
         }
 
-        int slot = player.getInventory().getSelectedSlot();
+        // Запертую ячейку не затираем: предмет встаёт в открытую, рука переходит на неё
+        int slot = com.aell.layerlist.core.HotbarLocks.target(player.getInventory());
+
+        if (slot < 0)
+        {
+            return null;
+        }
+
+        player.getInventory().setSelectedSlot(slot);
         ItemStack stack = sample.copyWithCount(1);
         player.getInventory().setItem(slot, stack);
         mc.gameMode.handleCreativeModeItemAdd(stack, 36 + slot);

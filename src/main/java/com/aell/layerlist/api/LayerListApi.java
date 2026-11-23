@@ -88,14 +88,29 @@ public final class LayerListApi
         return LayerCountManager.getInstance().getAllEntries();
     }
 
+    /**
+     * Сколько блоков в постройке (слое, участке). Как и {@link #getBlocksMissing()}, вместе с клетками, которые панель
+     * скрыла как непоставимые сейчас: «всего» минус «не хватает» у аддона остаётся числом построенных блоков.
+     */
     public static long getBlocksTotal()
     {
-        return LayerCountManager.getInstance().getBlocksTotal();
+        return LayerCountManager.getInstance().getBlocksTotal() + LayerCountManager.getInstance().getBlocksHidden();
     }
 
+    /**
+     * Сколько блоков ещё не построено. С «Скрывать блоки без опоры» панель убирает из своего счёта клетки, которые
+     * пока не поставить, но здесь они остаются: аддон, который по нулю решает «участок готов» (автопереход Zone Focus),
+     * не должен уходить с недостроенного участка.
+     */
     public static long getBlocksMissing()
     {
-        return LayerCountManager.getInstance().getBlocksMissing();
+        return LayerCountManager.getInstance().getBlocksMissing() + LayerCountManager.getInstance().getBlocksHidden();
+    }
+
+    /** Клетки, которые панель скрыла как непоставимые сейчас («Скрывать блоки без опоры»); без режима — 0. */
+    public static long getBlocksHidden()
+    {
+        return LayerCountManager.getInstance().getBlocksHidden();
     }
 
     public static void markDirty()

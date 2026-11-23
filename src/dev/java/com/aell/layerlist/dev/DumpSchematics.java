@@ -1054,6 +1054,17 @@ public final class DumpSchematics implements CovJob
             return true;
         }
 
+        // LL_K_ONLY=place — только размещение: «Отмена», Enter, Esc (1.0.26) и откат большой схемы
+        if ("place".equals(System.getenv("LL_K_ONLY")))
+        {
+            steps.addAll(this.place.steps());
+            steps.addAll(this.edit.bigSteps());
+            steps.add(new Step("закрыть экран", 3_000L, m -> this.closeScreen()));
+            steps.add(new Step("снимки записаны", 10_000L, m -> this.shotsWritten()));
+            this.insertNext(steps);
+            return true;
+        }
+
         // LL_K_ONLY=edit — только редактор размещения 0.0.27 («−»/«+», угол, облёт) при GUI 2 и 3
         if ("edit".equals(System.getenv("LL_K_ONLY")))
         {

@@ -47,6 +47,15 @@ public abstract class MixinLitematicaRayTraceUtils
         }
 
         RayTraceUtils.RayTraceWrapper current = cir.getReturnValue();
+        BlockHitResult support = com.aell.layerlist.easyplace.EntityPlace.pendingSupport();
+
+        // Опора подушки под прицелом — как в getGenericTrace ниже
+        if (support != null)
+        {
+            cir.setReturnValue(new RayTraceUtils.RayTraceWrapper(
+                    RayTraceUtils.RayTraceWrapper.HitType.SCHEMATIC_BLOCK, support));
+            return;
+        }
 
         if (current != null && ! layerlist$deadEnd(current))
         {
@@ -135,6 +144,23 @@ public abstract class MixinLitematicaRayTraceUtils
         boolean schematicHit = current != null
                 && current.getHitType() == RayTraceUtils.RayTraceWrapper.HitType.SCHEMATIC_BLOCK;
         boolean deadEnd = schematicHit && layerlist$deadEnd(current);
+
+        // Под прицелом голограмма подушки, а блока под ней ещё нет (16.11.2026): клик идёт в него, сквозь
+        // голограмму. Раньше остального: луч мог упереться в другую клетку схемы за подушкой
+        BlockHitResult support = com.aell.layerlist.easyplace.EntityPlace.pendingSupport();
+
+        if (support != null)
+        {
+            if (! schematicHit || ! current.getBlockHitResult().getBlockPos().equals(support.getBlockPos()))
+            {
+                com.aell.layerlist.easyplace.EpDebug.say("прицел (опора подушки) → "
+                        + com.aell.layerlist.easyplace.EpDebug.at(support.getBlockPos()));
+                cir.setReturnValue(new RayTraceUtils.RayTraceWrapper(
+                        RayTraceUtils.RayTraceWrapper.HitType.SCHEMATIC_BLOCK, support));
+            }
+
+            return;
+        }
 
         // Наведена клетка схемы с работой — ничего не меняем
         if (schematicHit && ! deadEnd)

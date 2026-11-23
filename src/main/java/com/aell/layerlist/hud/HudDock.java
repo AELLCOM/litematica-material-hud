@@ -63,6 +63,9 @@ public final class HudDock
     // из AbstractRecipeBookScreen.init и столбец эффектов из EffectsInInventory
     private static final int BOOK_OFFSET_X = 86;
     private static final int BOOK_NARROW_WINDOW = 379;
+    // Вкладки книги торчат левее неё: RecipeBookComponent.updateTabs ставит их на 30 px левее,
+    // выбранная рисуется ещё на 2 px левее (RecipeBookTabButton)
+    private static final int BOOK_TABS_OUT = 30 + 2;
     private static final int EFFECTS_GAP = 2;
     private static final int EFFECTS_COMPACT = 32;
     private static final int EFFECTS_FULL = 120;
@@ -195,7 +198,7 @@ public final class HudDock
         return room <= 0 ? 0.0D : Math.floor(room / (double) layoutW * 100.0D) / 100.0D;
     }
 
-    /** Левый край занятого места с учётом открытой книги рецептов. */
+    /** Левый край занятого места с учётом открытой книги рецептов и её вкладок. */
     private static int recipeBookLeft(AbstractContainerScreen<?> screen, int left)
     {
         if (! (screen instanceof AbstractRecipeBookScreen<?>))
@@ -216,7 +219,7 @@ public final class HudDock
             // окне книга ложится поверх окна контейнера, и левее него ничего нет
             int offset = screen.width < BOOK_NARROW_WINDOW ? 0 : BOOK_OFFSET_X;
 
-            return Math.min(left, (screen.width - RecipeBookComponent.IMAGE_WIDTH) / 2 - offset);
+            return Math.min(left, (screen.width - RecipeBookComponent.IMAGE_WIDTH) / 2 - offset - BOOK_TABS_OUT);
         }
         catch (RuntimeException | LinkageError e)
         {

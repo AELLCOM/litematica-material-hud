@@ -45,9 +45,7 @@ public final class SchematicsConfig
 
     /** Пусто — {@link #DEFAULT_EXPORT_FOLDER} в папке игры; путь в конфиге тогда переносим между компьютерами. */
     public static final ConfigString EXPORT_DIR          = new ConfigString("schematicsExportDir", "");
-    public static final ConfigString SHEETS_WEB_APP_URL  = new ConfigString("schematicsSheetsWebAppUrl", "");
-    public static final ConfigString SHEETS_TOKEN        = new ConfigString("schematicsSheetsToken", "");
-    /** Цвета Google Таблиц: файла для импорта и листа в таблице команды. */
+    /** Цвета таблицы сбора: Excel и файла для импорта в Google Таблицы. */
     public static final ConfigOptionList SHEETS_PALETTE =
             new ConfigOptionList("schematicsSheetsPalette", SheetsPalette.LIGHT_GRAY);
 
@@ -61,7 +59,7 @@ public final class SchematicsConfig
 
     public static final List<IConfigBase> OPTIONS = ImmutableList.of(
             MAIN_MENU_BUTTON, LITEMATICA_SKIN, LITEMATICA_OWN_SCREENS, THUMBNAILS, PREVIEW_QUALITY, LIVE_GHOSTS, TOP_HIDE_CLOUDS,
-            SELECTION_COMPOUND, EXPORT_DIR, SHEETS_PALETTE, SHEETS_WEB_APP_URL, SHEETS_TOKEN);
+            SELECTION_COMPOUND, EXPORT_DIR, SHEETS_PALETTE);
 
     public static final List<ConfigHotkey> HOTKEYS = ImmutableList.of(OPEN_SCHEMATICS, SELECTION_CURSOR);
 
