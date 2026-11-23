@@ -76,6 +76,7 @@ public final class SupportTest implements CovJob
             + " 180 -10";
 
     private int stage;
+    private boolean bookChecked;
     private long nextAt;
     private boolean failed;
     private SchematicPlacement placement;
@@ -394,6 +395,7 @@ public final class SupportTest implements CovJob
             case 16 ->
             {
                 // Инвентарь игрока (экран с книгой рецептов): подсказка предмета поверх панели
+                server.execute(() -> command(server, "effect give @a minecraft:speed 120 1 true"));
                 mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
                 wait = 1500L;
             }
@@ -416,10 +418,25 @@ public final class SupportTest implements CovJob
                 this.check("инвентарь игрока: панель рисует экран, под подсказкой", draws[1] > 0 && draws[1] == draws[0],
                         "кадров " + draws[0] + ", из экрана " + draws[1]);
                 shot(mc, "подсказка поверх панели в инвентаре");
-                wait = 800L;
+                // Книга рецептов и эффект (столбец эффектов справа, эффект выдан в шаге 16): справа места
+                // нет, панель встаёт слева от книги и не должна ложиться на её вкладки (жалоба 05.11.2026)
+                bookButton(mc);
+                wait = 1500L;
             }
             case 19 ->
             {
+                if (! this.bookChecked)
+                {
+                    // Проверка и снимок — отдельным заходом: снимок берётся кадром позже, книга должна дожить
+                    this.bookChecked = true;
+                    this.checkBookTabs(mc);
+                    --this.stage;
+                    wait = 1000L;
+                    break;
+                }
+
+                bookButton(mc);
+                server.execute(() -> command(server, "effect clear @a"));
                 mc.gui.setScreen(com.aell.layerlist.config.GuiConfigs.create(null, null));
                 com.aell.layerlist.hud.LayerHudRenderer.takeDrawStats();
                 wait = 1500L;
@@ -740,6 +757,64 @@ public final class SupportTest implements CovJob
     }
 
     /** Щелчок левой кнопкой в точке экрана (координаты GUI) — через MouseHandler, как от GLFW. */
+    /** Щелчок по кнопке книги рецептов инвентаря (InventoryScreen.getRecipeBookButtonPosition, 20×18). */
+    private static void bookButton(Minecraft mc)
+    {
+        if (GuiUtils.getCurrentScreen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen inventory)
+        {
+            IMixinAbstractContainerScreen access = (IMixinAbstractContainerScreen) inventory;
+            click(mc, access.layerlist_getLeftPos() + 104 + 10.0D, inventory.height / 2 - 22 + 9.0D);
+        }
+    }
+
+    /** Открытая книга: панель слева от самой левой вкладки (выбранная рисуется на 2 px левее), с зазором. */
+    private void checkBookTabs(Minecraft mc)
+    {
+        Screen screen = GuiUtils.getCurrentScreen();
+        var book = screen instanceof net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen<?>
+                ? ((com.aell.layerlist.mixin.IMixinAbstractRecipeBookScreen) screen).layerlist_getRecipeBook() : null;
+        this.check("книга рецептов открыта щелчком", book != null && book.isVisible(), "");
+
+        if (book == null || ! book.isVisible())
+        {
+            return;
+        }
+
+        int tabsLeft = Integer.MAX_VALUE;
+
+        try
+        {
+            var field = net.minecraft.client.gui.screens.recipebook.RecipeBookComponent.class.getDeclaredField("tabButtons");
+            field.setAccessible(true);
+
+            for (Object o : (List<?>) field.get(book))
+            {
+                var tab = (net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton) o;
+
+                if (tab.visible)
+                {
+                    tabsLeft = Math.min(tabsLeft, tab.getX() - 2);
+                }
+            }
+        }
+        catch (ReflectiveOperationException e)
+        {
+            CovOut.log("[support] вкладки книги не прочитать: " + e);
+        }
+
+        var dock = com.aell.layerlist.hud.LayerHudRenderer.dockBesideContainer(screen);
+        int width = dock == null ? 0 : com.aell.layerlist.hud.LayerHudRenderer.getPanelScreenSize(dock.scale())[0];
+        int left = ((IMixinAbstractContainerScreen) screen).layerlist_getLeftPos();
+        CovOut.log("[support] книга: эффектов " + mc.player.getActiveEffects().size() + ", экран " + screen.width + ", вкладки с x=" + tabsLeft + ", окно с x=" + left
+                + ", панель " + (dock == null ? "не встала" : "x=" + dock.x() + "..+" + width + " масштаб " + dock.scale()));
+        this.check("вкладки книги найдены", tabsLeft != Integer.MAX_VALUE, "");
+        this.check("с книгой и эффектом панель встала у окна", dock != null, "");
+        this.check("панель не заходит на вкладки книги", dock != null && dock.x() + width
+                        <= tabsLeft - com.aell.layerlist.hud.HudDock.GAP,
+                dock == null ? "" : "правый край " + (dock.x() + width) + ", вкладки с " + tabsLeft);
+        shot(mc, "книга рецептов и панель");
+    }
+
     static void click(Minecraft mc, double guiX, double guiY)
     {
         if (! moveMouse(mc, guiX, guiY))

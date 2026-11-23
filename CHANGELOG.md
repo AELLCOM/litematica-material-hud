@@ -3,6 +3,156 @@
 English release notes as published on [Modrinth](https://modrinth.com/mod/material-hud/changelog), newest first.
 The original Russian notes are in [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.33 — 2026-11-21
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### Removed
+- **"Team sheet".** Sending materials to a shared Google Sheet through an Apps Script web app is gone completely. The export window no longer has the "Team sheet" section ("Send to team sheet", "Copy script", "How to set up"), the "Export material list" menu no longer has the "Team sheet" item, and the Schematics settings no longer have "Team sheet: script address" and "Team sheet: key". The script is no longer shipped inside the mod, and exporting sends nothing over the network. A saved address and key are wiped from the config file on the next save. Excel, "Google Sheets" (a file to import) and the other formats work as before.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.32 — 2026-11-20
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### New
+- **"Locked hotbar slots"** (Easy Place tab, "Hotbar slots" section). The settings show a hotbar just like in game, with your items and a padlock in every slot. Click a padlock to lock the slot: it turns gold and pulses slowly. The mod never puts blocks into a locked slot and never takes its item away — your sword, pickaxe or food stays put. Easy Place, schematic pick block, finishing tools, shelves and the chest transfer all skip locked slots. All slots are open by default. Litematica itself only picks blocks into the slots from its own `pickBlockableSlots` option (1–5 by default) — the locks apply on top of it.
+
+#### Fixed
+- fix — **"Hide blocks without support" did not affect the panel list.** The option hid the hologram and the Ctrl+B frames, but such blocks stayed in the "Layer materials" list as if they could be placed. There is now one rule for holograms and the list: a block that cannot be placed right now (no support in the world or among the schematic blocks of this layer) is hidden completely — from the list and from the "N / M blocks" count; the panel footer says how many cells are hidden. If the support is a schematic block that is not built yet, the block and its support stay in the list: place the support and the block hologram appears. It works as a chain too (bricks → pressure plate → carpet), for crops over dirt that still has to be tilled, and for sugar cane with sand and water from the schematic.
+- fix — **a support on the next layer was listed even with "Support from the next layer" off.** With "Hide blocks without support" on, a layer block whose support lies on the next layer is now listed only together with "Support from the next layer" — then both the block and the support are in the list; without it the block is not listed until the support is built. Without "Hide blocks without support" the list is unchanged.
+- fix — **a wall hanging sign with no block at its side was shown as a hologram.** The game checks its support only on placement, so the mod assumed it always holds. Such a sign is now hidden until there is a block at its side, as the option tooltip promises.
+- fix — **with "Hide blocks without support" a big dripleaf was never shown, even with clay already below it.** A stem holds only with a leaf above it, and a leaf only on a stem: taken one by one the mod counted both as unsupported. The column is now checked as a whole.
+- fix — **in the Materials tab, "Count storage" hid patterned banners that were actually missing.** Chests remembered items by kind only, without the pattern: any white banners in chests "covered" every white banner row at once — plain and each pattern — so "Only missing" + "Count storage" hid them. Storage now remembers the banner pattern, pot sherds, head skin and light level: a patterned banner is covered only by the same one, a plain one only by a plain one, and the same stock is no longer credited to several rows. The HUD panel counts the same way (it used to ignore chests for such rows). Storages opened before the update do not remember patterns — open them once more.
+- fix — **the empty Materials table said "Nothing found" when the search was not what hid the rows.** If the search does match rows and "Only missing" or "Count storage" hid them, the table says so: everything is already placed or there is enough in storage.
+- fix — **"Count up to Y" in the Materials tab did nothing for a schematic placed in the world.** The height limit only applied to the count from the schematic file; the world-checked count of the tab now stops at that height too, like the panel.
+- fix — **a patterned banner in place of a plain one counted as built.** The schematic asks for a banner without a pattern (a plain pot, a head without a skin) and the same one with a pattern stands there — this is now "wrong block", not a finished cell.
+- fix — **copper golem statues are gathered regardless of pose.** The pose is stored in the statue item itself, so a statue in the "wrong" pose was not taken in hand for Easy Place or pick block. A cell now accepts a statue in any pose — only oxidation and wax matter; the mod adjusts the pose with clicks itself, including when the schematic wants the standing one. A statue of the same copper standing in another pose counts as built in the list (in the Ctrl+B check it stays "wrong state" until the pose is adjusted).
+- fix — **in "Only blocks from inventory" mode the head of an extended piston was shown without pistons on hand.** The piston base was hidden, but the head stayed as a hologram and counted as missing in the Ctrl+B check. The head now needs the same item as the base — a piston or a sticky piston: without it in your inventory the head is hidden.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.31 — 2026-11-19
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### Fixed
+- fix — **a block disabled in the material list was still highlighted as missing by the block check.** The block check (Ctrl+B) did not track block disables and replacements from the material list and read blocks from Litematica's schematic world before its chunks finished rebuilding in the background. The check now rebuilds immediately whenever a block is disabled or re-enabled (as a whole, on a layer, or in the HUD list), reads states directly from the schematic containers, and never highlights disabled cells as missing or extra.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.30 — 2026-11-17
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### Fixed
+- fix — **placed armor stands, item frames and paintings counted as missing from a distance.** The server only sends entities within its own radius around the player, which is smaller than the chunk distance. Beyond it the mod could not find the entity and showed it as not placed, both in the Ctrl+B check and in the material list. Beyond that radius the mod now uses the last check made up close; if there was none, the entity is not counted as missing.
+- fix — **in "Only blocks from inventory" mode armor stands and other entities were shown without the item on hand.** An entity hologram, its frame in the Ctrl+B check and its highlight now show only when you carry the item for it, just like blocks.
+
+#### New
+- **Highlight entities** (*Ghost Alpha* tab, on by default). Armor stands, item frames, paintings and other schematic entities that are not in the world yet are highlighted just like missing blocks, in the same Litematica color.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.29 — 2026-11-14
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### New
+- **Hide portals** (*Ghost Alpha* tab, off by default). Holograms of End portal frames and of the portals themselves — Nether Portal, End Portal, End Gateway — are no longer drawn, and the crosshair passes through those spots to the blocks behind them. Obsidian and the rest of the schematic look as usual. Portals stay in the material list and in the Ctrl+B check. While the option is on, Easy Place can't put Eyes of Ender into frames — turn it off for that.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.28 — 2026-11-14
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### New
+- **Mobs in holograms** (*Ghost Alpha* tab, off by default). Chickens, villagers, horses and other mobs saved in a schematic are no longer drawn in its hologram. Turn the option on to see them again. Armor stands, item frames and paintings are always shown. A small 3D chicken sits next to the option.
+
+#### Fixed
+- fix — **a block vanished from the HUD when snow lay in its place.** Fallen snow filled the spot, so it counted as "wrong block", and with *Only empty spots* on (the default) the block dropped out of the list. A snow layer where the schematic wants another block now counts as an empty spot, however many layers there are. When the schematic itself asks for a snow layer, checking works as before.
+- fix — ***Move everything needed* took patterned banners for a plain banner.** With a plain banner and a patterned banner of the same color in the schematic, the chest transfer took patterned banners for the plain row, then kept giving them back and taking them again; patterned banners in your inventory also counted as plain ones. Now the plain row takes only banners without a pattern, and a patterned row only the same pattern. The same goes for decorated pots and heads.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.27 — 2026-11-13
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### Fixed
+- fix — **the Selection 3D preview could be empty — only the frame, no world** — when VoxyMap Addon was installed. Voxy draws this preview, and the map turns Voxy off outside itself to spare the game, which turned off our picture too. The preview no longer depends on any other mod: it checks that Voxy really drew the picture, and if anything held it back (another mod, or Voxy has nothing loaded yet), it draws its own preview until you reopen the screen. The 3D view of Zone Focus's zone manager gets the same fix.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.26 — 2026-11-11
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### Fixed
+- fix — **leaving the placement editor with Esc put the schematic back where it was.** Now every way out keeps what you have set: Esc, Enter, *Done*, and closing the window any other way — including an unfinished drag and a number typed into the X/Y/Z field. A placement that was just created is no longer removed by Esc. Only the *Cancel* button puts everything back.
+- fix — **a number typed on the placement card in "Look at the world" was lost** when the cursor screen was closed by something else. It is applied now.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.25 — 2026-11-06
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### Fixed
+- fix — **the panel beside the inventory covered the recipe book tabs.** With the recipe book open and no room on the right (for example, the effects column is there), the panel moves to the left of the book — but it was placed right against the book and covered its category tabs. Now it sits left of the tabs and shrinks if it does not fit, as before.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.24 — 2026-10-29
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### New
+- **Your stash — count materials only from the chests you pick.** "In chests" used to count every storage you had ever opened on the server: friends' chests, the shared warehouse, a stray barrel. Now there is a small *Your stash* tile in Settings → HUD, right under *Look*. Bind *Pick chests*, press it in game and right-click your chests, barrels and shulker boxes to add them or take them out — the chest does not open and nothing is placed from your hand, Easy Place on or off. Picked storages glow green; picked but never opened ones glow orange, because the mod learns what is inside only when you open them. The first pick turns *Only chosen chests* on, and from then on "In chests", *Count storage* and the storage search highlight use only your stash. A picked chest stays picked when it becomes a double chest; a broken one leaves the list by itself. Off by default, the key is not set.
+- **Your ender chest counts as storage** — like *litematica-enderchest-materials*, but smarter. Open it once and its contents, with shulker boxes and bundles inside, go into "In chests" and *Count storage*. The snapshot is kept after you leave the game, shared by all dimensions of the server and separate for each account. It counts in *Only chosen chests* mode too — nobody else can take from it. In picking mode, right-click the ender chest to count it or not. The storage search lights up every ender chest nearby when yours holds what you look for — they all open the same contents. *Count ender chest* sits next to *Count storage*, on by default.
+- **The "In chests" column hint says what counts right now:** only chosen chests (and how many), the ender chest.
+- **Find in chests** from the Materials table tells you when the item is only in chests you have not picked, or only in your ender chest with no ender chest nearby.
+
+**Tip:** chests and the ender chest change the HUD only with *Count storage* on (rows you already have in storage disappear; *Show shortfall* subtracts them). The *In chests* column of the Materials table always counts them.
+
+#### 📦 You need
+
+Minecraft 26.2 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
+## 1.0.23 — 2026-10-29
+
+Minecraft 26.3
+
+#### New
+- **Your stash — count materials only from the chests you pick.** "In chests" used to count every storage you had ever opened on the server: friends' chests, the shared warehouse, a stray barrel. Now there is a small *Your stash* tile in Settings → HUD, right under *Look*. Bind *Pick chests*, press it in game and right-click your chests, barrels and shulker boxes to add them or take them out — the chest does not open and nothing is placed from your hand, Easy Place on or off. Picked storages glow green; picked but never opened ones glow orange, because the mod learns what is inside only when you open them. The first pick turns *Only chosen chests* on, and from then on "In chests", *Count storage* and the storage search highlight use only your stash. A picked chest stays picked when it becomes a double chest; a broken one leaves the list by itself. Off by default, the key is not set.
+- **Your ender chest counts as storage** — like *litematica-enderchest-materials*, but smarter. Open it once and its contents, with shulker boxes and bundles inside, go into "In chests" and *Count storage*. The snapshot is kept after you leave the game, shared by all dimensions of the server and separate for each account. It counts in *Only chosen chests* mode too — nobody else can take from it. In picking mode, right-click the ender chest to count it or not. *Count ender chest* sits next to *Count storage*, on by default.
+- **The "In chests" column hint says what counts right now:** only chosen chests (and how many), the ender chest.
+- **Find in chests** from the Materials table tells you when the item is only in chests you have not picked.
+
+#### 📦 You need
+
+Minecraft 26.3 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional
+
 ## 1.0.22 — 2026-10-26
 
 Minecraft 26.3, 26.2, 1.21.11

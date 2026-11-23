@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Util;
@@ -33,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * уже готовые иконки ({@code ItemIcons.png}: из кеша, иначе плашка цвета). Ошибка любого рода
  * превращается в {@link ExportResult#failure} с текстом для игрока.
  *
- * <p>Перегрузки с {@link IconBatch} (xlsx, Google, картинка, таблица команды) берут иконки из
+ * <p>Перегрузки с {@link IconBatch} (xlsx, Google, картинка) берут иконки из
  * заранее заказанного набора и {@code ItemIcons} не трогают: их можно звать с фонового потока —
  * переводы, реестры и рецепты читаются отовсюду. Так окно выгрузки не замораживает игру на записи
  * большой таблицы с картинками. CSV, JSON и список Litematica иконок не берут и тоже годятся для
@@ -223,71 +222,6 @@ public final class Exporters
     }
 
     /**
-     * «Отправить в таблицу команды» — POST на веб-приложение Apps Script из настроек
-     * ({@code schematicsSheetsWebAppUrl} + {@code schematicsSheetsToken}). Тело собирается сразу
-     * (иконки и переводы — на вызывающем потоке), сеть — в фоне; будущее завершается на потоке
-     * HTTP-клиента, ссылка на новый лист — в {@link ExportResult#open()}.
-     */
-    public static CompletableFuture<ExportResult> sendToTeamSheet(ExportRequest r)
-    {
-        return sendToTeamSheet(r, Exporters::icons);
-    }
-
-    /**
-     * «Отправить в таблицу команды» с иконками из готового набора: тело собирается без
-     * {@code ItemIcons}, поэтому звать можно и с фонового потока.
-     */
-    public static CompletableFuture<ExportResult> sendToTeamSheet(ExportRequest r, IconBatch icons)
-    {
-        return sendToTeamSheet(r, prepared(icons));
-    }
-
-    private static CompletableFuture<ExportResult> sendToTeamSheet(ExportRequest r, IconSource icons)
-    {
-        URI endpoint = GoogleExport.endpoint(SchematicsConfig.SHEETS_WEB_APP_URL.getStringValue());
-
-        if (endpoint == null)
-        {
-            String key = SchematicsConfig.SHEETS_WEB_APP_URL.getStringValue().isBlank() ? "team.noUrl" : "team.badUrl";
-            return CompletableFuture.completedFuture(ExportResult.failure(ExportText.t(key)));
-        }
-
-        try
-        {
-            ExportData data = ExportData.of(r, LocalDateTime.now());
-
-            if (data.lines().isEmpty())
-            {
-                return CompletableFuture.completedFuture(ExportResult.failure(ExportText.t("error.empty")));
-            }
-
-            String token = SchematicsConfig.SHEETS_TOKEN.getStringValue().strip();
-
-            return GoogleExport.send(endpoint, GoogleExport.payload(data, raw(data), icons.of(data), token));
-        }
-        catch (RuntimeException e)
-        {
-            LOGGER.warn("Export: could not prepare the team sheet request", e);
-            return CompletableFuture.completedFuture(ExportResult.failure(ExportText.t("error.failed", e)));
-        }
-    }
-
-    /** Текст скрипта-приёмника для кнопки «Скопировать скрипт»; {@code null} — ресурса нет в jar. */
-    @Nullable
-    public static String teamSheetScript()
-    {
-        try
-        {
-            return GoogleExport.script();
-        }
-        catch (IOException e)
-        {
-            LOGGER.warn("Export: team sheet script is missing from the jar", e);
-            return null;
-        }
-    }
-
-    /**
      * Прочитать рецепты игры для блока «Крупное сырьё» в фоне — звать при открытии окна выгрузки:
      * первое чтение ~1700 файлов из jar-а занимает доли секунды, и ждать их на кнопке незачем.
      */
@@ -296,7 +230,7 @@ public final class Exporters
         Util.backgroundExecutor().execute(RawMaterials::preload);
     }
 
-    /** Открыть адрес в браузере (sheets.new, ссылка на лист команды). */
+    /** Открыть адрес в браузере (sheets.new). */
     public static void browse(URI uri)
     {
         net.minecraft.util.Util.getPlatform().openUri(uri);

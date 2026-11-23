@@ -155,9 +155,35 @@ public abstract class MixinLitematicaPickBlock
         return true;
     }
 
+    /**
+     * Запертые ячейки хотбара ({@link com.aell.layerlist.core.HotbarLocks}): Litematica не берёт в них блок из рюкзака
+     * и не вытесняет их предмет. Через {@code canPickToSlot} она проверяет и ячейку в руке, и ячейки своего списка
+     * {@code pickBlockableSlots} по кругу — запертая отвечает «нельзя», как занятая инструментом.
+     */
+    @org.spongepowered.asm.mixin.injection.Inject(method = "canPickToSlot", at = @At("HEAD"), cancellable = true, require = 0)
+    private static void layerlist$lockedSlot(Inventory inventory, int slot,
+            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir)
+    {
+        if (com.aell.layerlist.core.HotbarLocks.locked(slot))
+        {
+            cir.setReturnValue(false);
+        }
+    }
+
+    /** Пустую ячейку Litematica берёт первой и мимо {@code canPickToSlot} — запертую пустую пропускаем и здесь. */
+    @WrapOperation(method = "getEmptyPickBlockableHotbarSlot",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Inventory;isHotbarSlot(I)Z"),
+            require = 0)
+    private static boolean layerlist$skipLockedEmpty(int slot, Operation<Boolean> original)
+    {
+        return original.call(slot) && ! com.aell.layerlist.core.HotbarLocks.locked(slot);
+    }
+
     private static boolean layerlist$loose(ItemStack wanted)
     {
-        return EasyPlaceModule.isActive() && ! wanted.isEmpty() && ! wanted.isDamageableItem();
+        // Статуя медного голема: поза в компонентах предмета клетке не важна — в руку берётся любая, и не только
+        // когда Easy Place ведёт этот мод (pick-block схемы средней кнопкой, Easy Place Fix+)
+        return ! wanted.isEmpty() && ! wanted.isDamageableItem() && (EasyPlaceModule.isActive() || ItemData.statue(wanted));
     }
 
     /** Первый слот с тем же предметом без учёта прочих компонентов: хотбар, затем рюкзак; −1 — нет. */

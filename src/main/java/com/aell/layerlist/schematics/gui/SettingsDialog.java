@@ -60,8 +60,7 @@ final class SettingsDialog
         toggle(modal, SchematicsConfig.LIVE_GHOSTS);
         toggle(modal, SchematicsConfig.TOP_HIDE_CLOUDS);
 
-        text(modal, SchematicsConfig.EXPORT_DIR, Tr.f("settings.export_dir.hint", SchematicsConfig.DEFAULT_EXPORT_FOLDER),
-                false);
+        text(modal, SchematicsConfig.EXPORT_DIR, Tr.f("settings.export_dir.hint", SchematicsConfig.DEFAULT_EXPORT_FOLDER));
         Dropdown<SchematicsConfig.SheetsPalette> palette = new Dropdown<>(screen.layers,
                 List.of(SchematicsConfig.SheetsPalette.values()), SchematicsConfig.sheetsPalette(),
                 SchematicsConfig.SheetsPalette::getDisplayName, value ->
@@ -72,9 +71,6 @@ final class SettingsDialog
         FormRow paletteRow = FormRow.inline(name(SchematicsConfig.SHEETS_PALETTE), tooltip(SchematicsConfig.SHEETS_PALETTE),
                 palette, CONTROL_W);
         modal.row(paletteRow, paletteRow.height());
-
-        text(modal, SchematicsConfig.SHEETS_WEB_APP_URL, Tr.t("settings.optional"), false);
-        text(modal, SchematicsConfig.SHEETS_TOKEN, Tr.t("settings.optional"), true);
 
         modal.button(new Button(Tr.t("settings.defaults"), Button.Style.SECONDARY, () ->
         {
@@ -135,13 +131,13 @@ final class SettingsDialog
         modal.row(row, row.height());
     }
 
-    private static void text(Modal modal, ConfigString option, String hint, boolean secret)
+    private static void text(Modal modal, ConfigString option, String hint)
     {
         TextInput input = new TextInput();
         input.setText(option.getStringValue());
 
         // Enter в поле — только закончить ввод; окно закрывается кнопкой «Готово»
-        input.hint(hint).maxLength(512).masked(secret).onChange(option::setValueFromString)
+        input.hint(hint).maxLength(512).onChange(option::setValueFromString)
                 .onSubmit(value -> input.setFocused(false));
         FormRow row = FormRow.stacked(name(option), tooltip(option), input);
         modal.row(row, row.height());

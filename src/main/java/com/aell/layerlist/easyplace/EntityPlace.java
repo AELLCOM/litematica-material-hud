@@ -251,6 +251,12 @@ public final class EntityPlace
                 continue;
             }
 
+            // Голограмму без предмета с собой режим «только из инвентаря» не рисует — и прицел её не видит
+            if (SchematicEntities.hiddenByInventory(ghost))
+            {
+                continue;
+            }
+
             // Рамка и картина толщиной в шестнадцатую — чуть раздуваем, чтобы попасть было легко
             Optional<Vec3> hit = ghost.getBoundingBox().inflate(0.0625D).clip(eyes, end);
 
@@ -635,7 +641,15 @@ public final class EntityPlace
             return hand;
         }
 
-        int slot = player.getInventory().getSelectedSlot();
+        // Запертую ячейку не затираем: предмет встаёт в открытую, рука переходит на неё
+        int slot = com.aell.layerlist.core.HotbarLocks.target(player.getInventory());
+
+        if (slot < 0)
+        {
+            return null;
+        }
+
+        player.getInventory().setSelectedSlot(slot);
         ItemStack stack = sample.copyWithCount(1);
         player.getInventory().setItem(slot, stack);
         mc.gameMode.handleCreativeModeItemAdd(stack, 36 + slot);

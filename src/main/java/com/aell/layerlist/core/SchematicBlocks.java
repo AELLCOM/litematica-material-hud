@@ -1,5 +1,6 @@
 package com.aell.layerlist.core;
 
+import com.aell.layerlist.schematics.materials.BlockReplacements;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
 import fi.dy.masa.litematica.schematic.container.LitematicaBlockStateContainer;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
@@ -39,7 +40,11 @@ public final class SchematicBlocks implements BlockGetter
     private record Region(SchematicPlacement placement, SubRegionPlacement subRegion, LitematicaSchematic schematic,
                           String name, LitematicaBlockStateContainer container,
                           int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
-                          Mirror mirrorMain, Mirror mirrorSub, Rotation rotation)
+                          int sizeX, int sizeY, int sizeZ,
+                          boolean stepsValid, int baseX, int baseY, int baseZ,
+                          int stepXx, int stepXz, int stepZx, int stepZz, int stepYy,
+                          Mirror mirrorMain, Mirror mirrorSub, Rotation rotation,
+                          BlockReplacements.@Nullable DisabledRegion disabled)
     {
         boolean contains(int x, int y, int z)
         {
@@ -55,6 +60,7 @@ public final class SchematicBlocks implements BlockGetter
     public SchematicBlocks(Iterable<SchematicPlacement> placements, LevelHeightAccessor height)
     {
         this.height = height;
+        BlockPos.MutableBlockPos probePos = new BlockPos.MutableBlockPos();
 
         for (SchematicPlacement placement : placements)
         {
@@ -64,6 +70,13 @@ public final class SchematicBlocks implements BlockGetter
             }
 
             LitematicaSchematic schematic = placement.getSchematic();
+
+            if (schematic == null)
+            {
+                continue;
+            }
+
+            BlockReplacements.ensure(schematic);
 
             for (Map.Entry<String, Box> entry : placement.getSubRegionBoxes(SubRegionPlacement.RequiredEnabled.PLACEMENT_ENABLED).entrySet())
             {
@@ -88,10 +101,84 @@ public final class SchematicBlocks implements BlockGetter
 
                 BlockPos a = box.getPos1();
                 BlockPos b = box.getPos2();
+                int minX = Math.min(a.getX(), b.getX());
+                int minY = Math.min(a.getY(), b.getY());
+                int minZ = Math.min(a.getZ(), b.getZ());
+                int maxX = Math.max(a.getX(), b.getX());
+                int maxY = Math.max(a.getY(), b.getY());
+                int maxZ = Math.max(a.getZ(), b.getZ());
+
+                Vec3i size = container.getSize();
+                probePos.set(minX, minY, minZ);
+                BlockPos base = SchematicUtils.getSchematicContainerPositionFromWorldPosition(probePos,
+                        schematic, entry.getKey(), placement, subRegion, container);
+                boolean stepsValid = base != null;
+                int baseX = base != null ? base.getX() : 0;
+                int baseY = base != null ? base.getY() : 0;
+                int baseZ = base != null ? base.getZ() : 0;
+                int stepXx = 0;
+                int stepXz = 0;
+                int stepZx = 0;
+                int stepZz = 0;
+                int stepYy = 1;
+
+                if (stepsValid && maxX > minX)
+                {
+                    probePos.set(minX + 1, minY, minZ);
+                    BlockPos probe = SchematicUtils.getSchematicContainerPositionFromWorldPosition(probePos,
+                            schematic, entry.getKey(), placement, subRegion, container);
+
+                    if (probe != null)
+                    {
+                        stepXx = probe.getX() - baseX;
+                        stepXz = probe.getZ() - baseZ;
+                    }
+                    else
+                    {
+                        stepsValid = false;
+                    }
+                }
+
+                if (stepsValid && maxZ > minZ)
+                {
+                    probePos.set(minX, minY, minZ + 1);
+                    BlockPos probe = SchematicUtils.getSchematicContainerPositionFromWorldPosition(probePos,
+                            schematic, entry.getKey(), placement, subRegion, container);
+
+                    if (probe != null)
+                    {
+                        stepZx = probe.getX() - baseX;
+                        stepZz = probe.getZ() - baseZ;
+                    }
+                    else
+                    {
+                        stepsValid = false;
+                    }
+                }
+
+                if (stepsValid && maxY > minY)
+                {
+                    probePos.set(minX, minY + 1, minZ);
+                    BlockPos probe = SchematicUtils.getSchematicContainerPositionFromWorldPosition(probePos,
+                            schematic, entry.getKey(), placement, subRegion, container);
+
+                    if (probe != null)
+                    {
+                        stepYy = probe.getY() - baseY;
+                    }
+                    else
+                    {
+                        stepsValid = false;
+                    }
+                }
+
                 this.regions.add(new Region(placement, subRegion, schematic, entry.getKey(), container,
-                        Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()),
-                        Math.max(a.getX(), b.getX()), Math.max(a.getY(), b.getY()), Math.max(a.getZ(), b.getZ()),
-                        placement.getMirror(), mirrorSub, mainRotation.getRotated(subRegion.getRotation())));
+                        minX, minY, minZ, maxX, maxY, maxZ,
+                        size.getX(), size.getY(), size.getZ(),
+                        stepsValid, baseX, baseY, baseZ,
+                        stepXx, stepXz, stepZx, stepZz, stepYy,
+                        placement.getMirror(), mirrorSub, mainRotation.getRotated(subRegion.getRotation()),
+                        BlockReplacements.disabledRegion(schematic, entry.getKey(), container)));
             }
         }
     }
@@ -134,25 +221,72 @@ public final class SchematicBlocks implements BlockGetter
         return Blocks.AIR.defaultBlockState();
     }
 
+    /**
+     * Клетка мира {@code pos} принадлежит отключённому блоку схемы (целиком или на этом слое), и ни одно другое
+     * включённое размещение не ставит в неё обычный блок.
+     */
+    public boolean isDisabled(BlockPos pos)
+    {
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        boolean disabled = false;
+
+        for (Region region : this.regions)
+        {
+            if (! region.contains(x, y, z))
+            {
+                continue;
+            }
+
+            if (! read(region, pos).isAir())
+            {
+                return false;
+            }
+
+            disabled |= isRegionCellDisabled(region, pos);
+        }
+
+        return disabled;
+    }
+
     private static BlockState read(Region region, BlockPos pos)
     {
-        BlockPos at = SchematicUtils.getSchematicContainerPositionFromWorldPosition(pos.immutable(),
-                region.schematic(), region.name(), region.placement(), region.subRegion(), region.container());
+        int cx;
+        int cy;
+        int cz;
 
-        if (at == null)
+        if (region.stepsValid())
+        {
+            int dx = pos.getX() - region.minX();
+            int dy = pos.getY() - region.minY();
+            int dz = pos.getZ() - region.minZ();
+            cx = region.baseX() + dx * region.stepXx() + dz * region.stepZx();
+            cy = region.baseY() + dy * region.stepYy();
+            cz = region.baseZ() + dx * region.stepXz() + dz * region.stepZz();
+        }
+        else
+        {
+            BlockPos at = SchematicUtils.getSchematicContainerPositionFromWorldPosition(pos.immutable(),
+                    region.schematic(), region.name(), region.placement(), region.subRegion(), region.container());
+
+            if (at == null)
+            {
+                return Blocks.AIR.defaultBlockState();
+            }
+
+            cx = at.getX();
+            cy = at.getY();
+            cz = at.getZ();
+        }
+
+        if (cx < 0 || cy < 0 || cz < 0
+                || cx >= region.sizeX() || cy >= region.sizeY() || cz >= region.sizeZ())
         {
             return Blocks.AIR.defaultBlockState();
         }
 
-        Vec3i size = region.container().getSize();
-
-        if (at.getX() < 0 || at.getY() < 0 || at.getZ() < 0
-                || at.getX() >= size.getX() || at.getY() >= size.getY() || at.getZ() >= size.getZ())
-        {
-            return Blocks.AIR.defaultBlockState();
-        }
-
-        BlockState state = region.container().get(at.getX(), at.getY(), at.getZ());
+        BlockState state = region.container().get(cx, cy, cz);
 
         if (state.isAir() || state.getBlock() == Blocks.STRUCTURE_VOID)
         {
@@ -175,6 +309,52 @@ public final class SchematicBlocks implements BlockGetter
         }
 
         return state;
+    }
+
+    private static boolean isRegionCellDisabled(Region region, BlockPos pos)
+    {
+        BlockReplacements.DisabledRegion disabled = region.disabled();
+
+        if (disabled == null)
+        {
+            return false;
+        }
+
+        int cx;
+        int cy;
+        int cz;
+
+        if (region.stepsValid())
+        {
+            int dx = pos.getX() - region.minX();
+            int dy = pos.getY() - region.minY();
+            int dz = pos.getZ() - region.minZ();
+            cx = region.baseX() + dx * region.stepXx() + dz * region.stepZx();
+            cy = region.baseY() + dy * region.stepYy();
+            cz = region.baseZ() + dx * region.stepXz() + dz * region.stepZz();
+        }
+        else
+        {
+            BlockPos at = SchematicUtils.getSchematicContainerPositionFromWorldPosition(pos.immutable(),
+                    region.schematic(), region.name(), region.placement(), region.subRegion(), region.container());
+
+            if (at == null)
+            {
+                return false;
+            }
+
+            cx = at.getX();
+            cy = at.getY();
+            cz = at.getZ();
+        }
+
+        if (cx < 0 || cy < 0 || cz < 0
+                || cx >= region.sizeX() || cy >= region.sizeY() || cz >= region.sizeZ())
+        {
+            return false;
+        }
+
+        return disabled.isDisabled(cx, cy, cz);
     }
 
     @Override

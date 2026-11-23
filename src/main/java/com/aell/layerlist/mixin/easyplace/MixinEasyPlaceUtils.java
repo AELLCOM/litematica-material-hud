@@ -31,8 +31,9 @@ public abstract class MixinEasyPlaceUtils
     private static void layerlist$enter(CallbackInfoReturnable<InteractionResult> cir)
     {
         // Ручной клик по сундуку: PASS здесь — единственный ответ, который
-        // handleEasyPlaceWithMessage не превращает в отмену клика
-        if (ContainerClick.shouldPass())
+        // handleEasyPlaceWithMessage не превращает в отмену клика. В режиме выбора сундуков клик по
+        // хранилищу тоже идёт в ваниль: там, в начале useItemOn, он отмечает сундук и гаснет
+        if (ContainerClick.shouldPass() || com.aell.layerlist.storage.ChestPicker.claimsClick())
         {
             cir.setReturnValue(InteractionResult.PASS);
 
@@ -101,7 +102,7 @@ public abstract class MixinEasyPlaceUtils
             require = 0)
     private static void layerlist$letContainerThrough(CallbackInfoReturnable<Boolean> cir)
     {
-        if (ContainerClick.shouldPass())
+        if (ContainerClick.shouldPass() || com.aell.layerlist.storage.ChestPicker.claimsClick())
         {
             cir.setReturnValue(false);
         }
@@ -112,7 +113,7 @@ public abstract class MixinEasyPlaceUtils
     private static void layerlist$letContainerThroughMc(Minecraft mc,
             CallbackInfoReturnable<Boolean> cir)
     {
-        if (ContainerClick.shouldPass())
+        if (ContainerClick.shouldPass() || com.aell.layerlist.storage.ChestPicker.claimsClick())
         {
             cir.setReturnValue(false);
         }

@@ -91,6 +91,14 @@ public final class ShelfSwap
         int first = 9 - window.length;
         Inventory inventory = player.getInventory();
 
+        // Обмен забирает на полку целиком ячейки хотбара [first … 8]: запертая среди них — обмена не будет,
+        // иначе на полку ушёл бы и предмет, который игрок запер
+        if (com.aell.layerlist.core.HotbarLocks.anyLocked(first, 8))
+        {
+            EpDebug.say("полка " + EpDebug.at(pos) + ": в ячейках обмена " + (first + 1) + "–9 есть запертые — пропуск");
+            return false;
+        }
+
         // 0. Рука — вне окна. Опустевший слот в руке автопополнение (Inventory Profiles Next и подобные) тут же заполняет
         //    той же вещью, и окно не складывалось никогда (14.10.2026). Окно меньше хотбара — рука уходит на слот левее
         //    окна; окно во весь хотбар — на слот, где полке нужен предмет: его шаг 1 кладёт, не опустошая руку.
@@ -266,7 +274,8 @@ public final class ShelfSwap
         // Уже есть слот хотбара ровно с нужным — выбираем его и кликаем
         for (int hotbar = 0; hotbar < 9; ++hotbar)
         {
-            if (exact(inventory.getItem(hotbar), want))
+            // Из запертой ячейки на полку не берём
+            if (! com.aell.layerlist.core.HotbarLocks.locked(hotbar) && exact(inventory.getItem(hotbar), want))
             {
                 inventory.setSelectedSlot(hotbar);
                 return StateFixer.click(mc, player, pos, world, fix, preferredFace, InteractionHand.MAIN_HAND, false);
@@ -275,7 +284,16 @@ public final class ShelfSwap
 
         if (player.hasInfiniteMaterials())
         {
-            setCreative(mc, player, inventory.getSelectedSlot(), want.copy());
+            int open = com.aell.layerlist.core.HotbarLocks.target(inventory);
+
+            if (open < 0)
+            {
+                EpDebug.say("полка " + EpDebug.at(pos) + ": все ячейки хотбара заперты");
+                return false;
+            }
+
+            inventory.setSelectedSlot(open);
+            setCreative(mc, player, open, want.copy());
             return true;
         }
 
@@ -283,7 +301,7 @@ public final class ShelfSwap
 
         for (int hotbar = 0; hotbar < 9 && empty < 0; ++hotbar)
         {
-            if (inventory.getItem(hotbar).isEmpty())
+            if (! com.aell.layerlist.core.HotbarLocks.locked(hotbar) && inventory.getItem(hotbar).isEmpty())
             {
                 empty = hotbar;
             }
@@ -305,7 +323,8 @@ public final class ShelfSwap
             {
                 ItemStack have = inventory.getItem(hotbar);
 
-                if (ItemStack.isSameItemSameComponents(have, want) && have.getCount() > want.getCount())
+                if (! com.aell.layerlist.core.HotbarLocks.locked(hotbar) && ItemStack.isSameItemSameComponents(have, want)
+                        && have.getCount() > want.getCount())
                 {
                     click(mc, player, MENU_HOTBAR + hotbar, 0, ContainerInput.PICKUP);
 
@@ -320,7 +339,21 @@ public final class ShelfSwap
                 }
             }
 
-            int spare = (inventory.getSelectedSlot() + 1) % 9;
+            // Освобождаем ближайшую после руки открытую ячейку
+            int spare = -1;
+
+            for (int step = 1; step < 9 && spare < 0; ++step)
+            {
+                int candidate = (inventory.getSelectedSlot() + step) % 9;
+                spare = com.aell.layerlist.core.HotbarLocks.locked(candidate) ? -1 : candidate;
+            }
+
+            if (spare < 0)
+            {
+                EpDebug.say("полка " + EpDebug.at(pos) + ": свободной открытой ячейки хотбара нет");
+                return false;
+            }
+
             click(mc, player, free, spare, ContainerInput.SWAP);
             EpDebug.say("полка " + EpDebug.at(pos) + ": освободил слот хотбара " + (spare + 1));
             return true;
@@ -336,7 +369,8 @@ public final class ShelfSwap
             {
                 ItemStack stack = inventory.getItem(hotbar);
 
-                if (ItemStack.isSameItemSameComponents(stack, want) && stack.getCount() > want.getCount())
+                if (! com.aell.layerlist.core.HotbarLocks.locked(hotbar) && ItemStack.isSameItemSameComponents(stack, want)
+                        && stack.getCount() > want.getCount())
                 {
                     sourceHotbar = hotbar;
                     break;
@@ -450,7 +484,7 @@ public final class ShelfSwap
         return slot;
     }
 
-    /** Свободная ячейка основного инвентаря (9–35) или хотбара вне окна; номер — для меню. */
+    /** Свободная ячейка основного инвентаря (9–35) или открытая хотбара вне окна; номер — для меню. */
     private static int freeSlot(Inventory inventory, int windowStart)
     {
         for (int slot = 9; slot < 36; ++slot)
@@ -463,7 +497,7 @@ public final class ShelfSwap
 
         for (int slot = 0; slot < windowStart; ++slot)
         {
-            if (inventory.getItem(slot).isEmpty())
+            if (! com.aell.layerlist.core.HotbarLocks.locked(slot) && inventory.getItem(slot).isEmpty())
             {
                 return MENU_HOTBAR + slot;
             }
@@ -472,12 +506,13 @@ public final class ShelfSwap
         return -1;
     }
 
-    /** Где взять нужный предмет: любая ячейка вне окна. */
+    /** Где взять нужный предмет: любая ячейка вне окна, кроме запертых. */
     private static int source(Inventory inventory, ItemStack want, int windowStart)
     {
         for (int slot = 0; slot < 36; ++slot)
         {
-            if (slot >= windowStart && slot < 9)
+            // Запертая ячейка — не источник: предмет из неё мод не забирает
+            if ((slot >= windowStart && slot < 9) || com.aell.layerlist.core.HotbarLocks.locked(slot))
             {
                 continue;
             }

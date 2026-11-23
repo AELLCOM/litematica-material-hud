@@ -1013,7 +1013,21 @@ final class MaterialsPane extends Pane
 
         if (! this.filter.words().isEmpty())
         {
-            return Tr.f("materials.empty.search", this.search.text().strip());
+            String query = this.search.text().strip();
+
+            // Поиск сам строки находит — их спрятали тумблеры. «Ничего не найдено» тут неправда (19.11.2026: «флаг»
+            // при «Только недостающее» + «С учётом склада» — флаги в схеме есть, скрыл склад)
+            if (MaterialFilter.of(this.search.text(), false).apply(this.lines).isEmpty())
+            {
+                return Tr.f("materials.empty.search", query);
+            }
+
+            if (this.filter.onlyChanged())
+            {
+                return Tr.f("materials.empty.search.changed", query);
+            }
+
+            return Tr.f(this.filter.useStock() ? "materials.empty.search.covered" : "materials.empty.search.placed", query);
         }
 
         if (this.filter.onlyChanged())
@@ -2217,6 +2231,9 @@ final class MaterialsPane extends Pane
             case NOT_NEAR -> this.screen.toast(Tr.f("materials.toast.find_far", line.name(), Tr.num(StorageFind.radius())),
                     Ui.C_WARN);
             case NOT_KNOWN -> this.screen.toast(Tr.f("materials.toast.find_unknown", line.name()), Ui.C_WARN);
+            case NOT_CHOSEN -> this.screen.toast(Tr.f("materials.toast.find_not_chosen", line.name()), Ui.C_WARN);
+            case IN_ENDER -> this.screen.toast(Tr.f("materials.toast.find_ender", line.name(), Tr.num(StorageFind.radius())),
+                    Ui.C_WARN);
             case CLEARED -> this.screen.toast(Tr.t("materials.toast.find_off"), Ui.C_TEXT_3);
             case NO_WORLD -> this.screen.toast(Tr.t("materials.find.no_world"), Ui.C_WARN);
         }

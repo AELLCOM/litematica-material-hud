@@ -14,8 +14,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Голограмма клетки, которую фильтры мода не рисуют: «только блоки из инвентаря» ({@link InventoryGhosts}) и
- * «скрывать блоки без опоры» ({@link GhostSupport}). Те же правила, что у сборки чанка, — для прицела: луч
+ * Голограмма клетки, которую фильтры мода не рисуют: «только блоки из инвентаря» ({@link InventoryGhosts}),
+ * «скрывать блоки без опоры» ({@link GhostSupport}) и «скрывать порталы» ({@link PortalGhosts}). Те же правила, что у сборки чанка, — для прицела: луч
  * Litematica и доводка прицела проходят такую клетку насквозь, как пустую, иначе невидимая голограмма
  * перехватывала бы клик у видимой за ней. Только недостроенные клетки (в мире не тот блок, что в схеме):
  * готовая клетка и так ничего не рисует, а прицел у неё — как у Litematica. Клиентский поток.
@@ -61,6 +61,11 @@ public final class HiddenGhosts
             return false;
         }
 
+        if (PortalGhosts.hides(schematic))
+        {
+            return true;
+        }
+
         if (InventoryGhosts.active()
                 && InventoryGhosts.hides(Potting.needsPlant(schematic, have) ? Potting.plantState(schematic) : schematic)
                 && ! finishableInBuild(schematic, have, pos))
@@ -74,7 +79,7 @@ public final class HiddenGhosts
     /** Хоть один фильтр включён — иначе проверять нечего. */
     public static boolean any()
     {
-        return InventoryGhosts.active() || GhostSupport.hideUnsupported();
+        return InventoryGhosts.active() || GhostSupport.hideUnsupported() || PortalGhosts.active();
     }
 
     public static boolean hidden(BlockPos pos)
@@ -96,6 +101,11 @@ public final class HiddenGhosts
         if (schematic.isAir() || schematic == client)
         {
             return false;
+        }
+
+        if (PortalGhosts.hides(schematic))
+        {
+            return true;
         }
 
         if (InventoryGhosts.active())

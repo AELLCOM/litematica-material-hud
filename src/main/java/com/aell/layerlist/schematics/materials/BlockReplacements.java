@@ -572,6 +572,130 @@ public final class BlockReplacements
         }
     }
 
+    /**
+     * Снимок отключённых номеров палитры и клеток одного региона схемы — для быстрой проверки без замка
+     * при обходе клеток ({@link com.aell.layerlist.core.SchematicBlocks}).
+     */
+    public static final class DisabledRegion
+    {
+        private final LitematicaBlockStateContainer container;
+        private final int sizeX;
+        private final long layerSize;
+        private final boolean @Nullable [] paletteIds;
+        private final it.unimi.dsi.fastutil.longs.@Nullable LongSet layerIndices;
+
+        private DisabledRegion(LitematicaBlockStateContainer container, boolean @Nullable [] paletteIds,
+                it.unimi.dsi.fastutil.longs.@Nullable LongSet layerIndices)
+        {
+            this.container = container;
+            net.minecraft.core.Vec3i size = container.getSize();
+            this.sizeX = size.getX();
+            this.layerSize = (long) size.getX() * size.getZ();
+            this.paletteIds = paletteIds;
+            this.layerIndices = layerIndices;
+        }
+
+        public boolean isDisabled(int x, int y, int z)
+        {
+            long index = (long) y * this.layerSize + (long) z * this.sizeX + x;
+
+            if (this.layerIndices != null && this.layerIndices.contains(index))
+            {
+                return true;
+            }
+
+            if (this.paletteIds != null)
+            {
+                var array = this.container.getArray();
+
+                if (index >= 0L && index < array.size())
+                {
+                    int id = array.getAt(index);
+                    return id >= 0 && id < this.paletteIds.length && this.paletteIds[id];
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /**
+     * Снимок отключённых клеток региона {@code regionName} схемы {@code schematic}; {@code null} — в этом регионе
+     * ничего не отключено.
+     */
+    public static @Nullable DisabledRegion disabledRegion(@Nullable LitematicaSchematic schematic, String regionName,
+            LitematicaBlockStateContainer container)
+    {
+        if (schematic == null)
+        {
+            return null;
+        }
+
+        synchronized (LOCK)
+        {
+            ensureLocked(schematic);
+            Live live = LIVE.get(schematic);
+
+            if (live == null)
+            {
+                return null;
+            }
+
+            boolean[] paletteIds = null;
+            Region region = live.regions.get(regionName);
+
+            if (region != null && region.container() == container && ! live.applied.isEmpty())
+            {
+                List<BlockState> original = region.original();
+                boolean[] ids = new boolean[original.size()];
+                boolean any = false;
+
+                for (int id = 0; id < original.size(); ++id)
+                {
+                    BlockState state = original.get(id);
+
+                    if (! state.isAir() && state.getBlock() != Blocks.STRUCTURE_VOID && off(live.applied, state.getBlock()))
+                    {
+                        ids[id] = true;
+                        any = true;
+                    }
+                }
+
+                if (any)
+                {
+                    paletteIds = ids;
+                }
+            }
+
+            it.unimi.dsi.fastutil.longs.LongOpenHashSet layerIndices = null;
+            LayerCells saved = live.layerCells.get(regionName);
+
+            if (saved != null && saved.container() == container && ! saved.cells().isEmpty())
+            {
+                var array = container.getArray();
+                var palette = container.getPalette();
+                it.unimi.dsi.fastutil.longs.LongOpenHashSet set = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+
+                for (var entry : saved.cells().long2IntEntrySet())
+                {
+                    long index = entry.getLongKey();
+
+                    if (index >= 0L && index < array.size() && stateAt(palette, array.getAt(index)).isAir())
+                    {
+                        set.add(index);
+                    }
+                }
+
+                if (! set.isEmpty())
+                {
+                    layerIndices = set;
+                }
+            }
+
+            return paletteIds == null && layerIndices == null ? null : new DisabledRegion(container, paletteIds, layerIndices);
+        }
+    }
+
     // ===== Действия игрока =====
 
     /**
@@ -1859,6 +1983,8 @@ public final class BlockReplacements
     private static List<LitematicaSchematic> applyToFile(Path file, Map<Block, Block> map, Map<Block, Set<Integer>> layers,
             Set<Item> entities, LitematicaSchematic first)
     {
+        discoverLoadedSchematicsLocked();
+
         List<LitematicaSchematic> touched = new ArrayList<>();
         Level level = Minecraft.getInstance().level;
 
@@ -1893,6 +2019,52 @@ public final class BlockReplacements
         }
 
         return touched;
+    }
+
+    /**
+     * Зарегистрировать в {@link #LIVE} все схемы размещений и «Загруженных схем» Litematica, если их ещё не видели:
+     * правка из файла «Библиотеки» сразу ляжет и на отдельно загруженный объект схемы в размещении. Под замком.
+     */
+    private static void discoverLoadedSchematicsLocked()
+    {
+        try
+        {
+            for (SchematicPlacement placement : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements())
+            {
+                LitematicaSchematic schematic = placement == null ? null : placement.getSchematic();
+
+                if (schematic == null)
+                {
+                    continue;
+                }
+
+                if (! LIVE.containsKey(schematic))
+                {
+                    LIVE.put(schematic, new Live(fileOf(schematic)));
+                }
+                else
+                {
+                    Live live = LIVE.get(schematic);
+
+                    if (live != null && live.file == null)
+                    {
+                        live.file = fileOf(schematic);
+                    }
+                }
+            }
+
+            for (LitematicaSchematic schematic : SchematicHolder.getInstance().getAllSchematics())
+            {
+                if (schematic != null && ! LIVE.containsKey(schematic))
+                {
+                    LIVE.put(schematic, new Live(fileOf(schematic)));
+                }
+            }
+        }
+        catch (RuntimeException | LinkageError e)
+        {
+            LOGGER.debug("Could not discover loaded schematics", e);
+        }
     }
 
     /** Сохранить набор замен файла; пустой — убрать запись. Новая запись — с отпечатком файла, CRC — в фоне. */
@@ -2522,12 +2694,26 @@ public final class BlockReplacements
         try
         {
             Path file = schematic.getFile();
-            return file == null ? null : file.toAbsolutePath().normalize();
+
+            if (file != null)
+            {
+                return file.toAbsolutePath().normalize();
+            }
+
+            for (SchematicPlacement placement : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements())
+            {
+                if (placement != null && placement.getSchematic() == schematic && placement.getSchematicFile() != null)
+                {
+                    return placement.getSchematicFile().toAbsolutePath().normalize();
+                }
+            }
         }
-        catch (RuntimeException e)
+        catch (RuntimeException | LinkageError e)
         {
             return null;
         }
+
+        return null;
     }
 
     private static String signatureOf(Map<Block, Block> map, Map<Block, Set<Integer>> layers, Set<Item> entities)
@@ -2555,7 +2741,12 @@ public final class BlockReplacements
     private static void refresh(LitematicaSchematic schematic)
     {
         SchematicMaterials.forget(schematic);
+        SchematicEntities.forget();
+        com.aell.layerlist.ghost.GhostSupport.markDirty();
+        com.aell.layerlist.ghost.EntityOverlay.markDirty();
+        com.aell.layerlist.storage.AllChestsSearch.recount();
         LayerCountManager.getInstance().markDirty();
+        com.aell.layerlist.verify.LayerVerifier.getInstance().onSchematicChanged();
 
         try
         {

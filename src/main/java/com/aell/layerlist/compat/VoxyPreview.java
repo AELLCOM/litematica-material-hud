@@ -17,6 +17,9 @@ import org.slf4j.LoggerFactory;
  * <p>Кода Voxy в Material HUD нет — его лицензия (All Rights Reserved) не даёт его распространять: превью рисуется им,
  * только если Voxy стоит отдельно или вложен в другой мод (VoxyMap Bobby). Без Voxy, на Vulkan и со своим шейдерпаком
  * Iris — своё превью. Всё с типами Voxy — в {@link VoxyPreviewImpl}; сбой — в лог один раз, дальше своё превью.
+ *
+ * <p>Ни с одним другим модом превью не связано: оно не зовёт их и не знает их имён. Если кадр Voxy кто-то отменил (мод
+ * карты глушит Voxy, у Voxy пусто) — метки {@link #drew()} нет, и до закрытия экрана или смены мира превью своё.
  */
 @Environment(EnvType.CLIENT)
 public final class VoxyPreview
@@ -26,6 +29,11 @@ public final class VoxyPreview
     private static boolean failed;
     /** Идёт кадр превью: миксины на Voxy подменяют вид, держат центр подгрузки на игроке и рисуют ближние секции. */
     private static boolean rendering;
+    /** В этом кадре превью Voxy дошёл до вывода геометрии ({@code MixinVoxyDrewFrame}). */
+    private static boolean drewFrame;
+    /** Мир, в котором Voxy не нарисовал кадр превью: до закрытия экрана или смены мира — своё превью. */
+    private static @Nullable Object refusedIn;
+    private static boolean refusalLogged;
 
     private VoxyPreview() {}
 
@@ -38,7 +46,54 @@ public final class VoxyPreview
     /** Можно рисовать превью Voxy сейчас: он стоит, работает его система отрисовки, OpenGL, шейдерпак выключен. */
     public static boolean ready()
     {
-        return INSTALLED && ! failed && guard(VoxyPreviewImpl::ready, false);
+        return INSTALLED && ! failed && ! refused() && guard(VoxyPreviewImpl::ready, false);
+    }
+
+    /** Метка из Voxy: кадр превью дошёл до вывода геометрии. */
+    public static void drew()
+    {
+        drewFrame = true;
+    }
+
+    private static boolean refused()
+    {
+        if (refusedIn == null)
+        {
+            return false;
+        }
+
+        if (refusedIn != net.minecraft.client.Minecraft.getInstance().level)
+        {
+            refusedIn = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Кадр сделан, но Voxy до геометрии не дошёл: дальше своё превью, без мигания между ними. */
+    private static boolean checkDrawn(boolean done)
+    {
+        if (! done || drewFrame || ! guard(VoxyPreviewImpl::canTellDrawn, false))
+        {
+            return done;
+        }
+
+        refusedIn = net.minecraft.client.Minecraft.getInstance().level;
+        guard(() ->
+        {
+            VoxyPreviewImpl.release();
+            return null;
+        }, null);
+
+        if (! refusalLogged)
+        {
+            refusalLogged = true;
+            LOGGER.info("Material HUD: Voxy skipped the selection preview frame (another mod held it back, or Voxy has nothing "
+                    + "loaded) - the preview draws itself until the screen is reopened");
+        }
+
+        return false;
     }
 
     /**
@@ -58,10 +113,11 @@ public final class VoxyPreview
         }
 
         rendering = true;
+        drewFrame = false;
 
         try
         {
-            return guard(() -> VoxyPreviewImpl.render(x, y, z, yaw, pitch, fov, width, height), false);
+            return checkDrawn(guard(() -> VoxyPreviewImpl.render(x, y, z, yaw, pitch, fov, width, height), false));
         }
         finally
         {
@@ -90,6 +146,8 @@ public final class VoxyPreview
     /** Отпустить текстуру превью (экран закрыт). */
     public static void release()
     {
+        refusedIn = null;
+
         if (INSTALLED && ! failed)
         {
             guard(() ->

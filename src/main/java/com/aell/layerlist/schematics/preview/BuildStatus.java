@@ -1,11 +1,14 @@
 package com.aell.layerlist.schematics.preview;
 
+import com.aell.layerlist.core.SchematicBlocks;
 import com.aell.layerlist.schematics.library.VoxelSnapshot;
+import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.litematica.util.PositionUtils;
 import fi.dy.masa.litematica.world.SchematicWorldHandler;
 import fi.dy.masa.litematica.world.WorldSchematic;
+import java.util.List;
 import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -100,7 +103,8 @@ public final class BuildStatus
     public static final class Scan
     {
         private final VoxelSnapshot snapshot;
-        private final SchematicPlacement placement;
+        private final @Nullable SchematicPlacement placement;
+        private final @Nullable SchematicBlocks blocks;
         private final BlockPos origin;
         private final BlockPos min;
         private final byte[] cells;
@@ -115,9 +119,28 @@ public final class BuildStatus
         {
             this.snapshot = snapshot;
             this.placement = placement;
+            Minecraft mc = Minecraft.getInstance();
+            this.blocks = mc.level != null ? new SchematicBlocks(List.of(placement), mc.level) : null;
             this.origin = placement.getOrigin();
             LitematicaSchematic schematic = placement.getSchematic();
             this.min = schematic != null ? enclosingMin(schematic) : BlockPos.ZERO;
+            this.cells = new byte[(int) snapshot.volume()];
+        }
+
+        /**
+         * Снимок, снятый с мира схем по коробке мира ({@code WorldSnapshotJob}): клетка {@code (x, y, z)} — это блок
+         * {@code worldMin + (x, y, z)}, поворачивать нечего. Только снимок 1:1.
+         */
+        public Scan(VoxelSnapshot snapshot, BlockPos worldMin)
+        {
+            this.snapshot = snapshot;
+            this.placement = null;
+            Minecraft mc = Minecraft.getInstance();
+            this.blocks = mc.level != null
+                    ? new SchematicBlocks(DataManager.getSchematicPlacementManager().getAllSchematicsPlacements(), mc.level)
+                    : null;
+            this.origin = worldMin;
+            this.min = BlockPos.ZERO;
             this.cells = new byte[(int) snapshot.volume()];
         }
 
@@ -149,16 +172,24 @@ public final class BuildStatus
                     continue;
                 }
 
-                this.local.set(x + this.min.getX(), y + this.min.getY(), z + this.min.getZ());
-                BlockPos turned = PositionUtils.getTransformedBlockPos(this.local, this.placement.getMirror(),
-                        this.placement.getRotation());
-                this.world.set(turned.getX() + this.origin.getX(), turned.getY() + this.origin.getY(),
-                        turned.getZ() + this.origin.getZ());
+                if (this.placement == null)
+                {
+                    this.world.set(x + this.origin.getX(), y + this.origin.getY(), z + this.origin.getZ());
+                }
+                else
+                {
+                    this.local.set(x + this.min.getX(), y + this.min.getY(), z + this.min.getZ());
+                    BlockPos turned = PositionUtils.getTransformedBlockPos(this.local, this.placement.getMirror(),
+                            this.placement.getRotation());
+                    this.world.set(turned.getX() + this.origin.getX(), turned.getY() + this.origin.getY(),
+                            turned.getZ() + this.origin.getZ());
+                }
                 byte status = UNKNOWN;
 
                 if (mc.level.hasChunk(this.world.getX() >> 4, this.world.getZ() >> 4))
                 {
-                    BlockState wanted = schematicWorld.getBlockState(this.world);
+                    BlockState wanted = this.blocks != null ? this.blocks.getBlockState(this.world)
+                            : schematicWorld.getBlockState(this.world);
                     BlockState have = mc.level.getBlockState(this.world);
 
                     if (! wanted.isAir())

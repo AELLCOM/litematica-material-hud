@@ -280,6 +280,65 @@ public final class SchematicEntities
         return specs;
     }
 
+    /** Последняя сверка сущности, сделанная, пока она была в радиусе сущностей клиента. */
+    private record Seen(Object dimension, EntityType<?> type, Vec3 pos) {}
+
+    private static final Map<Seen, List<Status>> VERDICTS = new java.util.HashMap<>();
+
+    public static void forget()
+    {
+        VERDICTS.clear();
+    }
+
+    /**
+     * Статусы предметов сущности схемы — или {@code null}, если сказать нечего. В радиусе, где сервер присылает
+     * сущности ({@link EntityReach}), — сверка с миром: по голограмме, без неё — по типу и месту. Дальше него
+     * сущностей у клиента нет вовсе, и «рядом пусто» там ничего не значит: отдаём последнюю сверку, сделанную
+     * вблизи, а если её не было — {@code null} (не «не хватает»: так же, как в незагруженном чанке).
+     */
+    public static @Nullable List<Status> verdict(net.minecraft.client.Minecraft mc, @Nullable WorldSchematic world, Wanted wanted)
+    {
+        if (mc.level == null)
+        {
+            return null;
+        }
+
+        Seen key = new Seen(mc.level.dimension(), wanted.type(), wanted.pos());
+
+        if (! EntityReach.known(mc, wanted.type(), wanted.pos()))
+        {
+            return VERDICTS.get(key);
+        }
+
+        Entity ghost = ghost(world, wanted);
+        List<Status> statuses = (ghost != null ? match(mc.level, ghost) : matchApprox(mc.level, wanted)).statuses();
+
+        if (VERDICTS.size() > 16384)
+        {
+            VERDICTS.clear();
+        }
+
+        VERDICTS.put(key, statuses);
+
+        return statuses;
+    }
+
+    /**
+     * «Только блоки из инвентаря»: голограмму сущности не показывать и не подсвечивать — предметов, которыми она
+     * ставится, у игрока нет. Те же правила, что у блоков ({@link com.aell.layerlist.ghost.InventoryGhosts}).
+     */
+    public static boolean hiddenByInventory(Entity ghost)
+    {
+        if (! com.aell.layerlist.ghost.InventoryGhosts.active())
+        {
+            return false;
+        }
+
+        Kind kind = kind(ghost);
+
+        return kind != null && com.aell.layerlist.ghost.InventoryGhosts.hidesItems(items(ghost, kind));
+    }
+
     /** Голограмма этой сущности в мире схемы — с точными поворотом, цветом и содержимым. */
     public static @Nullable Entity ghost(@Nullable WorldSchematic world, Wanted wanted)
     {
@@ -294,6 +353,13 @@ public final class SchematicEntities
         for (Entity entity : world.getEntities((Entity) null, new AABB(wanted.pos(), wanted.pos()).inflate(1.0D),
                 entity -> entity.getType() == wanted.type()))
         {
+            // Пока чанк мира схемы ещё перестраивается в фоне после отключения/включения содержимого рамки,
+            // старая голограмма рамки не сходится с текущим набором предметов wanted
+            if (entity instanceof ItemFrame frame && (! frame.getItem().isEmpty()) != (wanted.items().size() > 1))
+            {
+                continue;
+            }
+
             double distance = entity.position().distanceToSqr(wanted.pos());
 
             if (distance < bestDistance)

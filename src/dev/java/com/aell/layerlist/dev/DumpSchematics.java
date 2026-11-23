@@ -782,6 +782,36 @@ public final class DumpSchematics implements CovJob
         };
     }
 
+    /**
+     * Окно тура ванильного стиля: 1600×900, GUI 2. {@code LL_K_WINDOW=2000x1090x3} — другой размер и масштаб
+     * (снимки в разрешении пользователя); кривое значение — как без переменной.
+     */
+    private Action tourWindow()
+    {
+        String value = System.getenv("LL_K_WINDOW");
+
+        if (value != null)
+        {
+            String[] parts = value.trim().split("x");
+
+            try
+            {
+                if (parts.length == 3)
+                {
+                    return this.window(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+                }
+            }
+            catch (NumberFormatException e)
+            {
+                // ниже — размер по умолчанию
+            }
+
+            CovOut.log(TAG + "LL_K_WINDOW=" + value + " не разобрать (нужно ШxВxМасштаб) — окно 1600×900, GUI 2");
+        }
+
+        return this.window(1600, 900, 2);
+    }
+
     static void scale(Minecraft mc, int value)
     {
         mc.options.guiScale().set(value);
@@ -1037,6 +1067,17 @@ public final class DumpSchematics implements CovJob
             return true;
         }
 
+        // LL_K_ONLY=place — только размещение: «Отмена», Enter, Esc (1.0.26) и откат большой схемы
+        if ("place".equals(System.getenv("LL_K_ONLY")))
+        {
+            steps.addAll(this.place.steps());
+            steps.addAll(this.edit.bigSteps());
+            steps.add(new Step("закрыть экран", 3_000L, m -> this.closeScreen()));
+            steps.add(new Step("снимки записаны", 10_000L, m -> this.shotsWritten()));
+            this.insertNext(steps);
+            return true;
+        }
+
         // LL_K_ONLY=edit — только редактор размещения 0.0.27 («−»/«+», угол, облёт) при GUI 2 и 3
         if ("edit".equals(System.getenv("LL_K_ONLY")))
         {
@@ -1104,7 +1145,7 @@ public final class DumpSchematics implements CovJob
         // LL_K_ONLY=vanilla — тур ванильного стиля: каждое окно мода в двух стилях, снимки vanilla-<окно>-aell/-vanilla
         if ("vanilla".equals(System.getenv("LL_K_ONLY")))
         {
-            steps.add(new Step("GUI 2 (тур ванильного стиля)", 8_000L, this.window(1600, 900, 2)));
+            steps.add(new Step("окно тура ванильного стиля", 8_000L, this.tourWindow()));
             steps.addAll(this.vanillaTour.steps(""));
             steps.add(new Step("GUI 2 — после тура", 8_000L, this.window(1600, 900, 2)));
             steps.add(new Step("закрыть экран", 3_000L, m -> this.closeScreen()));

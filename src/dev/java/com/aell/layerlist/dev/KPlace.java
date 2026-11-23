@@ -139,8 +139,8 @@ final class KPlace
         s.add(step("сверху: Ctrl+Y", 3_000L, mc -> this.redo()));
         s.add(step("сверху: C — сетка выключена", 3_000L, mc -> this.snapOff()));
         s.add(step("снимок: после правок сверху", 6_000L, this.k.settleThen(1200L, this.shot("editor-top-edited"))));
-        s.add(step("Esc у нового размещения", 3_000L, mc -> this.press(InputConstants.KEY_ESCAPE)));
-        s.add(step("Esc: новое размещение убрано", 5_000L, mc -> this.cancelledNew()));
+        s.add(step("«Отмена» у нового размещения", 3_000L, mc -> this.clickCancel()));
+        s.add(step("«Отмена»: новое размещение убрано", 5_000L, mc -> this.cancelledNew()));
 
         // Сеанс 2 — обычный вид, размещение уже было: Esc возвращает исходное
         s.add(step("размещение перед игроком (API)", 30_000L, mc -> this.placeDirect()));
@@ -155,14 +155,19 @@ final class KPlace
         s.add(step("T — вид сверху", 3_000L, mc -> this.toggleTop(true)));
         s.add(step("снимок: T из обычного вида", 6_000L, this.k.settleThen(1500L, this.shot("editor-normal-to-top"))));
         s.add(step("T — обратно", 3_000L, mc -> this.toggleTop(false)));
-        s.add(step("Esc у прежнего размещения", 3_000L, mc -> this.press(InputConstants.KEY_ESCAPE)));
-        s.add(step("Esc: всё как при открытии", 5_000L, mc -> this.reverted()));
+        s.add(step("«Отмена» у прежнего размещения", 3_000L, mc -> this.clickCancel()));
+        s.add(step("«Отмена»: всё как при открытии", 5_000L, mc -> this.reverted()));
 
         // Сеанс 3 — Enter оставляет сделанное
         s.add(step("редактор снова", 3_000L, mc -> this.open(false)));
         s.add(step("редактор: снова открыт", 10_000L, mc -> this.waitEditor(mc, false, false)));
         s.add(step("→ — шаг вправо", 3_000L, mc -> this.arrowRight(mc)));
         s.add(step("Enter — оставить", 5_000L, mc -> this.enterKeeps()));
+        // 1.0.26: Esc тоже оставляет сделанное (раньше откатывал)
+        s.add(step("редактор для Esc", 3_000L, mc -> this.open(false)));
+        s.add(step("редактор для Esc: открыт", 10_000L, mc -> this.waitEditor(mc, false, false)));
+        s.add(step("→ — шаг вправо перед Esc", 3_000L, mc -> this.arrowRight(mc)));
+        s.add(step("Esc — оставить", 5_000L, mc -> this.escKeeps()));
         s.add(step("HUD по размещению", 20_000L, mc -> this.hudRows()));
         // Снимки с живым размещением: строка в карточке и таблица «Размещений»
         s.add(step("снимок: карточка с размещением", 6_000L, this.k.settleThen(1200L, this.shot("card-placement"))));
@@ -181,8 +186,8 @@ final class KPlace
         s.add(step("редактор сверху GUI 3", 3_000L, mc -> this.open(true)));
         s.add(step("редактор GUI 3 открыт", 10_000L, mc -> this.waitEditor(mc, false, true)));
         s.add(step("снимок: редактор сверху GUI 3", 6_000L, this.k.settleThen(1500L, this.shot("s3-editor-top"))));
-        s.add(step("Esc (GUI 3)", 3_000L, mc -> this.press(InputConstants.KEY_ESCAPE)));
-        s.add(step("Esc (GUI 3): назад в «Схемы»", 5_000L, mc -> this.reverted()));
+        s.add(step("«Отмена» (GUI 3)", 3_000L, mc -> this.clickCancel()));
+        s.add(step("«Отмена» (GUI 3): назад в «Схемы»", 5_000L, mc -> this.reverted()));
         s.add(step("убрать размещение GUI 3", 3_000L, mc -> this.removeCurrent()));
         return s;
     }
@@ -212,8 +217,8 @@ final class KPlace
                 this.k.settleThen(450L, mc -> this.ghostsFollowed(false))));
         s.add(step("голограммы выкл.: отпустить — переехали", 3_000L, mc -> this.release()));
         s.add(step("тумблер кликом — снова вкл.", 3_000L, mc -> this.clickLive(true)));
-        s.add(step("Esc (голограммы)", 3_000L, mc -> this.press(InputConstants.KEY_ESCAPE)));
-        s.add(step("Esc (голограммы): всё как при открытии", 5_000L, mc -> this.reverted()));
+        s.add(step("«Отмена» (голограммы)", 3_000L, mc -> this.clickCancel()));
+        s.add(step("«Отмена» (голограммы): всё как при открытии", 5_000L, mc -> this.reverted()));
         s.add(step("убрать размещение (голограммы)", 3_000L, mc -> this.removeCurrent()));
 
         s.add(step("большая схема в памяти: 64×52×64 камня", 20_000L, mc -> this.placeBig()));
@@ -227,8 +232,8 @@ final class KPlace
         s.add(step("большая: мышь замерла — голограммы на месте", 3_000L,
                 this.k.settleThen(450L, mc -> this.ghostsFollowed(false))));
         s.add(step("большая: отпустить — переехали", 3_000L, mc -> this.release()));
-        s.add(step("Esc (большая)", 3_000L, mc -> this.press(InputConstants.KEY_ESCAPE)));
-        s.add(step("Esc (большая): назад в «Схемы»", 5_000L, mc -> this.reverted()));
+        s.add(step("«Отмена» (большая)", 3_000L, mc -> this.clickCancel()));
+        s.add(step("«Отмена» (большая): назад в «Схемы»", 5_000L, mc -> this.reverted()));
         s.add(step("убрать большую схему", 3_000L, mc -> this.removeBig()));
         return s;
     }
@@ -242,8 +247,8 @@ final class KPlace
         s.add(step("GUI 3: редактор открыт", 10_000L, mc -> this.waitEditor(mc, false, false)));
         s.add(step("снимок: тумблер голограмм GUI 3, маленькая", 6_000L,
                 this.k.settleThen(1200L, this.shot("s3-editor-live-small"))));
-        s.add(step("GUI 3: Esc", 3_000L, mc -> this.press(InputConstants.KEY_ESCAPE)));
-        s.add(step("GUI 3: Esc — назад", 5_000L, mc -> this.reverted()));
+        s.add(step("GUI 3: «Отмена»", 3_000L, mc -> this.clickCancel()));
+        s.add(step("GUI 3: «Отмена» — назад", 5_000L, mc -> this.reverted()));
         s.add(step("GUI 3: убрать размещение", 3_000L, mc -> this.removeCurrent()));
         s.add(step("GUI 3: большая схема", 20_000L, mc -> this.placeBig()));
         s.add(step("GUI 3: редактор большой", 3_000L, mc -> this.open(true)));
@@ -251,8 +256,8 @@ final class KPlace
         s.add(step("GUI 3: пометка о большой схеме видна", 3_000L, mc -> this.liveBig()));
         s.add(step("снимок: тумблер голограмм GUI 3, большая", 8_000L,
                 this.k.settleThen(2000L, this.shot("s3-editor-live-big"))));
-        s.add(step("GUI 3: Esc (большая)", 3_000L, mc -> this.press(InputConstants.KEY_ESCAPE)));
-        s.add(step("GUI 3: Esc (большая) — назад", 5_000L, mc -> this.reverted()));
+        s.add(step("GUI 3: «Отмена» (большая)", 3_000L, mc -> this.clickCancel()));
+        s.add(step("GUI 3: «Отмена» (большая) — назад", 5_000L, mc -> this.reverted()));
         s.add(step("GUI 3: убрать большую", 3_000L, mc -> this.removeBig()));
         return s;
     }
@@ -671,6 +676,22 @@ final class KPlace
         return true;
     }
 
+    /** Кнопка «Отмена» в подвале — единственный откат: Esc с 1.0.26 выходит с сохранением. */
+    private boolean clickCancel()
+    {
+        PlacementEditorScreen e = editor();
+
+        if (e == null)
+        {
+            this.k.fail("«Отмена»: нет редактора");
+            return true;
+        }
+
+        int[] r = PlacementEditorScreen.TestHooks.footerButton(e, false);
+        KProbe.click(e, r[0] + r[2] / 2.0, r[1] + r[3] / 2.0);
+        return true;
+    }
+
     private boolean press(int key)
     {
         PlacementEditorScreen e = editor();
@@ -941,9 +962,9 @@ final class KPlace
             return false;
         }
 
-        this.k.check("Esc: вернулись в «Схемы»", true, this.k.gui() != null);
-        this.k.check("Esc: вид сверху выключен", false, TopViewCamera.active());
-        this.k.check("Esc: новое размещение удалено", false, p != null && PlacementOps.all().contains(p));
+        this.k.check("«Отмена»: вернулись в «Схемы»", true, this.k.gui() != null);
+        this.k.check("«Отмена»: вид сверху выключен", false, TopViewCamera.active());
+        this.k.check("«Отмена»: новое размещение удалено", false, p != null && PlacementOps.all().contains(p));
         return true;
     }
 
@@ -956,15 +977,34 @@ final class KPlace
             return false;
         }
 
-        this.k.check("Esc: вернулись в «Схемы»", true, this.k.gui() != null);
-        this.k.check("Esc: размещение осталось", true, p != null && PlacementOps.all().contains(p));
+        this.k.check("«Отмена»: вернулись в «Схемы»", true, this.k.gui() != null);
+        this.k.check("«Отмена»: размещение осталось", true, p != null && PlacementOps.all().contains(p));
 
         if (p != null && this.initial != null)
         {
-            this.k.check("Esc: origin/поворот/отражение как при открытии", this.initial, EditHistory.State.of(p));
-            this.log("после Esc", p);
+            this.k.check("«Отмена»: origin/поворот/отражение как при открытии", this.initial, EditHistory.State.of(p));
+            this.log("после «Отмена»", p);
         }
 
+        return true;
+    }
+
+    private boolean escKeeps()
+    {
+        PlacementEditorScreen e = editor();
+        SchematicPlacement p = this.placement;
+
+        if (e == null || p == null)
+        {
+            this.k.fail("Esc: нет редактора");
+            return true;
+        }
+
+        BlockPos moved = p.getOrigin();
+        KProbe.press(e, InputConstants.KEY_ESCAPE);
+        this.k.check("Esc: редактор закрыт, «Схемы» на экране", true, editor() == null && this.k.gui() != null);
+        this.k.check("Esc: размещение осталось", true, PlacementOps.all().contains(p));
+        this.k.check("Esc: сдвиг сохранился", moved.toShortString(), p.getOrigin().toShortString());
         return true;
     }
 
