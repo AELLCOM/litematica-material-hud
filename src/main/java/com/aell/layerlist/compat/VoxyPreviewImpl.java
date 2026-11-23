@@ -38,9 +38,8 @@ import org.lwjgl.opengl.GL45;
  * © 2026 raben12paste; в редакции VoxyMap Bobby): свой вид у выбора видов Voxy ({@code ViewportSelector.getOrCreate}
  * по своему ключу), перспектива и поворот как у камеры игры, непрозрачный Voxy — в свою цель кадра.
  *
- * <p>VoxyMap Bobby вне своей карты глушит вывод Voxy и обновляет его картинку раз в несколько кадров
- * ({@code VoxyRenderGate}); на время кадра превью ему сказано, что Voxy нужен ({@code externalView}), — если такой
- * версии нет, превью может выйти пустым, и тогда пусть стоит Voxy отдельным модом.
+ * <p>Других модов здесь нет: если кто-то не дал Voxy нарисовать кадр, это видно по метке {@code MixinVoxyDrewFrame},
+ * и {@link VoxyPreview} переходит на своё превью.
  *
  * <p>1.21.11 (Voxy 0.2.16): Voxy рисует в привязанный буфер кадра OpenGL и берёт размер из {@code glViewport} — на
  * время кадра привязываем свой буфер с цветом и глубиной цели превью, потом возвращаем прежние. В игре Voxy 0.2.16
@@ -62,12 +61,8 @@ final class VoxyPreviewImpl
     private static final FogParameters NO_FOG = new FogParameters(CLEAR_COLOR.x, CLEAR_COLOR.y, CLEAR_COLOR.z, 0.0F,
             NO_FOG_DISTANCE, NO_FOG_DISTANCE, NO_FOG_DISTANCE, NO_FOG_DISTANCE);
     private static final @Nullable Method GET_OR_CREATE = resolveGetOrCreate();
-    private static final @Nullable Method EXTERNAL_VIEW = resolveExternalView();
-    /**
-     * Старый VoxyMap Bobby (до 1.0.4-bobby.32): Voxy вложен в него, сигнала «чужой вид» нет — он глушит вывод Voxy вне
-     * своей карты, и превью вышло бы тёмным. Тогда — своё превью.
-     */
-    private static final boolean MUTED_BY_MAP = mutedByMap();
+    /** Метка «нарисовал» стоит в Voxy (миксин применился) — иначе проверять нечем, и кадру верим. */
+    private static @Nullable Boolean drawnMarker;
 
     private static @Nullable RenderTarget target;
     /** Свой буфер кадра OpenGL над текстурами цели (Voxy 0.2.16 рисует в привязанный); 0 — нет. */
@@ -86,7 +81,7 @@ final class VoxyPreviewImpl
 
     static boolean ready()
     {
-        return GET_OR_CREATE != null && ! MUTED_BY_MAP && openGl() && ! shaderPackInUse() && IGetVoxyRenderSystem.getNullable() != null;
+        return GET_OR_CREATE != null && openGl() && ! shaderPackInUse() && IGetVoxyRenderSystem.getNullable() != null;
     }
 
     static boolean render(double x, double y, double z, float yaw, float pitch, float fov, int width, int height)
@@ -121,47 +116,38 @@ final class VoxyPreviewImpl
         Quaternionf rotation = new Quaternionf().rotationYXZ((float) Math.PI - (float) Math.toRadians(yaw), -(float) Math.toRadians(pitch), 0.0F);
         Matrix4f modelView = new Matrix4f().rotation(rotation.conjugate(new Quaternionf()));
 
-        externalView(true);
+        if (! loggedOnce)
+        {
+            loggedOnce = true;
+            VoxyPreview.LOGGER.info("Material HUD: selection preview drawn by Voxy (near sections by Voxy: {})",
+                    me.cortex.voxy.client.VoxyClient.disableSodiumChunkRender());
+        }
+
+        int drawBefore = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        int readBefore = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int[] viewportBefore = new int[4];
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewportBefore);
+        GlState state = GlState.capture();
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebuffer(out));
+        GL11.glViewport(0, 0, w, h);
 
         try
         {
-            if (! loggedOnce)
+            Viewport<?> viewport = system.setupViewport(projectionMatrix, modelView, NO_FOG, x, y, z);
+
+            if (viewport == null)
             {
-                loggedOnce = true;
-                VoxyPreview.LOGGER.info("Material HUD: selection preview drawn by Voxy (near sections by Voxy: {})",
-                        me.cortex.voxy.client.VoxyClient.disableSodiumChunkRender());
+                return false;
             }
 
-            int drawBefore = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
-            int readBefore = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
-            int[] viewportBefore = new int[4];
-            GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewportBefore);
-            GlState state = GlState.capture();
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebuffer(out));
-            GL11.glViewport(0, 0, w, h);
-
-            try
-            {
-                Viewport<?> viewport = system.setupViewport(projectionMatrix, modelView, NO_FOG, x, y, z);
-
-                if (viewport == null)
-                {
-                    return false;
-                }
-
-                system.renderOpaque(viewport);
-            }
-            finally
-            {
-                state.restore();
-                GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawBefore);
-                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readBefore);
-                GL11.glViewport(viewportBefore[0], viewportBefore[1], viewportBefore[2], viewportBefore[3]);
-            }
+            system.renderOpaque(viewport);
         }
         finally
         {
-            externalView(false);
+            state.restore();
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawBefore);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readBefore);
+            GL11.glViewport(viewportBefore[0], viewportBefore[1], viewportBefore[2], viewportBefore[3]);
         }
 
         VIEW_PROJECTION.set(projectionMatrix).mul(modelView);
@@ -230,6 +216,37 @@ final class VoxyPreviewImpl
         }
 
         return new double[] { cameraX, cameraY, cameraZ, dir.x, dir.y, dir.z };
+    }
+
+    /** В Voxy есть метка «нарисовал» (наш миксин применился к его отрисовщику секций). */
+    static boolean canTellDrawn()
+    {
+        Boolean known = drawnMarker;
+
+        if (known == null)
+        {
+            known = false;
+
+            try
+            {
+                for (Method method : Class.forName("me.cortex.voxy.client.core.rendering.section.backend.mdic.MDICSectionRenderer").getDeclaredMethods())
+                {
+                    if (method.getName().contains("layerlist$voxyDrewPreview"))
+                    {
+                        known = true;
+                        break;
+                    }
+                }
+            }
+            catch (ReflectiveOperationException | RuntimeException | LinkageError e)
+            {
+                // Другой отрисовщик Voxy — проверить нечем
+            }
+
+            drawnMarker = known;
+        }
+
+        return known;
     }
 
     static void release()
@@ -331,22 +348,6 @@ final class VoxyPreviewImpl
         }
     }
 
-    /** VoxyMap Bobby: «Voxy нужен» на время кадра превью (иначе он глушит вывод вне своей карты). */
-    private static void externalView(boolean on)
-    {
-        if (EXTERNAL_VIEW != null)
-        {
-            try
-            {
-                EXTERNAL_VIEW.invoke(null, on);
-            }
-            catch (ReflectiveOperationException | RuntimeException e)
-            {
-                // Без сигнала превью просто может выйти пустым
-            }
-        }
-    }
-
     private static @Nullable Method resolveGetOrCreate()
     {
         try
@@ -358,37 +359,6 @@ final class VoxyPreviewImpl
         catch (ReflectiveOperationException | RuntimeException | LinkageError e)
         {
             VoxyPreview.LOGGER.warn("Material HUD: this Voxy has no extra views, the selection preview draws itself", e);
-            return null;
-        }
-    }
-
-    private static boolean mutedByMap()
-    {
-        if (EXTERNAL_VIEW != null)
-        {
-            return false;
-        }
-
-        try
-        {
-            Class<?> gate = Class.forName("com.voxymap.client.map.VoxyRenderGate");
-            return ! (boolean) gate.getMethod("standaloneVoxy").invoke(null);
-        }
-        catch (ReflectiveOperationException | RuntimeException | LinkageError e)
-        {
-            // Карты нет (или в ней нет такого выключателя) — Voxy никто не глушит
-            return false;
-        }
-    }
-
-    private static @Nullable Method resolveExternalView()
-    {
-        try
-        {
-            return Class.forName("com.voxymap.client.map.VoxyRenderGate").getMethod("externalView", boolean.class);
-        }
-        catch (ReflectiveOperationException | RuntimeException | LinkageError e)
-        {
             return null;
         }
     }

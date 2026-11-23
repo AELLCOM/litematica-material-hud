@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.ChiseledBookShelfBlock;
 import net.minecraft.world.level.block.CrafterBlock;
 import net.minecraft.world.level.block.DecoratedPotBlock;
+import net.minecraft.world.level.block.EnderChestBlock;
 import net.minecraft.world.level.block.JukeboxBlock;
 import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
@@ -80,6 +81,12 @@ public class StorageIndex
         return this.revision;
     }
 
+    /** Записи те же, но сменились правила счёта (выбранные сундуки, эндер-сундук): склад пора пересчитать. */
+    public void touch()
+    {
+        ++this.revision;
+    }
+
 
     public static class Rec
     {
@@ -88,6 +95,12 @@ public class StorageIndex
         public int y;
         public int z;
         public Map<String, Integer> counts;
+        /**
+         * Те же предметы, у которых есть данные (узор флага, черепки, профиль головы, уровень света), — по ключу
+         * {@code DataItems.dataId}; они входят и в {@link #counts} по id. {@code null} — запись сделана до 1.0.32
+         * и состава не знает: предметы с данными в ней не найти, пока хранилище не откроют заново.
+         */
+        public @org.jetbrains.annotations.Nullable Map<String, Integer> data;
         public long updatedAt;
 
         public BlockPos pos()
@@ -204,6 +217,7 @@ public class StorageIndex
     public boolean update(String scope, BlockPos pos, AbstractContainerMenu menu, int storageSlots)
     {
         LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
+        LinkedHashMap<String, Integer> data = new LinkedHashMap<>();
 
         for (int slot = 0; slot < storageSlots && slot < menu.slots.size(); ++slot)
         {
@@ -211,17 +225,18 @@ public class StorageIndex
 
             if (! stack.isEmpty())
             {
-                counts.merge(itemId(stack), stack.getCount(), Integer::sum);
+                note(counts, data, stack);
                 // Шалкер или мешочек в контейнере — его содержимое тоже в счёт: маркер встаёт над самим
                 // контейнером, а не только над слотом шалкера, когда контейнер уже открыт
-                forEachInside(stack, inner -> counts.merge(itemId(inner), inner.getCount(), Integer::sum));
+                forEachInside(stack, inner -> note(counts, data, inner));
             }
         }
 
         String key = scope + "|" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
         Rec previous = this.records.get(key);
 
-        if (previous != null && previous.counts.equals(counts))
+        // Запись без состава (до 1.0.32) переписывается и при том же счёте по id — иначе она так и не узнает узоров
+        if (previous != null && previous.counts.equals(counts) && data.equals(previous.data))
         {
             return false;
         }
@@ -232,6 +247,7 @@ public class StorageIndex
         rec.y = pos.getY();
         rec.z = pos.getZ();
         rec.counts = counts;
+        rec.data = data;
         rec.updatedAt = System.currentTimeMillis();
         this.records.put(key, rec);
         this.dirty = true;
@@ -324,6 +340,66 @@ public class StorageIndex
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     }
 
+    private static void note(Map<String, Integer> counts, Map<String, Integer> data, ItemStack stack)
+    {
+        counts.merge(itemId(stack), stack.getCount(), Integer::sum);
+        String dataId = com.aell.layerlist.core.DataItems.dataId(stack);
+
+        if (dataId != null)
+        {
+            data.merge(dataId, stack.getCount(), Integer::sum);
+        }
+    }
+
+    /**
+     * Сколько таких предметов в записи хранилища. Предмет с данными (узорный флаг, расписной горшок, голова игрока,
+     * свет своего уровня) — только с теми же данными; «обычный» предмет того же вида — без тех, что с данными: обычный
+     * флаг не закрывает узорный и наоборот (жалоба 19.11.2026: «С учётом склада» прятал все недостающие флаги). Запись
+     * без состава ({@link Rec#data} пуст): с данными — 0, обычные — весь счёт по id, как раньше.
+     */
+    public static long stored(@org.jetbrains.annotations.Nullable Rec rec, ItemStack stack)
+    {
+        return stack.isEmpty() ? 0L : stored(rec, itemId(stack), com.aell.layerlist.core.DataItems.dataId(stack),
+                com.aell.layerlist.core.DataItems.canCarry(stack));
+    }
+
+    /**
+     * То же по готовым ключам предмета — когда записей тысячи, а предмет один: {@code id} — {@link #itemId},
+     * {@code dataId} — {@code DataItems.dataId} (нет данных — {@code null}), {@code carry} — у вида бывают данные.
+     */
+    public static long stored(@org.jetbrains.annotations.Nullable Rec rec, String id, @org.jetbrains.annotations.Nullable String dataId,
+            boolean carry)
+    {
+        if (rec == null || rec.counts == null)
+        {
+            return 0L;
+        }
+
+        if (dataId != null)
+        {
+            return rec.data == null ? 0L : Math.max(0, rec.data.getOrDefault(dataId, 0));
+        }
+
+        long all = Math.max(0, rec.counts.getOrDefault(id, 0));
+
+        if (all == 0L || rec.data == null || rec.data.isEmpty() || ! carry)
+        {
+            return all;
+        }
+
+        String prefix = id + "#";
+
+        for (Map.Entry<String, Integer> entry : rec.data.entrySet())
+        {
+            if (entry.getKey() != null && entry.getValue() != null && entry.getKey().startsWith(prefix))
+            {
+                all -= entry.getValue();
+            }
+        }
+
+        return Math.max(0L, all);
+    }
+
     /**
      * Всё, что лежит внутри предмета-хранилища: шалкер (и любой предмет с содержимым контейнера) или мешочек,
      * вложенные тоже — мешочек в шалкере, мешочек в мешочке, не глубже {@link #NESTED_DEPTH}. Сам предмет не
@@ -381,12 +457,41 @@ public class StorageIndex
             return "";
         }
 
-        String server = mc.getCurrentServer() != null ? mc.getCurrentServer().ip
+        return server(mc) + "|" + mc.level.dimension().identifier();
+    }
+
+    private static String server(Minecraft mc)
+    {
+        return mc.getCurrentServer() != null ? mc.getCurrentServer().ip
                 : (mc.getSingleplayerServer() != null
                         ? "sp:" + mc.getSingleplayerServer().getWorldData().getLevelName()
                         : "local");
+    }
 
-        return server + "|" + mc.level.dimension().identifier();
+    /**
+     * Позиция записи эндер-сундука: у него одно содержимое на игрока, где бы ни стоял блок, поэтому запись одна на
+     * {@link #enderScope область} и лежит в нуле.
+     */
+    public static final BlockPos ENDER_POS = BlockPos.ZERO;
+
+    /**
+     * Область эндер-сундука: сервер и игрок, без измерения — содержимое общее для всех измерений и всех эндер-сундуков
+     * мира, но своё у каждого аккаунта. С областями сундуков ({@link #scope}) не пересекается: там после сервера идёт
+     * измерение, здесь {@code ender:}.
+     */
+    public static String enderScope(Minecraft mc)
+    {
+        if (mc.level == null || mc.player == null)
+        {
+            return "";
+        }
+
+        return server(mc) + "|ender:" + mc.player.getUUID();
+    }
+
+    public static boolean isEnderChest(Minecraft mc, BlockPos pos)
+    {
+        return mc.level != null && mc.level.getBlockState(pos).getBlock() instanceof EnderChestBlock;
     }
 
     public static boolean isStorage(Minecraft mc, BlockPos pos)

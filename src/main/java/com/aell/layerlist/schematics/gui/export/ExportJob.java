@@ -9,7 +9,6 @@ import com.aell.layerlist.schematics.library.SchematicEntry;
 import com.aell.layerlist.schematics.library.SchematicLibrary;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -19,12 +18,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Одна выгрузка в файл (или в таблицу команды), не замораживающая игру:
+ * Одна выгрузка в файл, не замораживающая игру:
  * <ol>
  *   <li>иконки предметов — заказ в {@code ItemIcons} (M25): игра рисует их в кадре GUI порциями по
  *       {@link #FRAME_BUDGET_MS} мс и отдаёт с видеокарты через кадр-два; окно зовёт {@link #tick()}
  *       из своей отрисовки, пока не придут все;</li>
- *   <li>сам файл (xlsx, PNG, CSV, JSON, список Litematica) или тело запроса к таблице команды —
+ *   <li>сам файл (xlsx, PNG, CSV, JSON, список Litematica) —
  *       в {@code Util.ioPool()}: перегрузки {@code Exporters} с {@link IconBatch} {@code ItemIcons}
  *       не трогают; у «Картинки» рядом со страницами — постер-превью схемы ({@link PreviewPoster}, 0.0.27):
  *       его заказ идёт вместе с иконками, запись ждёт и то и другое;</li>
@@ -145,7 +144,7 @@ final class ExportJob
             case ICONS -> this.icons.finished()
                     ? DialogText.t("progress.poster")
                     : DialogText.f("progress.icons", DialogText.num(this.icons.done()), DialogText.num(this.icons.total()));
-            case WORKING -> this.format == ExportFormat.TEAM ? DialogText.t("team.sending") : DialogText.t("progress.writing");
+            case WORKING -> DialogText.t("progress.writing");
             default -> "";
         };
     }
@@ -168,20 +167,8 @@ final class ExportJob
             // Фоновые записи — строго по одной: окно можно закрыть и начать новую, пока пишется прошлая,
             // а две записи за одну минуту выбрали бы одно и то же свободное имя файла
             CompletableFuture<Void> previous = queue.handle((ignored, error) -> null);
-
-            if (this.format == ExportFormat.TEAM)
-            {
-                // В очереди — только сборка тела запроса; ответа скрипта (до двух минут) следующие не ждут
-                CompletableFuture<CompletableFuture<ExportResult>> sent = previous.thenApplyAsync(
-                        ignored -> Exporters.sendToTeamSheet(this.request, this.icons), Util.ioPool());
-                queue = sent;
-                work = sent.thenCompose(Function.identity());
-            }
-            else
-            {
-                work = previous.thenApplyAsync(ignored -> this.write(), Util.ioPool());
-                queue = work;
-            }
+            work = previous.thenApplyAsync(ignored -> this.write(), Util.ioPool());
+            queue = work;
         }
         catch (RuntimeException e)
         {
@@ -215,7 +202,7 @@ final class ExportJob
             case CSV -> Exporters.csv(this.request);
             case JSON -> Exporters.json(this.request);
             case LITEMATICA -> Exporters.litematica(this.request);
-            // Буфер обмена и таблица команды сюда не попадают — у них свой путь
+            // Буфер обмена сюда не попадает — у него свой путь
             default -> ExportResult.failure(DialogText.f("failed", this.format.name()));
         };
     }

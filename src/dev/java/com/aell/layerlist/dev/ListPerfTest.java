@@ -129,6 +129,38 @@ public final class ListPerfTest implements CovJob
                 this.measure(mc, "слой камня (опора не нужна)", LayerMode.SINGLE_LAYER, 2);
                 this.measure(mc, "слой пола (камень, снизу пусто)", LayerMode.SINGLE_LAYER, 0);
                 this.collectOnly(mc);
+                // Дальше — «Скрывать блоки без опоры» в списке (19.11.2026): мир на месте схемы пустой, каждая клетка
+                // «не поставлена», и для каждого ковра решается, на чём он встанет
+                MinecraftServer server = mc.getSingleplayerServer();
+                server.execute(() ->
+                {
+                    for (int x = 0; x < SIZE; x += 64)
+                    {
+                        for (int z = 0; z < SIZE; z += 64)
+                        {
+                            command(server, fill(x, 0, z, x + 63, 2, z + 63, "minecraft:air"));
+                        }
+                    }
+                });
+                ++this.stage;
+                this.nextAt = now + 10_000L;
+            }
+            case 2 ->
+            {
+                this.check("мир на месте схемы пуст", mc.level.getBlockState(REF.offset(5, 1, 5)).isAir()
+                        && mc.level.getBlockState(REF.offset(SIZE - 5, 0, SIZE - 5)).isAir());
+                // Бюджет — как у игрока по умолчанию: видно, на сколько тиков раскладывается пересчёт и сколько длится тик
+                LayerListConfigs.BLOCKS_PER_TICK.setIntegerValue(250_000);
+                this.measureHide(mc, "мир пуст, режим выключен — весь объём", LayerMode.ALL, 0, false, false);
+                this.measureHide(mc, "мир пуст, режим выключен — слой ковров", LayerMode.SINGLE_LAYER, 1, false, false);
+                this.measureHide(mc, "режим включён — весь объём (ковёр встанет после пола)", LayerMode.ALL, 0, true, false);
+                this.profile(mc, "режим включён — весь объём, повторные пересчёты");
+                this.measureHide(mc, "режим включён — слой ковров, опора соседнего слоя выключена (все скрыты)",
+                        LayerMode.SINGLE_LAYER, 1, true, false);
+                this.measureHide(mc, "режим включён — слой ковров, опора соседнего слоя включена",
+                        LayerMode.SINGLE_LAYER, 1, true, true);
+                LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setBooleanValue(false);
+                LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setBooleanValue(false);
                 return true;
             }
             default -> { return true; }
@@ -164,20 +196,135 @@ public final class ListPerfTest implements CovJob
                 what, times[RUNS / 2] / 1e6, times[0] / 1e6, times[RUNS - 1] / 1e6, hud.getBlocksTotal()));
     }
 
+    /**
+     * Пересчёт в режиме «Скрывать блоки без опоры»: первый после смены настроек решает опору каждой клетки по миру
+     * («холодный»), следующие берут решённое готовым, пока мир не менялся. Сколько вызовов тика ушло — тоже в отчёт:
+     * проверки опоры платятся из бюджета тика, и большой слой раскладывается на несколько тиков.
+     */
+    private void measureHide(Minecraft mc, String what, LayerMode mode, int dy, boolean hide, boolean fromLayers)
+    {
+        LayerRange range = DataManager.getRenderLayerRange();
+        range.setLayerMode(mode);
+        range.setAxis(Direction.Axis.Y);
+
+        if (mode == LayerMode.SINGLE_LAYER)
+        {
+            range.setLayerSingle(REF.getY() + dy);
+        }
+
+        LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setBooleanValue(hide);
+        LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setBooleanValue(fromLayers);
+        LayerCountManager hud = LayerCountManager.getInstance();
+        this.lastCalls = 0;
+        long cold = this.recount(mc, hud);
+        int coldCalls = this.lastCalls;
+        long worstTick = this.lastWorstTick;
+        long[] times = new long[RUNS];
+
+        for (int i = 0; i < RUNS; ++i)
+        {
+            times[i] = this.recount(mc, hud);
+        }
+
+        Arrays.sort(times);
+        CovOut.log(String.format(Locale.ROOT, "[listperf] %s: первый пересчёт %.1f мс за %d тик. (самый долгий тик %.1f мс), "
+                        + "следующие — медиана %.1f мс, макс %.1f, за %d тик., чанков с решением заново %d; всего %d, не хватает %d, скрыто %d",
+                what, cold / 1e6, coldCalls, worstTick / 1e6, times[RUNS / 2] / 1e6, times[RUNS - 1] / 1e6,
+                this.lastCalls, number(hud, "standChunksComputed"),
+                hud.getBlocksTotal(), hud.getBlocksMissing(), hud.getBlocksHidden()));
+    }
+
+    /**
+     * Где тратится время повторного пересчёта: поток-наблюдатель раз в миллисекунду снимает стек клиентского потока,
+     * в отчёт идут самые частые верхние кадры (свой код и то, что он зовёт).
+     */
+    private void profile(Minecraft mc, String what)
+    {
+        LayerCountManager hud = LayerCountManager.getInstance();
+        Thread client = Thread.currentThread();
+        java.util.Map<String, Integer> hits = new java.util.concurrent.ConcurrentHashMap<>();
+        java.util.concurrent.atomic.AtomicBoolean on = new java.util.concurrent.atomic.AtomicBoolean(true);
+        Thread sampler = new Thread(() ->
+        {
+            while (on.get())
+            {
+                StackTraceElement[] stack = client.getStackTrace();
+                StringBuilder key = new StringBuilder();
+                int taken = 0;
+
+                for (StackTraceElement frame : stack)
+                {
+                    String name = frame.getClassName();
+                    key.append(name.substring(name.lastIndexOf('.') + 1)).append('.').append(frame.getMethodName())
+                            .append(':').append(frame.getLineNumber()).append(" < ");
+
+                    if (++taken >= 5)
+                    {
+                        break;
+                    }
+                }
+
+                hits.merge(key.toString(), 1, Integer::sum);
+
+                try
+                {
+                    Thread.sleep(1L);
+                }
+                catch (InterruptedException e)
+                {
+                    return;
+                }
+            }
+        }, "listperf-sampler");
+        sampler.setDaemon(true);
+        sampler.start();
+        long[] times = new long[20];
+
+        for (int i = 0; i < times.length; ++i)
+        {
+            times[i] = this.recount(mc, hud);
+        }
+
+        on.set(false);
+        StringBuilder each = new StringBuilder();
+
+        for (long time : times)
+        {
+            each.append(String.format(Locale.ROOT, "%.0f ", time / 1e6));
+        }
+
+        CovOut.log("[listperf] " + what + ": по пересчётам, мс: " + each);
+        hits.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(14)
+                .forEach(e -> CovOut.log("[listperf]   " + e.getValue() + " × " + e.getKey()));
+    }
+
+    private void check(String what, boolean ok)
+    {
+        CovOut.log("[listperf] " + (ok ? "OK   " : "FAIL ") + what);
+    }
+
+    private int lastCalls;
+    private long lastWorstTick;
+
     /** Полный пересчёт: пометить, затем звать тик, пока счёт не опубликован. Время — только вызовы тика. */
     private long recount(Minecraft mc, LayerCountManager hud)
     {
         hud.markDirty();
         long start = System.nanoTime();
         int calls = 0;
+        long worst = 0L;
 
         do
         {
+            long tickStart = System.nanoTime();
             hud.onClientTick(mc);
+            worst = Math.max(worst, System.nanoTime() - tickStart);
             ++calls;
         }
         while ((flag(hud, "counting") || flag(hud, "dirty")) && calls < 10_000);
 
+        this.lastCalls = calls;
+        this.lastWorstTick = worst;
         return System.nanoTime() - start;
     }
 
@@ -210,6 +357,20 @@ public final class ListPerfTest implements CovJob
         CovOut.log(String.format(Locale.ROOT, "[listperf] LayerSupports.collect по слою ковров (%d клеток): медиана %.1f мс "
                 + "(%.2f мкс на клетку), опор найдено %d", SIZE * SIZE, times[RUNS / 2] / 1e6,
                 times[RUNS / 2] / 1e3 / (SIZE * SIZE), found[0]));
+    }
+
+    private static int number(LayerCountManager hud, String name)
+    {
+        try
+        {
+            Field field = LayerCountManager.class.getDeclaredField(name);
+            field.setAccessible(true);
+            return field.getInt(hud);
+        }
+        catch (ReflectiveOperationException e)
+        {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static boolean flag(LayerCountManager hud, String name)
@@ -254,6 +415,8 @@ public final class ListPerfTest implements CovJob
 
         LayerListConfigs.REFRESH_INTERVAL.setIntegerValue(20);
         LayerListConfigs.BLOCKS_PER_TICK.setIntegerValue(250_000);
+        LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setBooleanValue(false);
+        LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setBooleanValue(false);
         DataManager.getRenderLayerRange().setLayerMode(LayerMode.ALL);
     }
 }

@@ -1,13 +1,12 @@
 package com.aell.layerlist.schematics.gui.export;
 
-import com.aell.layerlist.schematics.SchematicsConfig;
 import com.aell.layerlist.schematics.export.ExportOptions;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 /**
- * Что выгружать: кнопки форматов окна (порядок SPEC §3.3) и «Таблица команды». Подписи и
+ * Что выгружать: кнопки форматов окна (порядок SPEC §3.3). Подписи и
  * подсказки — ключи {@code layerlist.schematics.export.dialog.format.<id>}.
  */
 @Environment(EnvType.CLIENT)
@@ -20,9 +19,7 @@ public enum ExportFormat
     DISCORD("discord"),
     PNG("png"),
     JSON("json"),
-    LITEMATICA("litematica"),
-    /** Не кнопка сетки: своя строка окна, видна, только если задан адрес скрипта. */
-    TEAM("team");
+    LITEMATICA("litematica");
 
     private static final List<ExportFormat> GRID = List.of(XLSX, GOOGLE, CSV, COPY, DISCORD, PNG, JSON, LITEMATICA);
 
@@ -39,12 +36,6 @@ public enum ExportFormat
         return GRID;
     }
 
-    /** Задан ли адрес скрипта таблицы команды (тогда строка «Отправить…» видна). */
-    public static boolean teamConfigured()
-    {
-        return ! SchematicsConfig.SHEETS_WEB_APP_URL.getStringValue().isBlank();
-    }
-
     public String label()
     {
         return DialogText.t("format." + this.id);
@@ -58,13 +49,13 @@ public enum ExportFormat
     /** Нужны ли иконки предметов: картинке — всегда, таблицам — по флажку «Иконки предметов». */
     boolean needsIcons(ExportOptions options)
     {
-        return this == PNG || options.icons() && (this == XLSX || this == GOOGLE || this == TEAM);
+        return this == PNG || options.icons() && (this == XLSX || this == GOOGLE);
     }
 
     /** Таблица с оформлением: перед выгрузкой спрашивается палитра ({@link PaletteChooser}). */
     boolean styled()
     {
-        return this == XLSX || this == GOOGLE || this == TEAM;
+        return this == XLSX || this == GOOGLE;
     }
 
     /** Текст в буфер обмена, а не файл: быстро, прямо на клиентском потоке. */

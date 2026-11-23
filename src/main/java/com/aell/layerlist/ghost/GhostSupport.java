@@ -107,6 +107,12 @@ public final class GhostSupport
     // ===== Устоит ли блок =====
 
     private static final ThreadLocal<BlockGetter> VIEW = new ThreadLocal<>();
+    private static final Integer NEUTRAL_LIGHT = 10;
+    /**
+     * Работа голограмм — видимый слой Litematica (с опорами соседнего слоя, когда они включены и найдены): звено цепочки
+     * одного рода за слоем блок не держит, пока его не построят, — как и в списке панели.
+     */
+    private static final Reach LAYER = (near, side) -> DataManager.getRenderLayerRange().isPositionWithinRange(near);
 
     /**
      * Мир игрока для {@code canSurvive} из рабочего потока сборки чанка. Там есть только срез чанков
@@ -127,6 +133,11 @@ public final class GhostSupport
                     case "getBlockEntity" -> { if (arity == 1) return view.getBlockEntity((BlockPos) args[0]); }
                     case "getHeight" -> { if (arity == 0) return view.getHeight(); }
                     case "getMinY" -> { if (arity == 0) return view.getMinY(); }
+                    // Света срез не знает. Раньше эти вызовы бросали исключение, и блок считался держащимся целиком —
+                    // пшеница «держалась» без грядки, стоило рядом оказаться любому блоку схемы. Отвечаем нейтрально:
+                    // 10 — посевам хватает (нужно 8), грибам не мешает (нужно меньше 13), небо видно; решает опора
+                    case "getRawBrightness", "getBrightness", "getMaxLocalRawBrightness" -> { return NEUTRAL_LIGHT; }
+                    case "canSeeSky" -> { return true; }
                     case "isClientSide" -> { return true; }
                     case "hashCode" -> { return System.identityHashCode(proxy); }
                     case "equals" -> { return proxy == args[0]; }
@@ -232,7 +243,7 @@ public final class GhostSupport
             return false;
         }
 
-        return ! supported(schematic, pos.immutable(), world, schematicWorld, null, MAX_CHAIN, new int[]{CHECK_BUDGET});
+        return ! supported(schematic, pos.immutable(), world, schematicWorld, LAYER, null, MAX_CHAIN, new int[]{CHECK_BUDGET});
     }
 
     private static boolean free(BlockState state)
@@ -240,20 +251,296 @@ public final class GhostSupport
         return state.isAir() || state.canBeReplaced();
     }
 
+    // ===== Когда блок можно поставить =====
+
+    /**
+     * Когда блок схемы можно поставить (правило владельца 19.11.2026 — одно на голограммы и список HUD):
+     * <ul>
+     *   <li>{@link #NOW} — сейчас: держится в мире как есть (или клетка уже занята — тогда это не «не поставлено»);</li>
+     *   <li>{@link #LATER} — после опоры: в мире держаться не на чем, но опора — блок схемы, которого ещё нет и который
+     *       строится в этой же работе (сам ставится сейчас или тоже после своей опоры — цепочкой до корня, стоящего в
+     *       мире). Голограмма такого блока скрыта, пока опоры нет, а в списке HUD он и опора учитываются;</li>
+     *   <li>{@link #NEVER} — никак, пока мир не изменится: ни в мире, ни среди строящихся блоков схемы опоры нет.
+     *       Скрыт полностью — и голограммой, и из списка HUD.</li>
+     * </ul>
+     */
+    public enum Stand
+    {
+        NOW,
+        LATER,
+        NEVER
+    }
+
+    /**
+     * Какие клетки схемы строятся «в этой работе»: {@code near} — сосед проверяемой клетки со стороны {@code side}.
+     * У списка HUD это клетки его счёта (слой, зона) и — при «Опоре с соседнего слоя» — сосед по оси слоёв вне слоя.
+     */
+    @FunctionalInterface
+    public interface Reach
+    {
+        boolean allows(BlockPos near, Direction side);
+    }
+
+    /** Глубина цепочки «опора опоры»: дальше не идём — блок считается непоставимым, пока корень не построят. */
+    private static final int MAX_LATER = 16;
+    /** Сколько шагов проверки ушло на вердикты с прошлого {@link #takeStandWork()} — счёт списка платит ими из бюджета тика. */
+    private static long standWork;
+
+    /** Только клиентский поток (как и {@link #stand}). */
+    public static long takeStandWork()
+    {
+        long work = standWork;
+        standWork = 0L;
+        return work;
+    }
+
+    /**
+     * Вердикт клетки (см. {@link Stand}). {@code world} — мир игрока, {@code schematicWorld} — блоки схемы
+     * (мир схемы Litematica или {@code SchematicBlocks}), {@code reach} — что из схемы строится в этой работе.
+     * Бюджет проверок общий на клетку ({@link #CHECK_BUDGET}); исчерпан — блок считается поставимым: лучше показать
+     * лишнее, чем спрятать нужное. Только клиентский поток.
+     */
+    public static Stand stand(BlockState schematic, BlockState client, BlockPos pos, BlockGetter world,
+            BlockGetter schematicWorld, Reach reach)
+    {
+        if (schematic.isAir() || client == schematic || ! free(client))
+        {
+            return Stand.NOW;
+        }
+
+        BlockPos at = pos.immutable();
+        int[] budget = {CHECK_BUDGET};
+
+        try
+        {
+            if (supported(schematic, at, world, schematicWorld, reach, null, MAX_CHAIN, budget))
+            {
+                return Stand.NOW;
+            }
+
+            return later(schematic, at, world, schematicWorld, reach, MAX_LATER, budget, new LongArrayList(),
+                    new it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap()) ? Stand.LATER : Stand.NEVER;
+        }
+        finally
+        {
+            standWork += CHECK_BUDGET - Math.max(budget[0], 0);
+        }
+    }
+
+    /**
+     * Встанет ли блок после опор из схемы: есть сосед-блок схемы, которого в мире ещё нет (клетка свободна или
+     * доводится до него на месте), который строится в этой работе ({@code reach}), с которым блок держится и
+     * который сам ставится — сейчас или так же, после своей опоры. {@code path} — клетки выше по цепочке: на них не
+     * опираемся, иначе два блока держали бы друг друга. {@code known} — уже решённые опоры этого вердикта: одна и
+     * та же клетка по разным путям не проверяется заново.
+     */
+    private static boolean later(BlockState state, BlockPos pos, BlockGetter world, BlockGetter schematic, Reach reach,
+            int depth, int[] budget, LongArrayList path, it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap known)
+    {
+        if (budget[0] < 0)
+        {
+            return true;
+        }
+
+        if (depth <= 0)
+        {
+            return false;
+        }
+
+        path.add(pos.asLong());
+
+        // Соседи, которым самим не встать: на них блок не рассчитывает и в общих наборах ниже
+        int deadFrom = path.size();
+
+        try
+        {
+            Overlay all = null;
+
+            for (Direction side : Direction.values())
+            {
+                BlockPos near = pos.relative(side);
+                BlockState support = buildCell(near, side, world, schematic, reach, path);
+
+                if (support == null)
+                {
+                    continue;
+                }
+
+                if (supported(state, pos, new Overlay(world).put(near, support), schematic, reach, null, MAX_CHAIN, budget))
+                {
+                    if (buildable(support, near, world, schematic, reach, depth - 1, budget, path, known))
+                    {
+                        return true;
+                    }
+
+                    // Держит, но самой не встать — дальше её клетка считается занятой путём
+                    path.add(near.asLong());
+                    continue;
+                }
+
+                all = (all == null ? new Overlay(world) : all).put(near, support);
+            }
+
+            // Блоку нужны сразу несколько опор (стебель большого капельника: снизу и сверху)
+            if (all != null && all.size() >= 2 && supported(state, pos, all, schematic, reach, null, MAX_CHAIN, budget))
+            {
+                // Из набора убираем соседей, без которых блок держится так же: встать обязана только нужная опора,
+                // а не всякий блок схемы рядом
+                for (long key : all.put.keySet().toLongArray())
+                {
+                    Overlay fewer = all.without(key);
+
+                    if (fewer.size() > 0 && supported(state, pos, fewer, schematic, reach, null, MAX_CHAIN, budget))
+                    {
+                        all = fewer;
+                    }
+                }
+
+                boolean each = true;
+
+                for (Long2ObjectMap.Entry<BlockState> entry : all.put.long2ObjectEntrySet())
+                {
+                    if (! buildable(entry.getValue(), BlockPos.of(entry.getLongKey()), world, schematic, reach, depth - 1,
+                            budget, path, known))
+                    {
+                        each = false;
+                        path.add(entry.getLongKey());
+                    }
+                }
+
+                if (each)
+                {
+                    return true;
+                }
+            }
+
+            return around(state, pos, world, schematic, reach, budget, path);
+        }
+        finally
+        {
+            // Своя клетка и всё, что этот вызов пометил «не встанет»
+            path.removeElements(deadFrom - 1, path.size());
+        }
+    }
+
+    /**
+     * Блок схемы в клетке {@code near}, который ещё предстоит построить в этой работе, или {@code null}: воздух в
+     * схеме, уже стоит (мир его учёл), клетка занята чужим блоком (опору туда не поставить), вне работы или на пути.
+     */
+    private static @Nullable BlockState buildCell(BlockPos near, Direction side, BlockGetter world, BlockGetter schematic,
+            Reach reach, LongArrayList path)
+    {
+        BlockState support = schematic.getBlockState(near);
+
+        if (support.isAir() || path.contains(near.asLong()))
+        {
+            return null;
+        }
+
+        BlockState there = world.getBlockState(near);
+
+        if (there == support || ! (free(there) || workable(there, support)) || (reach != null && ! reach.allows(near, side)))
+        {
+            return null;
+        }
+
+        return support;
+    }
+
+    /** Опору делают на месте из стоящего блока: грядку — мотыгой из земли, тропинку — лопатой. */
+    private static boolean workable(BlockState there, BlockState support)
+    {
+        if (! (support.is(net.minecraft.world.level.block.Blocks.FARMLAND)
+                || support.is(net.minecraft.world.level.block.Blocks.DIRT_PATH)) || there.is(support.getBlock()))
+        {
+            return false;
+        }
+
+        Block have = there.getBlock();
+        return have == net.minecraft.world.level.block.Blocks.DIRT || have == net.minecraft.world.level.block.Blocks.GRASS_BLOCK
+                || have == net.minecraft.world.level.block.Blocks.DIRT_PATH || have == net.minecraft.world.level.block.Blocks.FARMLAND
+                || have == net.minecraft.world.level.block.Blocks.COARSE_DIRT || have == net.minecraft.world.level.block.Blocks.ROOTED_DIRT
+                || have == net.minecraft.world.level.block.Blocks.PODZOL || have == net.minecraft.world.level.block.Blocks.MYCELIUM;
+    }
+
+    /**
+     * Условие блока зависит не только от соседа, а от клеток дальше (сахарный тростник: песок под ним и вода рядом
+     * с песком). Подставляем разом все блоки схемы в двух шагах, которые предстоит построить в этой работе: блок
+     * держится — значит, встанет после них. Каждую из них на «встанет ли сама» здесь не проверяем: это вода и
+     * обычные блоки, а лишняя строка в списке лучше пропавшей.
+     */
+    private static boolean around(BlockState state, BlockPos pos, BlockGetter world, BlockGetter schematic, Reach reach,
+            int[] budget, LongArrayList path)
+    {
+        Overlay wide = null;
+        BlockPos.MutableBlockPos far = new BlockPos.MutableBlockPos();
+
+        for (Direction side : Direction.values())
+        {
+            BlockPos near = pos.relative(side);
+            BlockState first = buildCell(near, side, world, schematic, reach, path);
+
+            if (first != null)
+            {
+                wide = (wide == null ? new Overlay(world) : wide).put(near, first);
+            }
+
+            for (Direction next : Direction.values())
+            {
+                if (next == side.getOpposite())
+                {
+                    continue;
+                }
+
+                far.setWithOffset(near, next);
+                BlockState second = buildCell(far, next, world, schematic, reach, path);
+
+                if (second != null)
+                {
+                    wide = (wide == null ? new Overlay(world) : wide).put(far.immutable(), second);
+                }
+            }
+        }
+
+        // Одной клетки мало было выше — здесь смысл есть только у набора
+        return wide != null && wide.size() >= 2 && supported(state, pos, wide, schematic, reach, null, 0, budget);
+    }
+
+    /** Опора сама ставится: держится в мире сейчас или встанет после своей опоры. */
+    private static boolean buildable(BlockState state, BlockPos pos, BlockGetter world, BlockGetter schematic, Reach reach,
+            int depth, int[] budget, LongArrayList path, it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap known)
+    {
+        long key = pos.asLong();
+
+        if (known.containsKey(key))
+        {
+            return known.get(key);
+        }
+
+        boolean stands = supported(state, pos, world, schematic, reach, null, MAX_CHAIN, budget)
+                || later(state, pos, world, schematic, reach, depth, budget, path, known);
+        known.put(key, stands);
+        return stands;
+    }
+
     /**
      * Держится ли блок: в мире как есть — или на соседе того же рода из схемы (лиана на лиане выше,
      * верх двери на низе), который сам держится. {@code from} — звено, из которого пришли: на него не
-     * опираемся, иначе два звена держали бы друг друга.
+     * опираемся, иначе два звена держали бы друг друга. {@code reach} — какие звенья из схемы годятся
+     * ({@code null} — любые): у голограмм и рамок это видимый слой ({@link #LAYER}), у списка — его счёт.
+     *
+     * <p>«Держится» — {@link #survives}: у подвесной таблички на стене ванильный {@code canSurvive} пуст (опора
+     * проверяется только при установке), для неё спрашивается {@code canPlace} — так же, как в списке опор.
      */
     private static boolean supported(BlockState state, BlockPos pos, BlockGetter world, BlockGetter schematic,
-            @Nullable BlockPos from, int depth, int[] budget)
+            @Nullable Reach reach, @Nullable BlockPos from, int depth, int[] budget)
     {
         if (--budget[0] < 0)
         {
             return true;
         }
 
-        if (canSurvive(state, world, pos))
+        if (survives(state, world, pos))
         {
             return true;
         }
@@ -283,13 +570,13 @@ public final class GhostSupport
 
             BlockState have = world.getBlockState(near);
 
-            if (have == kin || ! free(have))
+            if (have == kin || ! free(have) || (reach != null && ! reach.allows(near, side)))
             {
                 continue;
             }
 
-            if (canSurvive(state, new Overlay(world).put(near, kin), pos)
-                    && supported(kin, near, world, schematic, pos, depth - 1, budget))
+            if (survives(state, new Overlay(world).put(near, kin), pos)
+                    && supported(kin, near, world, schematic, reach, pos, depth - 1, budget))
             {
                 return true;
             }
@@ -298,20 +585,82 @@ public final class GhostSupport
         }
 
         // Блоку нужны сразу несколько звеньев (стебель большого капельника: снизу и сверху)
-        if (all == null || all.size() < 2 || ! canSurvive(state, all, pos))
+        if (all != null && all.size() >= 2 && survives(state, all, pos))
+        {
+            boolean each = true;
+
+            for (Long2ObjectMap.Entry<BlockState> entry : all.put.long2ObjectEntrySet())
+            {
+                if (! supported(entry.getValue(), BlockPos.of(entry.getLongKey()), world, schematic, reach, pos, depth - 1,
+                        budget))
+                {
+                    each = false;
+                    break;
+                }
+            }
+
+            if (each)
+            {
+                return true;
+            }
+        }
+
+        return column(state, pos, world, schematic, reach);
+    }
+
+    /**
+     * Большой капельник: стебель держится только между опорой снизу и стеблем или листом сверху, лист — на стебле.
+     * Звенья держат друг друга, и по одному их не проверить: берём весь столбик из схемы, которого ещё нет в мире,
+     * и смотрим, устоит ли каждое звено, когда на месте все.
+     */
+    private static boolean column(BlockState state, BlockPos pos, BlockGetter world, BlockGetter schematic,
+            @Nullable Reach reach)
+    {
+        if (! dripleaf(state))
         {
             return false;
         }
 
-        for (Long2ObjectMap.Entry<BlockState> entry : all.put.long2ObjectEntrySet())
+        Overlay whole = new Overlay(world).put(pos, state);
+
+        for (Direction way : new Direction[]{Direction.DOWN, Direction.UP})
         {
-            if (! supported(entry.getValue(), BlockPos.of(entry.getLongKey()), world, schematic, pos, depth - 1, budget))
+            BlockPos.MutableBlockPos at = pos.mutable();
+
+            for (int i = 0; i < MAX_CHAIN; ++i)
+            {
+                at.move(way);
+                BlockState link = schematic.getBlockState(at);
+                BlockState have = world.getBlockState(at);
+
+                if (! dripleaf(link) || have == link || ! free(have) || (reach != null && ! reach.allows(at, way)))
+                {
+                    break;
+                }
+
+                whole.put(at.immutable(), link);
+            }
+        }
+
+        if (whole.size() < 2)
+        {
+            return false;
+        }
+
+        for (Long2ObjectMap.Entry<BlockState> entry : whole.put.long2ObjectEntrySet())
+        {
+            if (! canSurvive(entry.getValue(), whole, BlockPos.of(entry.getLongKey())))
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private static boolean dripleaf(BlockState state)
+    {
+        return state.getBlock() instanceof BigDripleafBlock || state.getBlock() instanceof BigDripleafStemBlock;
     }
 
     private static boolean sameKind(BlockState a, BlockState b)
@@ -345,6 +694,22 @@ public final class GhostSupport
         int size()
         {
             return this.put.size();
+        }
+
+        /** Тот же мир без одной подставленной клетки. */
+        Overlay without(long key)
+        {
+            Overlay copy = new Overlay(this.base);
+
+            for (Long2ObjectMap.Entry<BlockState> entry : this.put.long2ObjectEntrySet())
+            {
+                if (entry.getLongKey() != key)
+                {
+                    copy.put.put(entry.getLongKey(), entry.getValue());
+                }
+            }
+
+            return copy;
         }
 
         @Override
@@ -487,7 +852,8 @@ public final class GhostSupport
         for (SchematicPlacement placement : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements())
         {
             signature.append('|').append(placement.getOrigin()).append(placement.getRotation())
-                    .append(placement.getMirror()).append(placement.isEnabled()).append(placement.isRenderingEnabled());
+                    .append(placement.getMirror()).append(placement.isEnabled()).append(placement.isRenderingEnabled())
+                    .append(com.aell.layerlist.schematics.materials.BlockReplacements.signature(placement.getSchematic()));
         }
 
         return signature.toString();
@@ -577,7 +943,7 @@ public final class GhostSupport
                                     // Опора — только если с ней блок и правда устоит
                                     if (! support.isAir() && there != support && free(there)
                                             && supported(wanted, cell, new Overlay(level).put(near, support),
-                                                    schematicWorld, null, MAX_CHAIN, new int[]{CHECK_BUDGET}))
+                                                    schematicWorld, LAYER, null, MAX_CHAIN, new int[]{CHECK_BUDGET}))
                                     {
                                         cells.add(near.asLong());
                                     }
@@ -771,7 +1137,7 @@ public final class GhostSupport
                 continue;
             }
 
-            if (supported(wanted, cell, new Overlay(level).put(near, support), schematicWorld, null, MAX_CHAIN,
+            if (supported(wanted, cell, new Overlay(level).put(near, support), schematicWorld, LAYER, null, MAX_CHAIN,
                     new int[]{CHECK_BUDGET}))
             {
                 out.add(near.asLong());

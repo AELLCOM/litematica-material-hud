@@ -126,7 +126,7 @@ public class StorageHighlightRenderer
     }
 
     /** Форма контейнера в мире: объединение контуров всех его блоков (двойной сундук — оба). */
-    private static AABB shapeOf(Minecraft mc, BlockPos pos)
+    static AABB shapeOf(Minecraft mc, BlockPos pos)
     {
         AABB union = null;
 
@@ -151,7 +151,7 @@ public class StorageHighlightRenderer
         return union == null ? new AABB(pos) : union;
     }
 
-    private static void glow(AABB box, List<Integer> colors, float strength, float pulse)
+    static void glow(AABB box, List<Integer> colors, float strength, float pulse)
     {
         int count = Math.max(1, colors.size());
         int halo = soft(blend(colors));
@@ -241,7 +241,7 @@ public class StorageHighlightRenderer
         return 0xFF000000 | (r / n) << 16 | (g / n) << 8 | (b / n);
     }
 
-    private static int withAlpha(int color, float alpha)
+    static int withAlpha(int color, float alpha)
     {
         int a = Math.max(0, Math.min(255, Math.round(alpha * 255.0F)));
         return (a << 24) | (color & 0x00FFFFFF);

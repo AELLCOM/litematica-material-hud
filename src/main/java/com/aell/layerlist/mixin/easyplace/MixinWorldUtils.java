@@ -25,6 +25,14 @@ public abstract class MixinWorldUtils
     @Inject(method = "doEasyPlaceAction", at = @At("HEAD"), cancellable = true, require = 0)
     private static void layerlist$enter(CallbackInfoReturnable<InteractionResult> cir)
     {
+        // Режим выбора сундуков, прицел на хранилище: клик идёт в ваниль (PASS — malilib его не гасит), там
+        // в начале useItemOn он отмечает сундук. Иначе Easy Place поставил бы блок схемы с луча перед сундуком
+        if (com.aell.layerlist.storage.ChestPicker.claimsClick())
+        {
+            cir.setReturnValue(InteractionResult.PASS);
+            return;
+        }
+
         // Модуль выключен (свой тумблер или standalone-мод рядом) — в обработчик не заходим:
         // иначе inHandler() поднимается и прицельные миксины начинают править чужую установку
         if (! EasyPlaceModule.isActive())
@@ -79,7 +87,8 @@ public abstract class MixinWorldUtils
     private static void layerlist$letContainerThroughMc(net.minecraft.client.Minecraft mc,
             CallbackInfoReturnable<Boolean> cir)
     {
-        if (com.aell.layerlist.easyplace.ContainerClick.shouldPass())
+        if (com.aell.layerlist.easyplace.ContainerClick.shouldPass()
+                || com.aell.layerlist.storage.ChestPicker.claimsClick())
         {
             cir.setReturnValue(false);
         }

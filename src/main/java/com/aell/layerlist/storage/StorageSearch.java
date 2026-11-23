@@ -9,10 +9,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.EnderChestBlockEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
@@ -357,6 +361,10 @@ public class StorageSearch
         double radiusSq = radius * radius;
 
         String scope = StorageIndex.scope(mc);
+        // «Свой склад» включён — отмечаем только выбранные хранилища, как и в счёте «В сундуках» (29.10.2026: чужие
+        // сундуки, открытые когда-то раньше, подсвечивались и с включённой опцией)
+        Set<BlockPos> chosen = LayerListConfigs.COUNT_CHOSEN_CHESTS.getBooleanValue()
+                ? ChosenStorages.getInstance().in(scope) : null;
 
         for (StorageIndex.Rec rec : StorageIndex.getInstance().recordsInScope(scope))
         {
@@ -371,7 +379,7 @@ public class StorageSearch
 
             BlockPos canonical = StorageIndex.canonicalPos(mc, pos);
 
-            if (! canonical.equals(pos))
+            if (! canonical.equals(pos) || (chosen != null && ! chosen.contains(canonical)))
             {
                 continue;
             }
@@ -386,6 +394,8 @@ public class StorageSearch
                 }
             }
         }
+
+        this.markEnderChests(mc, playerX, playerZ, radius, radiusSq);
 
         if (LayerListConfigs.SEARCH_ITEM_FRAMES.getBooleanValue())
         {
@@ -414,9 +424,84 @@ public class StorageSearch
                     BlockPos canonical = StorageIndex.canonicalPos(mc, support);
                     StorageIndex.Rec rec = StorageIndex.getInstance().get(scope, canonical);
 
+                    if (chosen != null && ! chosen.contains(canonical))
+                    {
+                        continue;
+                    }
+
                     if (rec == null || rec.counts.containsKey(frameItemId))
                     {
                         addMatch(this.matches, canonical, color);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Эндер-сундук (29.10.2026, «там же лежат нужные мне еловые люки»): у снимка нет места в мире — содержимое одно на
+     * все эндер-сундуки игрока, — поэтому светим каждый блок эндер-сундука рядом, если в снимке есть искомое. Только
+     * пока он в счёте («Эндер-сундук в счёт»); «Свой склад» его не отсекает — эндер-сундук и так только ваш.
+     */
+    private void markEnderChests(Minecraft mc, double playerX, double playerZ, double radius, double radiusSq)
+    {
+        if (! LayerListConfigs.COUNT_ENDER_CHEST.getBooleanValue())
+        {
+            return;
+        }
+
+        String enderScope = StorageIndex.enderScope(mc);
+        StorageIndex.Rec ender = enderScope.isEmpty() ? null
+                : StorageIndex.getInstance().get(enderScope, StorageIndex.ENDER_POS);
+
+        if (ender == null || ender.counts == null)
+        {
+            return;
+        }
+
+        List<Integer> colors = new ArrayList<>();
+
+        for (Map.Entry<String, Integer> item : ender.counts.entrySet())
+        {
+            Integer color = this.selected.get(item.getKey());
+
+            if (color != null && item.getValue() != null && item.getValue() > 0 && ! colors.contains(color))
+            {
+                colors.add(color);
+            }
+        }
+
+        if (colors.isEmpty())
+        {
+            return;
+        }
+
+        // Эндер-сундук — блок с блок-сущностью, она есть у клиента в каждом прогруженном чанке
+        int minChunkX = Mth.floor(playerX - radius) >> 4;
+        int maxChunkX = Mth.floor(playerX + radius) >> 4;
+        int minChunkZ = Mth.floor(playerZ - radius) >> 4;
+        int maxChunkZ = Mth.floor(playerZ + radius) >> 4;
+
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; ++chunkX)
+        {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; ++chunkZ)
+            {
+                if (! mc.level.hasChunk(chunkX, chunkZ))
+                {
+                    continue;
+                }
+
+                for (BlockEntity blockEntity : mc.level.getChunk(chunkX, chunkZ).getBlockEntities().values())
+                {
+                    BlockPos pos = blockEntity.getBlockPos();
+
+                    if (blockEntity instanceof EnderChestBlockEntity && withinRadius(playerX, playerZ, pos, radiusSq)
+                            && StorageIndex.isEnderChest(mc, pos))
+                    {
+                        for (int color : colors)
+                        {
+                            addMatch(this.matches, pos.immutable(), color);
+                        }
                     }
                 }
             }

@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * Иконки строк выгрузки, заказанные заранее. {@link ItemIcons} рисует их игрой в кадре GUI
  * (порциями по бюджету кадра), а пиксели приходят с видеокарты через кадр-два — поэтому окно
  * выгрузки зовёт {@link #step} раз в кадр, пока он не скажет «готово», и тогда отдаёт набор в
- * {@code Exporters.xlsx/google/png/sendToTeamSheet(…, IconBatch)}, которые {@code ItemIcons} уже не
+ * {@code Exporters.xlsx/google/png(…, IconBatch)}, которые {@code ItemIcons} уже не
  * трогают и потому могут писать файл в фоне.
  *
  * <p>{@link #step} — только клиентский поток; готовый набор после этого только читается (передача

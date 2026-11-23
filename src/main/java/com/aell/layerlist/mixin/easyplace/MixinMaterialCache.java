@@ -48,11 +48,37 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = MaterialCache.class, remap = false)
 public abstract class MixinMaterialCache
 {
+    /**
+     * Статуя медного голема: с миром Litematica берёт предмет через ванильный {@code getCloneItemStack}, а тот кладёт
+     * в него позу (компонент {@code block_state}) — и запоминает такой предмет в кеше по состоянию, откуда его потом
+     * получает и список материалов. Статуя той же меди в другой позе в инвентаре строго с ним не совпадает: в руку не
+     * берётся. Клетке годится любая поза (позу доводит {@link com.aell.layerlist.easyplace.StateFix}), поэтому предмет
+     * статуи — всегда без позы и мимо кеша. Не зависит от того, кто ведёт Easy Place.
+     */
+    @Inject(method = {
+            "getRequiredBuildItemForState(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/world/item/ItemStack;",
+            "getItemForDisplayNameForState(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/world/item/ItemStack;"},
+            at = @At("HEAD"), cancellable = true, require = 0)
+    private void layerlist$statueWithoutPose(BlockState state, CallbackInfoReturnable<ItemStack> cir)
+    {
+        if (ItemData.statue(state))
+        {
+            cir.setReturnValue(ItemData.statueStack(state));
+        }
+    }
+
     @Inject(method = "getRequiredBuildItemForState(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/item/ItemStack;",
             at = @At("HEAD"), cancellable = true, require = 0)
     private void layerlist$itemForEasyPlace(BlockState state, Level world, BlockPos pos,
             CallbackInfoReturnable<ItemStack> cir)
     {
+        if (ItemData.statue(state))
+        {
+            cir.setReturnValue(ItemData.statueStack(state));
+
+            return;
+        }
+
         if (! EasyPlaceModule.isActive())
         {
             return;

@@ -128,6 +128,21 @@ public abstract class MixinMultiPlayerGameMode
             return;
         }
 
+        // Режим выбора сундуков: ручной ПКМ по хранилищу отмечает его, а не открывает — раньше всех защит и Easy Place
+        try
+        {
+            if (! AutoPlaceState.isOwnClick()
+                    && com.aell.layerlist.storage.ChestPicker.interceptUse(player, hand, hit))
+            {
+                cir.setReturnValue(InteractionResult.FAIL);
+                return;
+            }
+        }
+        catch (RuntimeException | LinkageError ignored)
+        {
+            // Сбой выбора не должен ронять клик
+        }
+
         // «Защита от установки мимо схемы»: любой блок, ручной тоже, — только туда, где схема его ждёт
         try
         {

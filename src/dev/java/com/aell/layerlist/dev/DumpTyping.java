@@ -22,6 +22,7 @@ import com.aell.layerlist.ui.kit.ScrollList;
 import com.aell.layerlist.ui.kit.TextInput;
 import com.aell.layerlist.ui.kit.Widget;
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.platform.TextInputManager;
 import com.mojang.blaze3d.platform.Window;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
@@ -51,6 +52,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.IMEPreeditOverlay;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -143,8 +145,9 @@ public final class DumpTyping implements CovJob
     // Что вернуть после прогона
     private int guiScaleBefore;
     private List<String> rosterBefore = List.of();
-    private String urlBefore = "";
-    private String tokenBefore = "";
+    private String exportDirBefore = "";
+    private final List<Path> shotFiles = new ArrayList<>();
+    private int scrolled;
     private BlockPos originBefore = BlockPos.ZERO;
     private Rotation rotationBefore = Rotation.NONE;
     private Mirror mirrorBefore = Mirror.NONE;
@@ -185,8 +188,7 @@ public final class DumpTyping implements CovJob
 
         this.guiScaleBefore = mc.options.guiScale().get();
         this.rosterBefore = List.copyOf(SchematicsState.get().roster());
-        this.urlBefore = SchematicsConfig.SHEETS_WEB_APP_URL.getStringValue();
-        this.tokenBefore = SchematicsConfig.SHEETS_TOKEN.getStringValue();
+        this.exportDirBefore = SchematicsConfig.EXPORT_DIR.getStringValue();
 
         server.execute(() ->
         {
@@ -294,8 +296,7 @@ public final class DumpTyping implements CovJob
 
             SchematicsState.get().setRoster(this.rosterBefore);
             SchematicsState.get().save();
-            SchematicsConfig.SHEETS_WEB_APP_URL.setValueFromString(this.urlBefore);
-            SchematicsConfig.SHEETS_TOKEN.setValueFromString(this.tokenBefore);
+            SchematicsConfig.EXPORT_DIR.setValueFromString(this.exportDirBefore);
             new LayerListConfigs().save();
             DumpSchematics.scale(mc, this.guiScaleBefore);
         }
@@ -345,6 +346,7 @@ public final class DumpTyping implements CovJob
         this.materials();
         this.exportDialog();
         this.settingsDialog();
+        this.windowShots();
         this.editorFields();
         this.closeWithFocus();
         this.settingsScreen();
@@ -561,31 +563,27 @@ public final class DumpTyping implements CovJob
         this.act("ростер как был", () -> SchematicsState.get().setRoster(this.rosterBefore));
     }
 
-    /** Окно настроек вкладки: адрес таблицы, ключ (скрытый). */
+    /** Окно настроек вкладки: папка выгрузок — единственное поле ввода. */
     private void settingsDialog()
     {
         this.act("шестерёнка в шапке", () -> this.clickWidget(this.settingsButton()));
-        this.expect("окно настроек с тремя полями", () -> this.layers().top() instanceof Modal modal
-                && ! (modal instanceof ExportWindow) && modalInputs(modal).size() == 3, this::top);
+        this.expect("окно настроек с одним полем", () -> this.layers().top() instanceof Modal modal
+                && ! (modal instanceof ExportWindow) && modalInputs(modal).size() == 1, this::top);
         this.act("найти поля окна", () -> this.settingsDialog = (Modal) this.layers().top());
 
-        this.reveal("адрес таблицы", () -> this.settingsDialog, () -> this.settingsInput(1));
-        this.act("клик мышью в «Адрес веб-приложения»", () -> this.clickWidget(this.settingsInput(1)));
-        this.expect("адрес держит ввод текста", () -> this.settingsInput(1).focused()
-                && this.owner() == this.settingsInput(1) && this.inputOn(), this::state);
-        this.act("Ctrl+A и «https://example.org/w»", () ->
+        this.reveal("папка выгрузок", () -> this.settingsDialog, () -> this.settingsInput(0));
+        this.act("клик мышью в «Папку выгрузок»", () -> this.clickWidget(this.settingsInput(0)));
+        this.expect("папка держит ввод текста", () -> this.settingsInput(0).focused()
+                && this.owner() == this.settingsInput(0) && this.inputOn(), this::state);
+        this.act("Ctrl+A и «w-exports/26.3»", () ->
         {
             this.press(InputConstants.KEY_A, InputConstants.MOD_CONTROL);
-            this.type("https://example.org/w");
+            this.type("w-exports/26.3");
         });
-        this.expect("адрес набран и сразу записан в настройку",
-                () -> "https://example.org/w".equals(this.settingsInput(1).text())
-                        && "https://example.org/w".equals(SchematicsConfig.SHEETS_WEB_APP_URL.getStringValue()),
-                () -> "«" + this.settingsInput(1).text() + "» / «" + SchematicsConfig.SHEETS_WEB_APP_URL.getStringValue() + "»");
-
-        this.act("Tab", () -> this.press(InputConstants.KEY_TAB, 0));
-        this.expect("Tab: ввод у поля ключа", () -> this.settingsInput(2).focused() && ! this.settingsInput(1).focused()
-                && this.owner() == this.settingsInput(2) && this.inputOn(), this::state);
+        this.expect("папка набрана и сразу записана в настройку",
+                () -> "w-exports/26.3".equals(this.settingsInput(0).text())
+                        && "w-exports/26.3".equals(SchematicsConfig.EXPORT_DIR.getStringValue()),
+                () -> "«" + this.settingsInput(0).text() + "» / «" + SchematicsConfig.EXPORT_DIR.getStringValue() + "»");
 
         this.act("Esc, Esc", () ->
         {
@@ -596,9 +594,147 @@ public final class DumpTyping implements CovJob
                 this::state);
         this.act("настройки как были", () ->
         {
-            SchematicsConfig.SHEETS_WEB_APP_URL.setValueFromString(this.urlBefore);
-            SchematicsConfig.SHEETS_TOKEN.setValueFromString(this.tokenBefore);
+            SchematicsConfig.EXPORT_DIR.setValueFromString(this.exportDirBefore);
             new LayerListConfigs().save();
+        });
+    }
+
+    /**
+     * Снимки окон без «Таблицы команды» (1.0.33): настройки вкладки, меню «Выгрузить ▾» и окно выгрузки
+     * (начало и конец тела) — в окне 2000×1090 при GUI 3; после — снова 1600×900, GUI 2.
+     */
+    private void windowShots()
+    {
+        this.add("окно 2000×1090, GUI 3 (снимки)", 8_000L, mc -> this.resize(mc, 2000, 1090, 3));
+
+        this.act("шестерёнка в шапке", () -> this.clickWidget(this.settingsButton()));
+        this.expect("окно настроек: одно поле ввода (папка выгрузок)", () -> this.layers().top() instanceof Modal modal
+                && ! (modal instanceof ExportWindow) && modalInputs(modal).size() == 1, this::top);
+        this.shot("settings");
+        this.add("прокрутить настройки в конец", 5_000L, this::scrollEnd);
+        this.shot("settings-end");
+        this.act("Esc", () -> this.press(InputConstants.KEY_ESCAPE, 0));
+        this.expect("окно настроек закрыто", () -> ! this.layers().any() && this.owner() == this.gui, this::state);
+
+        this.act("«Выгрузить ▾» карточки", () -> this.clickWidget(Objects.requireNonNull(
+                KProbe.cardExport(KProbe.fieldNamedType(this.gui, "InfoPane")), "нет кнопки экспорта карточки")));
+        this.expect("меню форматов", () -> this.layers().top() instanceof ContextMenu, this::top);
+        this.shot("export-menu");
+        this.act("↓ Enter — окно выгрузки", () ->
+        {
+            this.press(InputConstants.KEY_DOWN, 0);
+            this.press(InputConstants.KEY_RETURN, 0);
+        });
+        this.expect("окно выгрузки открыто", () -> this.layers().top() instanceof ExportWindow, this::top);
+        this.shot("export");
+        this.add("прокрутить окно выгрузки в конец", 5_000L, this::scrollEnd);
+        this.shot("export-end");
+        this.act("Esc", () -> this.press(InputConstants.KEY_ESCAPE, 0));
+        this.expect("окно выгрузки закрыто", () -> ! this.layers().any() && this.owner() == this.gui, this::state);
+
+        this.add("снимки записаны", 10_000L, mc ->
+        {
+            long written = this.shotFiles.stream().filter(Files::isRegularFile).count();
+
+            if (written < this.shotFiles.size() && Util.getMillis() - this.startedAt < 8_000L)
+            {
+                return false;
+            }
+
+            if (written == this.shotFiles.size())
+            {
+                this.ok("снимков записано: " + written);
+            }
+            else
+            {
+                this.fail("снимков записано " + written + " из " + this.shotFiles.size());
+            }
+
+            return true;
+        });
+        this.add("окно 1600×900, GUI 2", 8_000L, mc -> this.resize(mc, 1600, 900, 2));
+    }
+
+    private boolean resize(Minecraft mc, int width, int height, int scale)
+    {
+        Window window = mc.getWindow();
+
+        if ((window.getWidth() != width || window.getHeight() != height) && Util.getMillis() - this.startedAt < 5_000L)
+        {
+            window.setWindowed(width, height);
+            return false;
+        }
+
+        DumpSchematics.scale(mc, scale);
+        this.info("окно " + window.getWidth() + "×" + window.getHeight() + ", GUI " + scale + " → "
+                + window.getGuiScaledWidth() + "×" + window.getGuiScaledHeight());
+        return true;
+    }
+
+    /** Колесом мыши в конец тела верхнего окна: щелчок колеса за кадр, лишние упираются в край. */
+    private boolean scrollEnd(Minecraft mc)
+    {
+        if (! (this.layers().top() instanceof Modal m))
+        {
+            this.fail("прокрутка: окна нет");
+            return true;
+        }
+
+        if (this.scrolled >= 30)
+        {
+            this.scrolled = 0;
+            return true;
+        }
+
+        Window window = mc.getWindow();
+        int bodyY = this.intField(m, "bodyY");
+        int bodyH = this.intField(m, "bodyH");
+        double x = (this.intField(m, "x") + this.intField(m, "w") / 2.0) * window.getScreenWidth() / window.getGuiScaledWidth();
+        double y = (bodyY + bodyH / 2.0) * window.getScreenHeight() / window.getGuiScaledHeight();
+        mc.mouseHandler.onMove(handle(), x, y, 0.0, 0.0);
+        mc.mouseHandler.onScroll(handle(), 0.0, -1.0);
+        ++this.scrolled;
+        return false;
+    }
+
+    /** Снимок кадра в {@code <out>/shots/w-<имя>.png}; полсекунды паузы — окно успевает дорисоваться. */
+    private void shot(String name)
+    {
+        this.add("снимок " + name, 5_000L, mc ->
+        {
+            if (Util.getMillis() - this.startedAt < 500L)
+            {
+                return false;
+            }
+
+            Path path = this.out.resolve("shots").resolve("w-" + name + ".png");
+
+            try
+            {
+                Files.createDirectories(path.getParent());
+                Files.deleteIfExists(path);
+            }
+            catch (IOException e)
+            {
+                this.fail("папка снимков: " + e);
+                return true;
+            }
+
+            this.shotFiles.add(path);
+            Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image ->
+            {
+                try (NativeImage owned = image)
+                {
+                    owned.writeToFile(path);
+                }
+                catch (IOException | RuntimeException e)
+                {
+                    CovOut.log(TAG + "снимок " + path.getFileName() + " не записан: " + e);
+                }
+            });
+            this.info("снимок " + path.getFileName() + " (" + mc.getWindow().getWidth() + "×" + mc.getWindow().getHeight()
+                    + ", GUI " + mc.options.guiScale().get() + ")");
+            return true;
         });
     }
 
@@ -662,10 +798,10 @@ public final class DumpTyping implements CovJob
             this.type("1");
             Nav.back();
         });
-        this.expect("ушли: Z не применён, поле вышло из ввода, ввод у экрана «Схемы»",
+        this.expect("ушли: набранное Z применено, поле вышло из ввода, ввод у экрана «Схемы»",
                 () -> Minecraft.getInstance().screen == this.gui && this.editor != null
                         && PlacementEditorScreen.TestHooks.editingAxis(this.editor) == -1 && this.placement != null
-                        && this.placement.getOrigin().getZ() == this.originBefore.getZ() && this.owner() == this.gui,
+                        && this.placement.getOrigin().getZ() != this.originBefore.getZ() && this.owner() == this.gui,
                 this::placementState);
         this.act("убрать размещение", () ->
         {

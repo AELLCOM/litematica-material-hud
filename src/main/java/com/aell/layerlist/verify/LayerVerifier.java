@@ -37,9 +37,13 @@ import net.minecraft.core.Direction;
 import com.aell.layerlist.util.Chat;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import com.aell.layerlist.core.SchematicBlocks;
 import com.aell.layerlist.core.SchematicEntities;
+import com.aell.layerlist.schematics.materials.BlockReplacements;
+import fi.dy.masa.litematica.schematic.LitematicaSchematic;
 import org.jetbrains.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
@@ -133,6 +137,7 @@ public final class LayerVerifier
     private String signature = "";
 
     private List<ScanBox> volume = List.of();
+    private @Nullable SchematicBlocks schematicBlocks;
 
     private int volumeMin;
     private int volumeMax;
@@ -341,6 +346,7 @@ public final class LayerVerifier
         this.announceResult = false;
         this.signature = "";
         this.volume = List.of();
+        this.schematicBlocks = null;
         this.visibleDirty = false;
         this.found.clear();
         this.scannedLayers.clear();
@@ -349,6 +355,15 @@ public final class LayerVerifier
         this.queueIndex = 0;
         this.reloadedChunks.clear();
         this.clearVisible();
+    }
+
+    /** Схема изменилась (замена или отключение блока в списке материалов): пересобрать проверку с нуля. */
+    public void onSchematicChanged()
+    {
+        if (this.enabled)
+        {
+            this.signature = "";
+        }
     }
 
     private void clearVisible()
@@ -454,6 +469,7 @@ public final class LayerVerifier
     private void forget()
     {
         this.found.clear();
+        this.schematicBlocks = null;
         this.scannedLayers.clear();
         this.incompleteLayers.clear();
         this.queue.clear();
@@ -468,6 +484,7 @@ public final class LayerVerifier
     {
         this.signature = newSignature;
         this.volume = scanVolume();
+        this.found.clear();
         this.scannedLayers.clear();
         this.incompleteLayers.clear();
         this.limitReached = false;
@@ -480,18 +497,10 @@ public final class LayerVerifier
             return;
         }
 
-        ObjectIterator<Long2ByteMap.Entry> it = this.found.long2ByteEntrySet().fastIterator();
-
-        while (it.hasNext())
-        {
-            if (! this.contains(it.next().getLongKey()))
-            {
-                it.remove();
-            }
-        }
-
+        Minecraft mc = Minecraft.getInstance();
+        this.schematicBlocks = mc.level != null ? new SchematicBlocks(enabledPlacements(), mc.level) : null;
         this.recomputeVolumeBounds();
-        this.refreshQueue(Minecraft.getInstance());
+        this.refreshQueue(mc);
     }
 
     private void recomputeVolumeBounds()
@@ -671,8 +680,7 @@ public final class LayerVerifier
                         pos.set(x, y, z);
 
                         long key = pos.asLong();
-                        Category category = categoryAt(schematicWorld.getBlockState(pos),
-                                mc.level.getBlockState(pos));
+                        Category category = this.categoryAtPos(schematicWorld, mc.level.getBlockState(pos), pos);
 
                         if (category == null)
                         {
@@ -747,8 +755,7 @@ public final class LayerVerifier
                     }
 
                     long key = pos.asLong();
-                    Category category = categoryAt(schematicWorld.getBlockState(pos),
-                            mc.level.getBlockState(pos));
+                    Category category = this.categoryAtPos(schematicWorld, mc.level.getBlockState(pos), pos);
 
                     if (category == null)
                     {
@@ -820,7 +827,9 @@ public final class LayerVerifier
 
         boolean byInventory = InventoryGhosts.active();
         boolean bySupport = GhostSupport.hideUnsupported() && mc.level != null;
-        WorldSchematic schematicWorld = byInventory || bySupport ? SchematicWorldHandler.getSchematicWorld() : null;
+        BlockGetter schematicView = byInventory || bySupport
+                ? (this.schematicBlocks != null ? this.schematicBlocks : SchematicWorldHandler.getSchematicWorld())
+                : null;
         BlockPos.MutableBlockPos cell = new BlockPos.MutableBlockPos();
         ObjectIterator<Long2ByteMap.Entry> it = this.found.long2ByteEntrySet().fastIterator();
 
@@ -839,15 +848,15 @@ public final class LayerVerifier
 
             Category category = CATEGORIES[entry.getByteValue()];
 
-            if (byInventory && schematicWorld != null && ! shownByInventory(category, schematicWorld, mc, cell.set(x, y, z)))
+            if (byInventory && schematicView != null && ! shownByInventory(category, schematicView, mc, cell.set(x, y, z)))
             {
                 continue;
             }
 
             // «Скрывать блоки без опоры»: голограммы нет — нет и рамки (клетка свободна, держаться не на чем)
-            if (bySupport && schematicWorld != null && category == Category.MISSING
-                    && GhostSupport.unsupported(schematicWorld.getBlockState(cell.set(x, y, z)),
-                            mc.level.getBlockState(cell), cell, mc.level, schematicWorld))
+            if (bySupport && schematicView != null && category == Category.MISSING
+                    && GhostSupport.unsupported(schematicView.getBlockState(cell.set(x, y, z)),
+                            mc.level.getBlockState(cell), cell, mc.level, schematicView))
             {
                 continue;
             }
@@ -895,6 +904,7 @@ public final class LayerVerifier
         }
 
         int[] marked = new int[CATEGORIES.length];
+        boolean byInventory = InventoryGhosts.active();
 
         for (SchematicEntities.Wanted wanted : SchematicEntities.collect(mc.level))
         {
@@ -906,16 +916,24 @@ public final class LayerVerifier
                 continue;
             }
 
-            net.minecraft.world.entity.Entity ghost = SchematicEntities.ghost(world, wanted);
-            SchematicEntities.Match match = ghost != null ? SchematicEntities.match(mc.level, ghost)
-                    : SchematicEntities.matchApprox(mc.level, wanted);
+            // Дальше радиуса сущностей сервера у клиента их нет вовсе — там только последняя сверка вблизи
+            List<SchematicEntities.Status> statuses = SchematicEntities.verdict(mc, world, wanted);
 
-            if (match.satisfied())
+            if (statuses == null || ! (statuses.contains(SchematicEntities.Status.MISSING)
+                    || statuses.contains(SchematicEntities.Status.MISMATCH)))
             {
                 continue;
             }
 
-            Category category = match.statuses().contains(SchematicEntities.Status.MISSING) ? Category.MISSING
+            net.minecraft.world.entity.Entity ghost = SchematicEntities.ghost(world, wanted);
+
+            // «Только блоки из инвентаря»: как у клеток — рамка только там, где есть чем ставить
+            if (byInventory && com.aell.layerlist.ghost.InventoryGhosts.hidesItems(wanted.items()))
+            {
+                continue;
+            }
+
+            Category category = statuses.contains(SchematicEntities.Status.MISSING) ? Category.MISSING
                     : Category.WRONG_STATE;
             ++this.shown[category.ordinal()];
 
@@ -995,7 +1013,7 @@ public final class LayerVerifier
 
         if (this.contains(key))
         {
-            current = categoryAt(schematicWorld.getBlockState(immutable), newState);
+            current = this.categoryAtPos(schematicWorld, newState, immutable);
 
             if (current != null && (this.found.size() < MAX_FOUND || previous != null))
             {
@@ -1149,6 +1167,20 @@ public final class LayerVerifier
     }
 
     @Nullable
+    private Category categoryAtPos(WorldSchematic schematicWorld, BlockState client, BlockPos pos)
+    {
+        SchematicBlocks blocks = this.schematicBlocks;
+        BlockState schematic = blocks != null ? blocks.getBlockState(pos) : schematicWorld.getBlockState(pos);
+
+        if (schematic.isAir() && ! client.isAir() && blocks != null && blocks.isDisabled(pos))
+        {
+            return null;
+        }
+
+        return categoryAt(schematic, client);
+    }
+
+    @Nullable
     private static Category categoryAt(BlockState schematic, BlockState client)
     {
         if (schematic.isAir())
@@ -1177,14 +1209,14 @@ public final class LayerVerifier
      * состояние» — по предмету блока из схемы; «лишних» в режиме нет вовсе: там никакой блок не
      * нужен, только сломать. Пустой горшок под цветок — по цветку.
      */
-    private static boolean shownByInventory(Category category, WorldSchematic schematicWorld, Minecraft mc, BlockPos pos)
+    private static boolean shownByInventory(Category category, BlockGetter schematicWorld, Minecraft mc, BlockPos pos)
     {
         return category != Category.EXTRA && haveItemFor(schematicWorld, mc, pos);
     }
 
-    private static boolean haveItemFor(WorldSchematic schematicWorld, Minecraft mc, BlockPos pos)
+    private static boolean haveItemFor(BlockGetter schematicView, Minecraft mc, BlockPos pos)
     {
-        BlockState wanted = schematicWorld.getBlockState(pos);
+        BlockState wanted = schematicView.getBlockState(pos);
         BlockState schematic = wanted;
 
         if (mc.level != null && Potting.needsPlant(wanted, mc.level.getBlockState(pos)))
@@ -1192,9 +1224,12 @@ public final class LayerVerifier
             wanted = Potting.plantState(wanted);
         }
 
+        WorldSchematic schematicWorld = SchematicWorldHandler.getSchematicWorld();
+
         // Доводка инструментом (костёр, лоза, тыква) — рамку показываем, как и голограмму
-        return InventoryGhosts.available(wanted) || (mc.level != null && com.aell.layerlist.ghost.HiddenGhosts.finishable(
-                schematic, mc.level.getBlockState(pos), pos, mc.level, schematicWorld));
+        return InventoryGhosts.available(wanted)
+                || (mc.level != null && schematicWorld != null && com.aell.layerlist.ghost.HiddenGhosts.finishable(
+                        schematic, mc.level.getBlockState(pos), pos, mc.level, schematicWorld));
     }
 
     private static String label(Category category)
@@ -1210,8 +1245,18 @@ public final class LayerVerifier
 
         for (SchematicPlacement placement : enabledPlacements())
         {
+            LitematicaSchematic schematic = placement.getSchematic();
             builder.append('|').append(placement.getName()).append(placement.getOrigin())
-                    .append(placement.getRotation()).append(placement.getMirror());
+                    .append(placement.getRotation()).append(placement.getMirror())
+                    .append(BlockReplacements.signature(schematic))
+                    .append('#').append(BlockReplacements.generation(schematic));
+
+            for (Map.Entry<String, SubRegionPlacement> entry : placement.getEnabledRelativeSubRegionPlacements().entrySet())
+            {
+                SubRegionPlacement sub = entry.getValue();
+                builder.append('/').append(entry.getKey()).append('@').append(sub.getPos())
+                        .append(':').append(sub.getRotation()).append(':').append(sub.getMirror());
+            }
         }
 
         return builder.toString();

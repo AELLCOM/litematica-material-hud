@@ -509,7 +509,9 @@ public final class TransferButton
         for (int i = 0; i < page.size(); ++i)
         {
             MaterialListEntry entry = page.get(i);
-            int have = DataItems.hasData(entry.getStack()) ? DataItems.available(player, entry.getStack())
+            // Флаги, горшки, головы, свет — только точно такие же: Litematica засчитывает строке обычного флага и
+            // узорные из рюкзака, а поставить их на место обычного мод не даст (13.11.2026)
+            int have = DataItems.canCarry(entry.getStack()) ? DataItems.available(player, entry.getStack())
                     : live.get(i).getCountAvailable();
             int left = entry.getCountMissing() - have;
 
@@ -685,7 +687,8 @@ public final class TransferButton
 
     private static boolean matches(ItemStack stack, ItemStack required)
     {
-        return DataItems.hasData(required) ? ItemData.same(stack, required) : ItemStack.isSameItem(stack, required);
+        // Строке обычного флага узорный того же цвета не годится — и наоборот (13.11.2026: забирал узорные)
+        return DataItems.canCarry(required) ? ItemData.same(stack, required) : ItemStack.isSameItem(stack, required);
     }
 
     private static int carried(LocalPlayer player, ItemStack required)
@@ -876,9 +879,10 @@ public final class TransferButton
         }
 
         ItemStack stack = move.slot().getItem().copy();
-        int need = move.need().left;
+        // Больше стопки за раз не взять; Shift+клик, который лёг бы в запертую ячейку хотбара, идёт щелчками ниже
+        int need = Math.min(move.need().left, stack.getCount());
 
-        if (stack.getCount() <= need)
+        if (stack.getCount() <= need && ! shiftHitsLocked(current.screen.getMenu(), stack))
         {
             mc.gameMode.handleInventoryMouseClick(current.containerId, move.slot().index, 0, ClickType.QUICK_MOVE, player);
             ++current.sent;
@@ -909,7 +913,7 @@ public final class TransferButton
         if (fastest != null)
         {
             current.clicks.addAll(fastest);
-            move.need().left = 0;
+            move.need().left -= need;
             return;
         }
 
@@ -937,15 +941,72 @@ public final class TransferButton
             current.clicks.add(new Click(target.index, 0, ClickType.PICKUP));
         }
 
-        move.need().left = 0;
+        move.need().left -= need;
+    }
+
+    /**
+     * Ляжет ли Shift+клик этой стопки из контейнера в запертую ячейку хотбара. Игра сначала доливает стопки того же
+     * предмета, остаток кладёт в первую пустую ячейку с конца (хотбар справа налево, потом рюкзак) — она и решает.
+     */
+    private static boolean shiftHitsLocked(AbstractContainerMenu menu, ItemStack stack)
+    {
+        if (com.aell.layerlist.core.HotbarLocks.lockedCount() == 0)
+        {
+            return false;
+        }
+
+        int left = stack.getCount();
+
+        for (int i = menu.slots.size() - 1; i >= 0 && left > 0 && stack.isStackable(); --i)
+        {
+            Slot slot = menu.slots.get(i);
+            ItemStack have = slot.getItem();
+
+            if (slot.container instanceof Inventory && ! have.isEmpty() && ItemStack.isSameItemSameComponents(have, stack))
+            {
+                left -= Math.max(0, Math.min(have.getMaxStackSize(), slot.getMaxStackSize(stack)) - have.getCount());
+            }
+        }
+
+        for (int i = menu.slots.size() - 1; i >= 0 && left > 0; --i)
+        {
+            Slot slot = menu.slots.get(i);
+
+            if (slot.container instanceof Inventory && slot.mayPlace(stack) && ! slot.hasItem())
+            {
+                return com.aell.layerlist.core.HotbarLocks.locked(slot.getContainerSlot());
+            }
+        }
+
+        return false;
     }
 
     /** Шалкер с нужным внутри — Shift+кликом целиком; его содержимое закрывает нехватку строк. */
     private static void takeBox(Job current, Move move, Minecraft mc, LocalPlayer player)
     {
         ItemStack box = move.slot().getItem().copy();
-        mc.gameMode.handleInventoryMouseClick(current.containerId, move.slot().index, 0, ClickType.QUICK_MOVE, player);
-        ++current.sent;
+        AbstractContainerMenu menu = current.screen.getMenu();
+
+        if (shiftHitsLocked(menu, box))
+        {
+            // Shift+клик положил бы шалкер в запертую ячейку хотбара — несём его щелчками в открытую пустую
+            Slot target = target(menu, box, box.getCount());
+
+            if (target == null || target.hasItem())
+            {
+                current.full = true;
+                return;
+            }
+
+            mc.gameMode.handleInventoryMouseClick(current.containerId, move.slot().index, 0, ClickType.PICKUP, player);
+            mc.gameMode.handleInventoryMouseClick(current.containerId, target.index, 0, ClickType.PICKUP, player);
+            current.sent += 2;
+        }
+        else
+        {
+            mc.gameMode.handleInventoryMouseClick(current.containerId, move.slot().index, 0, ClickType.QUICK_MOVE, player);
+            ++current.sent;
+        }
 
         // Клиент применяет Shift+клик сразу; шалкер остался в слоте — в инвентаре нет места
         if (move.slot().hasItem() && ItemStack.matches(move.slot().getItem(), box))
@@ -1217,7 +1278,9 @@ public final class TransferButton
                 break;
             }
 
-            if (! (from.container instanceof Inventory) || ! from.hasItem() || ! matches(from.getItem(), required))
+            // Из запертой ячейки хотбара лишнее не возвращаем: её предмет мод не трогает
+            if (! (from.container instanceof Inventory) || ! from.hasItem() || ! matches(from.getItem(), required)
+                    || com.aell.layerlist.core.HotbarLocks.locked(from.getContainerSlot()))
             {
                 continue;
             }
@@ -1286,7 +1349,9 @@ public final class TransferButton
         {
             Slot slot = menu.slots.get(i);
 
-            if (! (slot.container instanceof Inventory) || ! slot.mayPlace(stack))
+            // Запертая ячейка хотбара — не цель: мод в неё блоки не кладёт
+            if (! (slot.container instanceof Inventory) || ! slot.mayPlace(stack)
+                    || com.aell.layerlist.core.HotbarLocks.locked(slot.getContainerSlot()))
             {
                 continue;
             }

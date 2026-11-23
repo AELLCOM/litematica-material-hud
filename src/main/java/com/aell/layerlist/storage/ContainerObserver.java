@@ -48,6 +48,9 @@ public class ContainerObserver
 
     private static final int MAX_PENDING = 4;
 
+    /** Эндер-сундук — три ряда, как одинарный сундук. */
+    private static final int ENDER_SLOTS = 27;
+
     /** Два разных клика ближе этого — экран может принадлежать любому из них. */
     private static final long MIN_AMBIGUITY_MS = 400L;
     private static final long MAX_AMBIGUITY_MS = 1500L;
@@ -78,14 +81,15 @@ public class ContainerObserver
     public static void onBlockInteracted(BlockPos pos, boolean opensScreen)
     {
         Minecraft mc = Minecraft.getInstance();
+        boolean ender = StorageIndex.isEnderChest(mc, pos);
 
-        if (! opensScreen || ! StorageIndex.isRecordable(mc, pos))
+        if (! opensScreen || ! (ender || StorageIndex.isRecordable(mc, pos)))
         {
             pending.clear();
             return;
         }
 
-        BlockPos canonical = StorageIndex.canonicalPos(mc, pos);
+        BlockPos canonical = ender ? pos.immutable() : StorageIndex.canonicalPos(mc, pos);
         pending.removeIf(p -> p.pos().equals(canonical));
 
         if (pending.size() >= MAX_PENDING)
@@ -138,20 +142,31 @@ public class ContainerObserver
         if (activeMenu == null && openedMenu != null && ! pending.isEmpty() && fromMenuType(openedMenu))
         {
             BlockPos interacted = takeOpener(mc);
-            int slots = interacted != null ? storageSlotCount(mc, interacted, openedMenu) : 0;
+            // Эндер-сундук: своё содержимое игрока, одна запись на сервер и аккаунт, а не на блок
+            boolean ender = interacted != null && StorageIndex.isEnderChest(mc, interacted);
+            int slots = interacted == null ? 0
+                    : ender ? (openedMenu.slots.size() == ENDER_SLOTS + 36 ? ENDER_SLOTS : 0)
+                    : storageSlotCount(mc, interacted, openedMenu);
 
             if (slots > 0)
             {
                 activeMenu = openedMenu;
                 activeSlots = slots;
-                activePos = StorageIndex.canonicalPos(mc, interacted);
-                activeScope = StorageIndex.scope(mc);
+                activePos = ender ? StorageIndex.ENDER_POS : StorageIndex.canonicalPos(mc, interacted);
+                activeScope = ender ? StorageIndex.enderScope(mc) : StorageIndex.scope(mc);
 
-                if (StorageIndex.getInstance().removeNonCanonical(activeScope, activePos,
+                if (! ender && StorageIndex.getInstance().removeNonCanonical(activeScope, activePos,
                         StorageIndex.physicalBlocks(mc, activePos)))
                 {
                     StorageIndex.getInstance().save();
                     StorageSearch.getInstance().requestRefresh();
+                }
+
+                // Отметка «выбран для счёта» едет за записью на каноническую половину
+                if (! ender)
+                {
+                    ChosenStorages.getInstance().canonicalize(activeScope, activePos,
+                            StorageIndex.physicalBlocks(mc, activePos));
                 }
 
                 if (record())

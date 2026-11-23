@@ -34,6 +34,7 @@ public final class AllChestsSearch
 {
     private static boolean wasOn;
     private static @Nullable LitematicaSchematic countedFor;
+    private static int countedGeneration = -1;
     private static @Nullable CompletableFuture<List<MaterialRow>> pending;
 
     private AllChestsSearch() {}
@@ -69,6 +70,7 @@ public final class AllChestsSearch
     public static void recount()
     {
         countedFor = null;
+        countedGeneration = -1;
         pending = null;
     }
 
@@ -95,6 +97,7 @@ public final class AllChestsSearch
             {
                 wasOn = false;
                 countedFor = null;
+                countedGeneration = -1;
                 pending = null;
                 StorageSearch.getInstance().backToPage(mc.level != null
                         ? LayerCountManager.getInstance().searchEntries() : List.of());
@@ -111,15 +114,19 @@ public final class AllChestsSearch
             if (countedFor != null)
             {
                 countedFor = null;
+                countedGeneration = -1;
                 StorageSearch.getInstance().clear();
             }
 
             return;
         }
 
-        if (schematic != countedFor && pending == null)
+        int generation = com.aell.layerlist.schematics.materials.BlockReplacements.generation(schematic);
+
+        if ((schematic != countedFor || generation != countedGeneration) && pending == null)
         {
             countedFor = schematic;
+            countedGeneration = generation;
             CompletableFuture<List<MaterialRow>> job = SchematicMaterials.ofLitematica(schematic);
             pending = job;
             job.whenComplete((rows, error) ->

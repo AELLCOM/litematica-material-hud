@@ -608,15 +608,25 @@ public class LayerHudRenderer implements IInfoHudRenderer
         long placed = total - missing;
         int percent = total > 0 ? (int) (placed * 100L / total) : 100;
         String progressText = StringUtils.translate("layerlist.hud.progress", placed, total, percent);
+        // «Скрывать блоки без опоры»: клетки, которые пока не поставить, из списка убраны — но слой с ними не собран
+        long supportHidden = manager.getBlocksHidden();
+        boolean supportWait = supportHidden > 0 && rowCount <= 0 && missing == 0 && stockHidden == 0;
+
+        if (supportHidden > 0 && ! supportWait)
+        {
+            addonLines = new ArrayList<>(addonLines);
+            addonLines.add(StringUtils.translate("layerlist.hud.support_hidden", supportHidden));
+        }
 
         String doneText = null;
         boolean doneOk = false;
 
         if (rowCount <= 0)
         {
-            doneOk = total > 0 && missing == 0;
-            doneText = doneOk
-                    ? Strings.plain("layerlist.hud.done")
+            doneOk = total > 0 && missing == 0 && ! supportWait;
+            doneText = supportWait
+                    ? StringUtils.translate("layerlist.hud.support_wait", supportHidden)
+                    : doneOk ? Strings.plain("layerlist.hud.done")
                     : stockHidden > 0 ? Strings.plain("layerlist.hud.stock_covered")
                     : Strings.plain("layerlist.hud.empty");
             // Всё спрятанное складом — тоже «готово»: зелёным, как собранный слой

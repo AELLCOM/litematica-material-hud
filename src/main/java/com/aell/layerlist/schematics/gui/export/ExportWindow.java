@@ -37,12 +37,12 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Окно выгрузки (SPEC §3.4, §8) — модальное над экраном «Схемы»: название таблицы, источник и
  * фильтр строк, «Кто собирает», тумблеры «Иконки предметов», «Крупное сырьё», «Диаграмма», кнопки
- * форматов, листание частей для Discord, раздел «Таблица команды» и строка итога.
+ * форматов, листание частей для Discord и строка итога.
  *
  * <p>Выгрузка в файл не замораживает игру ({@link ExportJob}): иконки — порциями на клиентском
- * потоке, запись — в фоне. Буфер обмена (Копировать, Discord, скрипт) — сразу. Итог — в строке
+ * потоке, запись — в фоне. Буфер обмена (Копировать, Discord) — сразу. Итог — в строке
  * итога внизу тела окна ({@link StatusLine}) с кнопками «Открыть файл», «Показать в папке» (для Google —
- * ещё «Открыть Google Таблицы», для таблицы команды — «Открыть лист»); ошибки — там же красным, в чат
+ * ещё «Открыть Google Таблицы»); ошибки — там же красным, в чат
  * ничего. Тело прокручивается к этой строке само.
  *
  * <p>Пока окно открыто, тостов нет (0.0.27): стопка экрана в правом нижнем углу ложилась на подвал
@@ -82,7 +82,6 @@ public final class ExportWindow extends Modal
     private final RosterField roster;
     private final FormatGrid formats;
     private final DiscordRow discord;
-    private final TeamPanel team;
     private final StatusLine status;
 
     private ExportSource source;
@@ -159,16 +158,13 @@ public final class ExportWindow extends Modal
         this.discord = new DiscordRow(this::nextDiscordPart);
         this.row(this.discord, width -> this.discord.shown() ? Ui.BUTTON_H : 0);
 
-        this.team = new TeamPanel(() -> this.run(ExportFormat.TEAM), this::copyScript, preset == ExportFormat.TEAM);
-        this.row(this.team, this.team::height);
-
         this.status = new StatusLine(this::statusMessage);
         this.row(this.status, this.status::height);
 
         this.button(ExportsFolder.button());
         this.button(new Button(Strings.t("close"), Button.Style.SECONDARY, this::cancel));
         // Enter жмёт формат, выбранный в меню «Выгрузить ▾»; без выбора Enter ничего не выгружает
-        this.defaultButton(preset == ExportFormat.TEAM ? this.team.sendButton() : this.formats.button(preset));
+        this.defaultButton(this.formats.button(preset));
     }
 
     /**
@@ -397,7 +393,6 @@ public final class ExportWindow extends Modal
 
         String why = this.blocked();
         this.formats.update(why);
-        this.team.update(why);
         this.discord.update(! this.busy());
 
         if (this.discord.shown() && ! this.discordKey().equals(this.discordKey))
@@ -523,21 +518,7 @@ public final class ExportWindow extends Modal
         }
     }
 
-    private void copyScript()
-    {
-        String script = Exporters.teamSheetScript();
-
-        if (script == null)
-        {
-            this.show(new StatusLine.Message(DialogText.t("team.script_missing"), Ui.C_DANGER));
-            return;
-        }
-
-        Minecraft.getInstance().keyboardHandler.setClipboard(script);
-        this.succeed(DialogText.t("team.script_copied"));
-    }
-
-    /** Готово сразу (буфер обмена, скрипт) — окно открыто: только строка итога. */
+    /** Готово сразу (буфер обмена) — окно открыто: только строка итога. */
     private void succeed(String text)
     {
         this.show(new StatusLine.Message(text, Theme.GREEN));
@@ -567,23 +548,6 @@ public final class ExportWindow extends Modal
 
         if (! this.layers.isOpen(this) && openNow() == null && ! this.host.alive().getAsBoolean())
         {
-            return;
-        }
-
-        if (format == ExportFormat.TEAM)
-        {
-            URI link = done.open();
-
-            if (link != null)
-            {
-                SystemOpen.browse(link);
-                this.report(DialogText.t("team.done"), new Toasts.Action(DialogText.t("team.open"), () -> SystemOpen.browse(link)));
-            }
-            else
-            {
-                this.report(DialogText.t("team.done"));
-            }
-
             return;
         }
 
