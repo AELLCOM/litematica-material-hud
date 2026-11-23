@@ -19,6 +19,10 @@ dependencies {
     // Syncmatica — по желанию: классы с её типами грузятся, только если мод стоит (compat/SyncmaticaImpl)
     modCompileOnly files("libs/syncmatica-fabric-1.21.11-0.3.20.jar")
 
+    // Chest Tracker (неофициальный порт) — по желанию: склад из его памяти сундуков (compat/ChestTrackerImpl грузится,
+    // только если мод стоит)
+    modCompileOnly files("libs/chesttracker-2.8.4+1.21.11.jar")
+
     // Voxy — по желанию, для 3D-превью «Выделения»: только для компиляции, в jar не входит (лицензия Voxy — All Rights
     // Reserved). Классы с типами Voxy грузятся, только если Voxy стоит отдельно (compat/VoxyPreviewImpl)
     modCompileOnly files("libs/voxy-0.2.16-beta+1.21.11.jar")

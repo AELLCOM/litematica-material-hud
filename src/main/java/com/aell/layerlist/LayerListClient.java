@@ -112,6 +112,13 @@ public class LayerListClient implements ClientModInitializer
             StorageIndex.getInstance().touch();
             com.aell.layerlist.storage.StorageSearch.getInstance().requestRefresh();
         });
+        LayerListConfigs.STOCK_NEAR_ONLY.setValueChangeCallback(changed -> com.aell.layerlist.storage.StockArea.changed());
+        LayerListConfigs.STOCK_RADIUS.setValueChangeCallback(changed -> com.aell.layerlist.storage.StockArea.changed());
+        LayerListConfigs.STOCK_CHEST_TRACKER.setValueChangeCallback(changed ->
+        {
+            com.aell.layerlist.compat.ChestTracker.changed();
+            com.aell.layerlist.storage.StorageSearch.getInstance().requestRefresh();
+        });
         registerColorCacheReset();
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
@@ -156,6 +163,8 @@ public class LayerListClient implements ClientModInitializer
             LayerCountManager.getInstance().onClientTick(client);
             ContainerObserver.onClientTick(client);
             com.aell.layerlist.storage.ChestPicker.onClientTick(client);
+            com.aell.layerlist.compat.ChestTracker.onClientTick(client);
+            com.aell.layerlist.storage.StockArea.onClientTick(client);
             com.aell.layerlist.storage.AllChestsSearch.tick(client);
             StorageSearch.getInstance().onClientTick(client);
             LayerVerifier.getInstance().onClientTick(client);

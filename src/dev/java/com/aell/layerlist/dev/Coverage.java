@@ -153,6 +153,7 @@ public final class Coverage
                 case "transferclose" -> JOBS.add(new TransferCloseTest());
                 case "nestedsearch" -> JOBS.add(new NestedSearchTest());
                 case "stockhud" -> JOBS.add(new StockHudTest());
+                case "issues" -> JOBS.add(new IssuesTest());
                 case "countformat" -> JOBS.add(new CountFormatTest());
                 case "escguard" -> JOBS.add(new EscGuardTest());
                 case "snow" -> JOBS.add(new SnowTest());

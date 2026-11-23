@@ -75,6 +75,8 @@ public final class MaterialsJob
         {
             case TableSource.File file -> job.loadFile(file.entry());
             case TableSource.Placed placed -> job.countPlacement(placed.placement());
+            // Группа: строки даёт только сверка с миром (счётчик панели), своего файла нет
+            case TableSource.Group group -> job.finish(List.of());
             case TableSource.Hud hud -> job.readHud();
             case TableSource.Area area -> job.finish(area.rows());
         }

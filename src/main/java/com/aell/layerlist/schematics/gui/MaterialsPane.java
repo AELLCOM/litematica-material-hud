@@ -368,6 +368,13 @@ final class MaterialsPane extends Pane
         this.show(next, false);
     }
 
+    /** Материалы группы размещений — всех вместе (заявка #5). */
+    void openGroup(com.aell.layerlist.schematics.place.PlacementGroups.Group group)
+    {
+        this.seenSelection = this.screen.selected();
+        this.show(new TableSource.Group(group.name(), group.members()), false);
+    }
+
     @Nullable SchematicEntry entry()
     {
         return this.source instanceof TableSource.File file ? file.entry() : null;
@@ -438,6 +445,7 @@ final class MaterialsPane extends Pane
                     && file.entry().path().equals(other.entry().path());
             case TableSource.Placed placed -> current instanceof TableSource.Placed other
                     && placed.placement() == other.placement();
+            case TableSource.Group group -> current instanceof TableSource.Group other && group.equals(other);
             case TableSource.Hud hud -> current instanceof TableSource.Hud;
             case TableSource.Area area -> current == area;
         };
@@ -524,6 +532,11 @@ final class MaterialsPane extends Pane
         if (this.source == null || ! this.source.schematic())
         {
             return Tr.t("materials.source.hud");
+        }
+
+        if (this.source instanceof TableSource.Group group)
+        {
+            return Tr.f("materials.source.group", group.name());
         }
 
         return Tr.f("materials.source.schematic", this.source.name());
@@ -638,6 +651,8 @@ final class MaterialsPane extends Pane
         return switch (source)
         {
             case TableSource.Placed placed -> placement -> placement == placed.placement();
+            case TableSource.Group group -> placement -> group.members().contains(
+                    com.aell.layerlist.schematics.place.PlacementGroups.id(placement));
             case TableSource.File file ->
             {
                 Path want = normalized(file.entry().path());
@@ -843,6 +858,7 @@ final class MaterialsPane extends Pane
         List<LitematicaSchematic> hudSchematics = hud ? BlockReplacements.hudSchematics() : List.of();
         this.hudSchematics = hudSchematics;
         this.rowStates = hud ? BlockReplacements.hudRows(rows, hudSchematics)
+                : this.source instanceof TableSource.Group ? BlockReplacements.groupRows(rows)
                 : BlockReplacements.rows(this.schematic, rows, false);
 
         for (MaterialRow row : rows)
@@ -1603,6 +1619,7 @@ final class MaterialsPane extends Pane
         // Без схемы, но с несколькими в мире — «Схема ▾» со списком; серая — только когда схемы нет вовсе
         boolean pick = target == null && this.choices().size() > 1;
         this.schematicButton.label(target == null ? Tr.t("materials.source.pick")
+                : target instanceof TableSource.Group ? Tr.f("materials.source.group", target.name())
                 : Tr.f("materials.source.schematic", target.name()));
         this.schematicButton.trailing(pick ? Glyphs.CHEVRON_DOWN : null);
         this.schematicButton.setEnabled(target != null || pick);
@@ -2051,6 +2068,7 @@ final class MaterialsPane extends Pane
         {
             case TableSource.File file -> ExportNames.of(file.entry());
             case TableSource.Placed placed -> ExportNames.of(placed.placement());
+            case TableSource.Group group -> group.name();
             case TableSource.Hud ignored -> ExportNames.hud();
             case TableSource.Area area -> area.name();
         };
