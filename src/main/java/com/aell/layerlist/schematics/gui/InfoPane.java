@@ -2,6 +2,7 @@ package com.aell.layerlist.schematics.gui;
 
 import com.aell.layerlist.schematics.library.SchematicEntry;
 import com.aell.layerlist.schematics.library.SchematicInfo;
+import com.aell.layerlist.schematics.library.SchematicOrigin;
 import com.aell.layerlist.schematics.place.PlacementOps;
 import com.aell.layerlist.shaded.ui.Paint;
 import com.aell.layerlist.shaded.ui.Style;
@@ -56,6 +57,8 @@ final class InfoPane extends Pane
     private final Button zones;
     /** «Разместить и поделиться» — только с Syncmatica на сервере. */
     private final Button syncShare;
+    /** «Сохранить исправленную копию» — только у схемы с потерянной точкой привязки (1.0.40). */
+    private final Button fixOrigin;
     /** Цвет зон — тот же циан, что рамки зон в мире и на превью. */
     static final int ZONED = com.aell.layerlist.schematics.preview.ZoneOverlay.ACTIVE;
     private boolean zonesSplit;
@@ -116,6 +119,16 @@ final class InfoPane extends Pane
                 this.screen.placeAndShare(entry);
             }
         }).accent(PlacementsPane.SYNC).tooltip(Tr.t("sync.place_share.tip"));
+        this.fixOrigin = new Button(Tr.t("info.origin_fix"), Button.Style.SECONDARY, () ->
+        {
+            SchematicEntry entry = this.screen.selected();
+
+            if (entry != null)
+            {
+                this.screen.fixOrigin(entry);
+            }
+        }).tooltip(Tr.t("info.origin_fix.tip"));
+        this.fixOrigin.setVisible(false);
     }
 
     /** «Выгрузить ▾»: меню форматов под кнопкой; выбор открывает окно выгрузки с этим форматом. */
@@ -326,6 +339,7 @@ final class InfoPane extends Pane
             }
         }
 
+        cy = this.layoutOrigin(ctx, font, left, cy, inner);
         cy += Ui.PAD_REL;
         cy = this.layoutActions(ctx, font, left, cy, inner, mouseX, mouseY);
         cy += Ui.PAD_GROUP;
@@ -414,7 +428,49 @@ final class InfoPane extends Pane
 
     private List<Button> actions()
     {
-        return List.of(this.placeHere, this.placeAt, this.materials, this.export, this.zones, this.syncShare);
+        return List.of(this.placeHere, this.placeAt, this.materials, this.export, this.zones, this.syncShare, this.fixOrigin);
+    }
+
+    /**
+     * Потерянная точка привязки (1.0.40): блоки схемы записаны далеко от неё, и Litematica без нашего мода поставит
+     * такую схему на этом расстоянии от игрока. Предупреждение и кнопка копии, которая встаёт у игрока. Точка привязки
+     * у схемы (или это не {@code .litematic}) — ни строки, ни кнопки. Рисует кнопку общий цикл {@link #layoutActions}.
+     */
+    private int layoutOrigin(GuiContext ctx, Font font, int left, int cy, int inner)
+    {
+        SchematicOrigin.Extent extent = this.screen.selectedOrigin();
+        boolean far = extent != null && extent.far();
+
+        this.fixOrigin.setVisible(far);
+
+        if (! far)
+        {
+            return cy;
+        }
+
+        cy += Ui.PAD_REL;
+
+        for (String line : Kit.wrap(font, Tr.f("info.origin_far", Tr.num(extent.gap())), inner))
+        {
+            Paint.midText(ctx, font, line, left, cy, LINE, Ui.C_WARN, false);
+            cy += LINE;
+        }
+
+        cy += Ui.PAD_IN;
+
+        boolean busy = this.screen.fixingOrigin();
+
+        this.fixOrigin.setEnabled(! busy);
+        this.fixOrigin.setBounds(left, cy, inner, Ui.BUTTON_H);
+        this.fixOrigin.label(Tr.t(busy ? "info.origin_fix.busy" : "info.origin_fix"));
+
+        // Не влезает (узкая карточка) — короткая подпись, полная остаётся в подсказке
+        if (! busy && this.fixOrigin.preferredWidth(font) > inner)
+        {
+            this.fixOrigin.label(Tr.t("info.origin_fix.short"));
+        }
+
+        return cy + Ui.BUTTON_H;
     }
 
     private void zonesAction()

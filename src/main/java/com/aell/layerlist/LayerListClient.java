@@ -97,6 +97,8 @@ public class LayerListClient implements ClientModInitializer
 
         // После конфига и хоткеев: опции и хоткей вкладки «Схемы» уже прочитаны и привязаны
         SchematicsModule.init();
+        // Отрисовщик полотен карточки узорного флага — вместе с отрисовщиком GUI игры
+        com.aell.layerlist.hud.BannerFlags.register();
 
         StorageIndex.getInstance().load();
         com.aell.layerlist.storage.ChosenStorages.getInstance().load();
@@ -158,6 +160,9 @@ public class LayerListClient implements ClientModInitializer
             com.aell.layerlist.storage.StorageIndex.getInstance().flush();
             VerifyCache.getInstance().save(true);
         });
+
+        // Party: приглашения в чате и ссылка «Принять участие» (без сервера)
+        com.aell.layerlist.party.PartyChat.init();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             LayerCountManager.getInstance().onClientTick(client);

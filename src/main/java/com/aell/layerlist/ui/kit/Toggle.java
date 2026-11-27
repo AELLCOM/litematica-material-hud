@@ -22,6 +22,10 @@ import org.jetbrains.annotations.Nullable;
  * папках», «Только недостающее», параметры выгрузки, размещения в карточке; кликабельна вся строка).
  * Значение читается из источника каждый кадр — переключатель не расходится с опцией, если её поменяли
  * где-то ещё.
+ *
+ * <p>27.11.2026: {@link #swatch} — цветная метка после дорожки, как у опций экрана настроек (цвет категории,
+ * к которой относится тумблер), и {@link #compact} — без подписи, когда в полосе инструментов тесно: остаются
+ * дорожка и метка, подпись уходит в подсказку.
  */
 @Environment(EnvType.CLIENT)
 public final class Toggle extends Widget
@@ -40,6 +44,10 @@ public final class Toggle extends Widget
     private boolean highlight;
     /** На сколько пикселей GUI рамка подсветки выходит за тумблер по бокам. */
     private static final int HIGHLIGHT_OUT = 3;
+    /** Цвет метки после дорожки; 0 — метки нет. */
+    private int swatch;
+    /** Без подписи: дорожка и метка, подпись — в подсказке. */
+    private boolean compact;
 
     /** Тумблер опции: справа «Вкл/Выкл». */
     public Toggle(BooleanSupplier value, Consumer<Boolean> onChange)
@@ -68,12 +76,36 @@ public final class Toggle extends Widget
         return this;
     }
 
+    /** Цветная метка {@link Ui#SWATCH} между дорожкой и подписью; {@code 0} — без метки. */
+    public Toggle swatch(int color)
+    {
+        this.swatch = color;
+        return this;
+    }
+
+    /** Без подписи (она остаётся в подсказке): для тесной полосы инструментов. Ширину отдаёт {@link #preferredWidth}. */
+    public Toggle compact(boolean on)
+    {
+        this.compact = on;
+        return this;
+    }
+
+    public boolean compact()
+    {
+        return this.compact;
+    }
+
     public int preferredWidth(Font font)
     {
+        if (this.compact)
+        {
+            return TRACK + (this.swatch != 0 ? Ui.PAD_IN + Ui.SWATCH : 0);
+        }
+
         int text = this.label != null ? font.width(this.label)
                 : Math.max(font.width(Strings.onOff(true)), font.width(Strings.onOff(false)));
 
-        return TRACK + Ui.PAD_IN + text;
+        return TRACK + Ui.PAD_IN + (this.swatch != 0 ? Ui.SWATCH_COL : 0) + text;
     }
 
     /**
@@ -123,8 +155,16 @@ public final class Toggle extends Widget
         drawTrack(ctx, this.x, this.y, this.h, k, hover, this.enabled);
 
         int labelX = this.x + TRACK + Ui.PAD_IN;
+
+        if (this.swatch != 0)
+        {
+            Paint.rect(ctx, labelX, this.y + (this.h - Ui.SWATCH) / 2, Ui.SWATCH, Ui.SWATCH,
+                    this.enabled ? this.swatch : Ui.alpha(this.swatch, Ui.A_SWATCH_OFF));
+            labelX += Ui.SWATCH_COL;
+        }
+
         String text = this.label != null ? this.label : Strings.onOff(on);
-        String shown = Paint.fit(font, text, this.x + this.w - labelX);
+        String shown = this.compact ? "" : Paint.fit(font, text, this.x + this.w - labelX);
 
         if (Style.vanilla())
         {

@@ -3,6 +3,7 @@ package com.aell.layerlist.core;
 import com.aell.layerlist.api.CountScope;
 import com.aell.layerlist.api.LayerListApi;
 import com.aell.layerlist.config.LayerListConfigs;
+import com.aell.layerlist.party.Parties;
 import com.aell.layerlist.easyplace.GrowingPlants;
 import com.aell.layerlist.easyplace.ItemData;
 import com.aell.layerlist.easyplace.Potting;
@@ -107,6 +108,8 @@ public class LayerCountManager
     private List<MaterialListEntry> entries = Collections.emptyList();
     /** Все строки последнего счёта — для таблицы «Список HUD», API и закладок поиска. */
     private List<MaterialListEntry> allEntries = Collections.emptyList();
+    /** Party последней публикации списка HUD ({@link Parties#hud}). */
+    private Parties.@Nullable HudShare partyShare;
     /** Склад, по которому отобраны {@link #entries}; {@code null} — склад не вычитается. */
     private @Nullable Availability stock;
     /** Сколько строк спрятано складом. */
@@ -283,6 +286,14 @@ public class LayerCountManager
     public List<MaterialListEntry> getAllEntries()
     {
         return this.allEntries;
+    }
+
+    /** Party в опубликованном списке HUD: чья доля показана или почему список общий; {@code null} — Party нет. */
+    public Parties.@Nullable HudShare getPartyShare()
+    {
+        Parties.HudShare share = this.partyShare;
+
+        return share == null || (share.applied() == null && ! share.several()) ? null : share;
     }
 
     /** Строк спрятано «С учётом склада»: всё нужное уже есть в инвентаре и известных сундуках. */
@@ -501,6 +512,7 @@ public class LayerCountManager
     {
         this.entries = Collections.emptyList();
         this.allEntries = Collections.emptyList();
+        this.partyShare = null;
         this.stock = null;
         this.stockHidden = 0;
         this.stockSignature = Long.MIN_VALUE;
@@ -658,14 +670,16 @@ public class LayerCountManager
         // dm1 — статуя медного голема в другой позе — построено; обычный флаг, горшок, голова, а в мире с данными —
         // «стоит не то» (19.11.2026)
         cacheSig.append("|dm1");
-        // hu1 — «Скрывать блоки без опоры» убирает клетки из счёта (19.11.2026): свой счёт и свои записи кэша, с
-        // «Опорой с соседнего слоя» — третьи. Без режима подпись прежняя — старые записи кэша годятся
+        // hu — «Скрывать блоки без опоры» убирает клетки из счёта (19.11.2026): свой счёт и свои записи кэша, с
+        // «Опорой с соседнего слоя» — третьи. Без режима подпись прежняя — старые записи кэша годятся.
+        // hu2 (24.11.2026): опора с соседнего слоя — только вплотную к слою и только та, что ставится сама; столбик
+        // подвесных табличек друг под другом за слоем больше не «встанет после опоры» — записи hu1 не годятся
         this.hideMode = this.target.hud() && mc.level != null && GhostSupport.hideUnsupported();
         this.hideFromLayers = this.hideMode && GhostSupport.supportFromLayers();
 
         if (this.hideMode)
         {
-            cacheSig.append(this.hideFromLayers ? "|hu1L" : "|hu1");
+            cacheSig.append(this.hideFromLayers ? "|hu2L" : "|hu2");
         }
 
         for (SchematicPlacement placement : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements())
@@ -762,6 +776,7 @@ public class LayerCountManager
             this.entries = Collections.emptyList();
             // И полный список: «Список HUD» в таблице и API аддонов показывали бы строки убранного размещения
             this.allEntries = Collections.emptyList();
+            this.partyShare = null;
             this.hasData = false;
             this.blocksTotal = 0L;
             this.blocksMissing = 0L;
@@ -924,7 +939,7 @@ public class LayerCountManager
         boolean rangeAll = ! (this.target.layers() || this.cutoffOnly()) || range.getLayerMode() == LayerMode.ALL
                 || (scope != null && scope.isActive() && ! scope.applyLayerRange());
         boolean ignoreState = Configs.Generic.MATERIAL_LIST_IGNORE_STATE.getBooleanValue();
-        boolean onlyEmpty = LayerListConfigs.SHORTFALL_ONLY_MISSING.getBooleanValue();
+        Shortfall shortfall = Shortfall.current();
         BlockPos.MutableBlockPos posMutable = new BlockPos.MutableBlockPos();
         long budget = LayerListConfigs.BLOCKS_PER_TICK.getIntegerValue();
         VerifyCache cache = this.cache;
@@ -941,22 +956,17 @@ public class LayerCountManager
         Direction[] outAbove = {layerUp};
         Direction[] outBoth = {layerUp, layerUp.getOpposite()};
         // «Скрывать блоки без опоры»: что из схемы строится в этой работе — клетки самого счёта (слой, область
-        // аддона) и, при «Опоре с соседнего слоя», сосед вне слоя вдоль оси слоёв (как у голограмм и LayerSupports)
+        // аддона) и, при «Опоре с соседнего слоя», клетка вплотную к слою по его оси, если она ставится сама (как у
+        // голограмм). Дальше от слоя опору не ищем: её с этого слоя не поставить (GhostSupport.layerReach)
         final boolean hide = this.hideMode && this.hideView != null;
         final SchematicBlocks hideView = this.hideView;
         final boolean scopeOn = scope != null && scope.isActive();
         final List<Box> scopeBoxes = hide && scopeOn ? scope.getBoxes() : List.of();
         final boolean outsideAllowed = this.hideFromLayers && ! rangeAll && axis != null;
-        final GhostSupport.Reach reach = ! hide ? null : (near, side) ->
-        {
-            if (scopeOn && ! inScope(scopeBoxes, near))
-            {
-                return false;
-            }
-
-            return rangeAll || GhostSupport.rawWithinRange(range, near.getX(), near.getY(), near.getZ())
-                    || (outsideAllowed && side.getAxis() == axis);
-        };
+        final GhostSupport.Reach reach = ! hide ? null : GhostSupport.layerReach(range, rangeAll,
+                outsideAllowed ? axis : null, scopeOn ? near -> inScope(scopeBoxes, near) : null);
+        // В режиме в список идёт только сама опора с соседнего слоя: то, на чём держится она, уже обязано стоять в мире
+        final boolean deepSupports = ! this.hideMode;
         GhostSupport.takeStandWork();
         final long standNow = Util.getMillis();
 
@@ -986,10 +996,15 @@ public class LayerCountManager
             Object2IntOpenHashMap<BlockState> chunkMismatch = verified ? new Object2IntOpenHashMap<>() : null;
             Object2IntOpenHashMap<DataItems.Key> chunkMissingData = verified ? new Object2IntOpenHashMap<>() : null;
             Object2IntOpenHashMap<DataItems.Key> chunkMismatchData = verified ? new Object2IntOpenHashMap<>() : null;
+            // «Не тот блок» (27.11.2026) — часть «стоит не то»: клетка занята блоком другого типа или тем же блоком
+            // с другими данными предмета (узор, черепки, профиль). Остальное «не то» — не то состояние
+            Object2IntOpenHashMap<BlockState> chunkWrong = verified ? new Object2IntOpenHashMap<>() : null;
+            Object2IntOpenHashMap<DataItems.Key> chunkWrongData = verified ? new Object2IntOpenHashMap<>() : null;
             // Кэш проверки ключуется по состоянию: клетки с данными складываем в него по состоянию же,
             // чтобы чанк, выпавший из прорисовки, считался так же, как считался бы без данных.
             Object2IntOpenHashMap<BlockState> foldMissing = verified ? new Object2IntOpenHashMap<>() : null;
             Object2IntOpenHashMap<BlockState> foldMismatch = verified ? new Object2IntOpenHashMap<>() : null;
+            Object2IntOpenHashMap<BlockState> foldWrong = verified ? new Object2IntOpenHashMap<>() : null;
             // Чанк из кэша: клетки с данными по ключам и состояниям — разложить по ним недостачу кэша (она по
             // состоянию). Один ключ бывает в нескольких состояниях: баннер с узором стоя и на стене, в разные стороны
             HashMap<DataItems.Key, Object2IntOpenHashMap<BlockState>> cachedData = cached != null ? new HashMap<>() : null;
@@ -1193,7 +1208,7 @@ public class LayerCountManager
                                     // поэтому запоминаются у любой клетки, а в счёт идут после чанка — см. ниже
                                     final long owner = BlockPos.asLong(x, y, z);
                                     LayerSupports.collect(stateSchematic, new BlockPos(x, y, z),
-                                            below && above ? outBoth : below ? outBelow : outAbove, blocks, cell ->
+                                            below && above ? outBoth : below ? outBelow : outAbove, blocks, deepSupports, cell ->
                                             {
                                                 BlockState wanted = blocks.getBlockState(BlockPos.of(cell));
 
@@ -1304,13 +1319,27 @@ public class LayerCountManager
                                     chunkMissingData.addTo(dataKey, 1);
                                     foldMissing.addTo(stateSchematic, 1);
                                 }
-                                else if (differs(stateSchematic, stateClient, ignoreState)
-                                        // Блок тот, а узор (черепки, профиль) — другой: стоит не то, что в схеме.
-                                        || (! snapshot && ! ItemData.same(ItemData.required(mc.level, posMutable, stateClient),
-                                                dataKey.sample())))
+                                else
                                 {
-                                    chunkMismatchData.addTo(dataKey, 1);
-                                    foldMismatch.addTo(stateSchematic, 1);
+                                    boolean stateDiffers = differs(stateSchematic, stateClient, ignoreState);
+                                    boolean otherBlock = stateDiffers && stateClient.getBlock() != stateSchematic.getBlock();
+                                    // Блок тот, а узор (черепки, профиль) — другой: стоит не то, что в схеме.
+                                    // У блока другого типа предмет другой заведомо — данные не читаем
+                                    boolean otherItem = ! otherBlock && ! snapshot
+                                            && ! ItemData.same(ItemData.required(mc.level, posMutable, stateClient),
+                                                    dataKey.sample());
+
+                                    if (stateDiffers || otherItem)
+                                    {
+                                        chunkMismatchData.addTo(dataKey, 1);
+                                        foldMismatch.addTo(stateSchematic, 1);
+
+                                        if (otherBlock || otherItem)
+                                        {
+                                            chunkWrongData.addTo(dataKey, 1);
+                                            foldWrong.addTo(stateSchematic, 1);
+                                        }
+                                    }
                                 }
 
                                 continue;
@@ -1326,13 +1355,25 @@ public class LayerCountManager
                                 // недостроенный: горшок готов, нужен только цветок (сажается кликом)
                                 chunkMissing.addTo(Potting.plantState(stateSchematic), 1);
                             }
-                            else if (differs(stateSchematic, stateClient, ignoreState)
-                                    // Схема просит обычный флаг (горшок, голову), а стоит узорный того же вида: состояние
-                                    // то же, предмет — другой. Клетки с данными сверяются выше, обычные — здесь
-                                    || (! snapshot && region.blockEntities() != null && ItemData.matters(stateSchematic)
-                                            && DataItems.hasData(ItemData.required(mc.level, posMutable, stateClient))))
+                            else
                             {
-                                chunkMismatch.addTo(stateSchematic, 1);
+                                boolean stateDiffers = differs(stateSchematic, stateClient, ignoreState);
+                                boolean otherBlock = stateDiffers && stateClient.getBlock() != stateSchematic.getBlock();
+                                // Схема просит обычный флаг (горшок, голову), а стоит узорный того же вида: состояние
+                                // то же, предмет — другой. Клетки с данными сверяются выше, обычные — здесь
+                                boolean otherItem = ! otherBlock && ! snapshot && region.blockEntities() != null
+                                        && ItemData.matters(stateSchematic)
+                                        && DataItems.hasData(ItemData.required(mc.level, posMutable, stateClient));
+
+                                if (stateDiffers || otherItem)
+                                {
+                                    chunkMismatch.addTo(stateSchematic, 1);
+
+                                    if (otherBlock || otherItem)
+                                    {
+                                        chunkWrong.addTo(stateSchematic, 1);
+                                    }
+                                }
                             }
                         }
                     }
@@ -1370,8 +1411,16 @@ public class LayerCountManager
                         continue;
                     }
 
+                    // В режиме: опору, которой в мире ещё нет и которая сама не встанет, с этого слоя не поставить —
+                    // в список она не идёт (блок слоя держится тогда на другой своей опоре). 24.11.2026
+                    if (hide && verified && unplaceableSupport(mc, hideView, chunkSupports.wanted()[i],
+                            chunkSupports.cells()[i], chunkSupports.owners()[i]))
+                    {
+                        continue;
+                    }
+
                     this.countSupport(mc, chunkSupports.wanted()[i], chunkSupports.cells()[i], verified, cached, ignoreState,
-                            chunkMissing, chunkMismatch);
+                            chunkMissing, chunkMismatch, chunkWrong);
                 }
             }
 
@@ -1398,20 +1447,23 @@ public class LayerCountManager
 
             if (! chunkEntities.isEmpty())
             {
-                this.countEntities(mc, chunkEntities, verified ? schematicWorld : null, verified && ! snapshot, onlyEmpty);
+                this.countEntities(mc, chunkEntities, verified ? schematicWorld : null, verified && ! snapshot, shortfall);
             }
 
             if (verified)
             {
-                accumulate(this.countsMissing, this.countsMismatch, chunkMissing, chunkMismatch, onlyEmpty);
-                accumulate(this.dataMissing, this.dataMismatch, chunkMissingData, chunkMismatchData, onlyEmpty);
+                accumulate(this.countsMissing, this.countsMismatch, chunkMissing, chunkMismatch, chunkWrong, shortfall);
+                accumulate(this.dataMissing, this.dataMismatch, chunkMissingData, chunkMismatchData, chunkWrongData,
+                        shortfall);
                 cache.put(chunkKey, merged(chunkMissing, foldMissing), merged(chunkMismatch, foldMismatch),
-                        new VerifyCache.DataCounts(chunkMissingData, chunkMismatchData, foldMissing, foldMismatch),
+                        merged(chunkWrong, foldWrong),
+                        new VerifyCache.DataCounts(chunkMissingData, chunkMismatchData, chunkWrongData,
+                                foldMissing, foldMismatch, foldWrong),
                         hide ? hiddenNow : null);
             }
             else if (cached != null)
             {
-                this.addCached(cached, cachedData, onlyEmpty);
+                this.addCached(cached, cachedData, shortfall);
             }
         }
 
@@ -1520,6 +1572,18 @@ public class LayerCountManager
 
     private void publish(List<MaterialListEntry> list, long total, long missing, long hidden, int unverified, int cached)
     {
+        // Party: список HUD — долей участника (чужие предметы уходят). Таблице «Материалы» долю ставит сама вкладка
+        if (this.target.hud())
+        {
+            Parties.HudShare share = Parties.hud();
+            this.partyShare = share;
+
+            if (share.applied() != null)
+            {
+                list = share.applied().entries(list);
+            }
+        }
+
         // Таблице нужны и готовые строки («Всё» — вся постройка); прятать готовое — дело только HUD
         if (this.target.hud() && LayerListConfigs.ONLY_MISSING.getBooleanValue())
         {
@@ -1560,7 +1624,7 @@ public class LayerCountManager
      * цвет и содержимое); без голограммы — только «есть ли рядом сущность того же типа».
      */
     private void countEntities(Minecraft mc, List<SchematicEntities.Wanted> wanted, @Nullable WorldSchematic schematicWorld,
-                               boolean verified, boolean onlyEmpty)
+                               boolean verified, Shortfall shortfall)
     {
         Object2IntOpenHashMap<DataItems.Key> missing = new Object2IntOpenHashMap<>();
         Object2IntOpenHashMap<DataItems.Key> mismatch = new Object2IntOpenHashMap<>();
@@ -1601,7 +1665,9 @@ public class LayerCountManager
             }
         }
 
-        accumulate(this.entityMissing, this.entityMismatch, missing, mismatch, onlyEmpty);
+        // У сущности «не то» — поворот, сюжет картины, содержимое рамки: проверка относит это к «не тому
+        // состоянию», «не того блока» у сущностей нет
+        accumulate(this.entityMissing, this.entityMismatch, missing, mismatch, null, shortfall);
     }
 
     /**
@@ -1609,10 +1675,30 @@ public class LayerCountManager
      * и «не то» — как у клеток слоя (по миру в загруженном чанке, иначе всё недостаёт или берётся из кэша).
      * {@code wanted} — блок схемы в клетке опоры, не воздух.
      */
+    /**
+     * Клетка опоры в мире свободна, а сам блок опоры в ней не встанет: держаться не на чем или упадёт. Опора может
+     * держаться на самом блоке слоя (лист большой бросянки — на её стебле): тогда она ставится следом за ним и в
+     * список идёт, поэтому мир для проверки — с блоком слоя {@code owner} на месте.
+     */
+    private static boolean unplaceableSupport(Minecraft mc, net.minecraft.world.level.BlockGetter schematic, BlockState wanted, long cell,
+            long owner)
+    {
+        BlockPos pos = BlockPos.of(cell);
+
+        if (! emptyCell(wanted, mc.level.getBlockState(pos)))
+        {
+            return false;
+        }
+
+        BlockPos ownerPos = BlockPos.of(owner);
+        return ! GhostSupport.standsAlone(wanted, GhostSupport.with(mc.level, ownerPos, schematic.getBlockState(ownerPos)), pos);
+    }
+
     private void countSupport(Minecraft mc, BlockState wanted, long cell, boolean verified,
                               @Nullable VerifyCache.ChunkCounts cached, boolean ignoreState,
                               @Nullable Object2IntOpenHashMap<BlockState> chunkMissing,
-                              @Nullable Object2IntOpenHashMap<BlockState> chunkMismatch)
+                              @Nullable Object2IntOpenHashMap<BlockState> chunkMismatch,
+                              @Nullable Object2IntOpenHashMap<BlockState> chunkWrong)
     {
         BlockPos pos = BlockPos.of(cell);
         this.countsTotal.addTo(wanted, 1);
@@ -1636,6 +1722,11 @@ public class LayerCountManager
         else if (differs(wanted, have, ignoreState))
         {
             chunkMismatch.addTo(wanted, 1);
+
+            if (chunkWrong != null && have.getBlock() != wanted.getBlock())
+            {
+                chunkWrong.addTo(wanted, 1);
+            }
         }
     }
 
@@ -1645,20 +1736,25 @@ public class LayerCountManager
      * отдаётся сначала клеткам с данными этого чанка ({@code data}), остаток — обычным.
      */
     private void addCached(VerifyCache.ChunkCounts cached, HashMap<DataItems.Key, Object2IntOpenHashMap<BlockState>> data,
-                           boolean onlyEmpty)
+                           Shortfall shortfall)
     {
         Object2IntOpenHashMap<BlockState> missing = new Object2IntOpenHashMap<>(cached.missing());
         Object2IntOpenHashMap<BlockState> mismatch = new Object2IntOpenHashMap<>(cached.mismatch());
+        // «Не тот блок» — часть «не то»; чанк из файла кэша до 27.11.2026 её не знает (пусто до первой проверки)
+        Object2IntOpenHashMap<BlockState> wrong = new Object2IntOpenHashMap<>(cached.wrong());
         Object2IntOpenHashMap<DataItems.Key> missingData = new Object2IntOpenHashMap<>();
         Object2IntOpenHashMap<DataItems.Key> mismatchData = new Object2IntOpenHashMap<>();
+        Object2IntOpenHashMap<DataItems.Key> wrongData = new Object2IntOpenHashMap<>();
         VerifyCache.DataCounts known = cached.data();
 
         if (known != null)
         {
             take(missing, known.foldMissing());
             take(mismatch, known.foldMismatch());
+            take(wrong, known.foldWrong());
             missingData = known.missing();
             mismatchData = known.mismatch();
+            wrongData = known.wrong();
         }
         else
         {
@@ -1674,7 +1770,7 @@ public class LayerCountManager
                     BlockState state = entry.getKey();
                     int cells = entry.getIntValue();
                     int absent = Math.min(cells, missing.getInt(state));
-                    int wrong = Math.min(cells - absent, mismatch.getInt(state));
+                    int off = Math.min(cells - absent, mismatch.getInt(state));
 
                     if (absent > 0)
                     {
@@ -1682,20 +1778,30 @@ public class LayerCountManager
                         missingData.addTo(keyEntry.getKey(), absent);
                     }
 
-                    if (wrong > 0)
+                    if (off > 0)
                     {
-                        mismatch.addTo(state, -wrong);
-                        mismatchData.addTo(keyEntry.getKey(), wrong);
+                        mismatch.addTo(state, -off);
+                        mismatchData.addTo(keyEntry.getKey(), off);
+
+                        // Из них «не тот блок» — тем же порядком: сколько его есть у состояния, столько и уходит
+                        int other = Math.min(off, wrong.getInt(state));
+
+                        if (other > 0)
+                        {
+                            wrong.addTo(state, -other);
+                            wrongData.addTo(keyEntry.getKey(), other);
+                        }
                     }
                 }
             }
 
             missing.object2IntEntrySet().removeIf(entry -> entry.getIntValue() <= 0);
             mismatch.object2IntEntrySet().removeIf(entry -> entry.getIntValue() <= 0);
+            wrong.object2IntEntrySet().removeIf(entry -> entry.getIntValue() <= 0);
         }
 
-        accumulate(this.countsMissing, this.countsMismatch, missing, mismatch, onlyEmpty);
-        accumulate(this.dataMissing, this.dataMismatch, missingData, mismatchData, onlyEmpty);
+        accumulate(this.countsMissing, this.countsMismatch, missing, mismatch, wrong, shortfall);
+        accumulate(this.dataMissing, this.dataMismatch, missingData, mismatchData, wrongData, shortfall);
     }
 
     /** Вычесть счёт {@code part} из {@code from}; что ушло в ноль — убрать. */
@@ -1716,9 +1822,14 @@ public class LayerCountManager
         }
     }
 
-    /** Долить счёт чанка в общий: несовпадения идут и в «не хватает», если не просили считать только пустые. */
+    /**
+     * Долить счёт чанка в общий. Несовпадения ({@code mismatch}) идут и в «не хватает» целиком в режиме
+     * {@link Shortfall#ALL}; в режиме {@link Shortfall#WRONG_BLOCKS} — только их часть «не тот блок» ({@code wrong},
+     * не больше самого несовпадения по ключу; {@code null} — такой части нет); в {@link Shortfall#EMPTY} — не идут.
+     */
     private static <K> void accumulate(Object2IntOpenHashMap<K> intoMissing, Object2IntOpenHashMap<K> intoMismatch,
-                                       Object2IntOpenHashMap<K> missing, Object2IntOpenHashMap<K> mismatch, boolean onlyEmpty)
+                               Object2IntOpenHashMap<K> missing, Object2IntOpenHashMap<K> mismatch,
+                               @Nullable Object2IntOpenHashMap<K> wrong, Shortfall shortfall)
     {
         for (var entry : missing.object2IntEntrySet())
         {
@@ -1729,9 +1840,18 @@ public class LayerCountManager
         {
             intoMismatch.addTo(entry.getKey(), entry.getIntValue());
 
-            if (! onlyEmpty)
+            if (shortfall == Shortfall.ALL)
             {
                 intoMissing.addTo(entry.getKey(), entry.getIntValue());
+            }
+            else if (shortfall == Shortfall.WRONG_BLOCKS && wrong != null)
+            {
+                int other = Math.min(entry.getIntValue(), wrong.getInt(entry.getKey()));
+
+                if (other > 0)
+                {
+                    intoMissing.addTo(entry.getKey(), other);
+                }
             }
         }
     }

@@ -150,6 +150,49 @@ public final class Availability
         });
     }
 
+    /**
+     * Та же строка с числами «В инвентаре» и «В сундуках» из этого снимка: таблица обновляет их, когда игрок взял или
+     * положил предметы, не пересчитывая схему.
+     */
+    public MaterialRow restamp(MaterialRow row)
+    {
+        long inventory = this.inInventory(row.stack());
+        long chests = this.inChests(row.stack());
+
+        if (inventory == row.inInventory() && chests == row.inChests())
+        {
+            return row;
+        }
+
+        return new MaterialRow(row.stack(), row.key(), row.name(), row.total(), row.missing(), inventory, chests,
+                row.maxStack(), row.entity());
+    }
+
+    /**
+     * Отпечаток инвентаря игрока: предмет, данные (с содержимым шалкеров и мешков) и количество каждого слота. Сменился —
+     * в инвентаре что-то поменялось. Дёшево, можно звать каждый тик; без мира — 0.
+     */
+    public static long inventoryStamp()
+    {
+        Minecraft mc = Minecraft.getInstance();
+
+        if (mc.level == null || mc.player == null)
+        {
+            return 0L;
+        }
+
+        Inventory inventory = mc.player.getInventory();
+        long stamp = 1L;
+
+        for (int slot = 0; slot < inventory.getContainerSize(); ++slot)
+        {
+            ItemStack stack = inventory.getItem(slot);
+            stamp = stamp * 31L + (stack.isEmpty() ? 0L : ItemStack.hashItemAndComponents(stack) * 131L + stack.getCount());
+        }
+
+        return stamp;
+    }
+
     private static Map<DataItems.Key, Long> inventoryOf(@Nullable Player player)
     {
         Map<DataItems.Key, Long> counts = new HashMap<>();

@@ -174,6 +174,9 @@ public final class Coverage
                 case "verifyfix" -> JOBS.add(new VerifyFixTest());
                 case "listsupport" -> JOBS.add(new ListSupportTest());
                 case "listcache" -> JOBS.add(new ListCacheTest());
+                case "wrongblock" -> JOBS.add(new WrongBlockTest());
+                case "wrongtoggle" -> JOBS.add(new WrongToggleTest());
+                case "origin" -> JOBS.add(new OriginTest());
                 case "listbobby" -> JOBS.add(new ListBobbyTest());
                 case "listperf" -> JOBS.add(new ListPerfTest());
                 case "v", "invaim" -> JOBS.add(new InvAimTest());
@@ -199,6 +202,12 @@ public final class Coverage
                 case "zfviews" -> JOBS.add(new ZfViewsTest());
                 case "zftab" -> JOBS.add(new ZfTabShot());
                 case "chosen" -> JOBS.add(new ChosenChestsTest());
+                case "exportstock" -> JOBS.add(new ExportStockTest());
+                case "invmissing" -> JOBS.add(new InvMissingTest());
+                case "party" -> JOBS.add(new PartyTest());
+                case "supportmatrix" -> JOBS.add(new DumpSupportMatrix());
+                case "bannercard" -> JOBS.add(new BannerCardTest());
+                case "bannerpin" -> JOBS.add(new BannerPinTest());
                 case "s", "epfsupport" -> JOBS.add(new EpfSupportTest());
                 case "m", "settingsshot" -> JOBS.add(new SettingsShot());
                 case "l", "zonesshot" -> JOBS.add(new ZonesShot());

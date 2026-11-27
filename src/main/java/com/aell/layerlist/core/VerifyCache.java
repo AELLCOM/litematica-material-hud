@@ -86,6 +86,23 @@ public class VerifyCache
     }
 
     /**
+     * То же с «не тем блоком» ({@code wrong}, 27.11.2026) — частью {@code mismatch}: клетки, занятые блоком другого
+     * типа. Пишется и в файл (тег {@code wrong}); у чанка из файла прежних версий её нет — читается пустой, и чанк
+     * считается как раньше, пока не будет проверен заново.
+     */
+    public void put(long chunkKey, Object2IntOpenHashMap<BlockState> missing, Object2IntOpenHashMap<BlockState> mismatch,
+                    Object2IntOpenHashMap<BlockState> wrong, @Nullable DataCounts data, @Nullable LongOpenHashSet hidden)
+    {
+        ChunkCounts previous = this.chunks.put(chunkKey, new ChunkCounts(missing, mismatch, wrong, data, hidden));
+
+        if (previous == null || ! previous.missing().equals(missing) || ! previous.mismatch().equals(mismatch)
+                || ! previous.wrong().equals(wrong) || ! java.util.Objects.equals(previous.hidden(), hidden))
+        {
+            this.dirty = true;
+        }
+    }
+
+    /**
      * {@code data} — та же недостача клеток с данными (узор, черепки, профиль) своими ключами. Живёт только в
      * памяти: на диск идёт счёт по состоянию, где эти клетки уже сложены.
      */
@@ -103,13 +120,7 @@ public class VerifyCache
     public void put(long chunkKey, Object2IntOpenHashMap<BlockState> missing, Object2IntOpenHashMap<BlockState> mismatch,
                     @Nullable DataCounts data, @Nullable LongOpenHashSet hidden)
     {
-        ChunkCounts previous = this.chunks.put(chunkKey, new ChunkCounts(missing, mismatch, data, hidden));
-
-        if (previous == null || ! previous.missing().equals(missing) || ! previous.mismatch().equals(mismatch)
-                || ! java.util.Objects.equals(previous.hidden(), hidden))
-        {
-            this.dirty = true;
-        }
+        this.put(chunkKey, missing, mismatch, new Object2IntOpenHashMap<>(), data, hidden);
     }
 
     public void save(boolean force)
@@ -177,6 +188,12 @@ public class VerifyCache
             tag.put("missing", writeCounts(chunkEntry.getValue().missing()));
             tag.put("mismatch", writeCounts(chunkEntry.getValue().mismatch()));
 
+            // Прежние версии мода этот тег не читают и не теряют от него ничего
+            if (! chunkEntry.getValue().wrong().isEmpty())
+            {
+                tag.put("wrong", writeCounts(chunkEntry.getValue().wrong()));
+            }
+
             if (chunkEntry.getValue().hidden() != null && ! chunkEntry.getValue().hidden().isEmpty())
             {
                 tag.putLongArray("hidden", chunkEntry.getValue().hidden().toLongArray());
@@ -236,7 +253,8 @@ public class VerifyCache
                     {
                         this.chunks.put(chunk.getLongOr("pos", 0L),
                                 new ChunkCounts(readCounts(blocks, chunk.getListOrEmpty("missing")),
-                                        readCounts(blocks, chunk.getListOrEmpty("mismatch")), null,
+                                        readCounts(blocks, chunk.getListOrEmpty("mismatch")),
+                                        readCounts(blocks, chunk.getListOrEmpty("wrong")), null,
                                         new LongOpenHashSet(chunk.getLongArray("hidden").orElse(new long[0]))));
                     }
                 }
@@ -303,9 +321,15 @@ public class VerifyCache
      * этой игре, — раскладка клеток с данными по ключам; из файла кэша она не читается.
      */
     public record ChunkCounts(Object2IntOpenHashMap<BlockState> missing, Object2IntOpenHashMap<BlockState> mismatch,
+                              Object2IntOpenHashMap<BlockState> wrong,
                               @Nullable DataCounts data, @Nullable LongOpenHashSet hidden) {}
 
-    /** Клетки с данными: недостача по ключам и та же недостача по состоянию — сколько её сидит в счёте чанка. */
+    /**
+     * Клетки с данными: недостача по ключам и та же недостача по состоянию — сколько её сидит в счёте чанка.
+     * {@code wrong} / {@code foldWrong} — часть {@code mismatch} / {@code foldMismatch}: «не тот блок».
+     */
     public record DataCounts(Object2IntOpenHashMap<DataItems.Key> missing, Object2IntOpenHashMap<DataItems.Key> mismatch,
-                             Object2IntOpenHashMap<BlockState> foldMissing, Object2IntOpenHashMap<BlockState> foldMismatch) {}
+                             Object2IntOpenHashMap<DataItems.Key> wrong,
+                             Object2IntOpenHashMap<BlockState> foldMissing, Object2IntOpenHashMap<BlockState> foldMismatch,
+                             Object2IntOpenHashMap<BlockState> foldWrong) {}
 }

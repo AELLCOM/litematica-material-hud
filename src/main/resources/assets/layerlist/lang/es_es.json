@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "Visible a través de los bloques",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Dibujar los marcos de las zonas por encima de todo, para verlos dentro de la construcción",
   "modmenu.descriptionTranslation.layerlist": "Muestra la lista de materiales de Litematica de la capa actual como HUD y marca los cofres, barriles y cajas de shulker que contienen los bloques necesarios. Incluye los módulos Ghost Alpha y Easy Place.",
-  "modmenu.summaryTranslation.layerlist": "Muestra la lista de materiales de Litematica de la capa actual como HUD y marca los cofres, barriles y cajas de shulker que contienen los bloques necesarios. Incluye los módulos Ghost Alpha y Easy Place."
+  "modmenu.summaryTranslation.layerlist": "Muestra la lista de materiales de Litematica de la capa actual como HUD y marca los cofres, barriles y cajas de shulker que contienen los bloques necesarios. Incluye los módulos Ghost Alpha y Easy Place.",
+  "layerlist.config.bannerCard.name": "Receta del estandarte al pasar el cursor",
+  "layerlist.config.bannerCard.tooltip": "En el inventario y en cualquier contenedor, mantén pulsado Shift y pasa el cursor sobre un estandarte con diseño: en lugar de la descripción habitual aparece una tarjeta con páginas. En la pestaña «Materials» la tarjeta se abre al pasar el cursor sobre un estandarte de la lista, y desde el menú de la fila se puede fijar junto al telar. La primera muestra lo que necesitas: el estandarte base, los tintes, los diseños de estandarte y el telar. Después hay una página por cada diseño: el estandarte antes, el tinte, el diseño y el resultado. Pasa las páginas con la rueda del ratón, las teclas ← → o los botones de la tarjeta. Haz clic en un diseño o en un objeto para ver cómo conseguirlo: su receta o dónde encontrarlo. Activado por defecto",
+  "layerlist.banner.needs": "Qué necesitas",
+  "layerlist.banner.step": "Paso %s de %s",
+  "layerlist.banner.patterns": "Diseños: %s",
+  "layerlist.banner.over_limit": "en el telar solo caben 6",
+  "layerlist.banner.no_item": "No hace falta un diseño de estandarte",
+  "layerlist.banner.needs_item": "Hace falta: %s",
+  "layerlist.banner.kept": "No se gasta en el telar",
+  "layerlist.banner.how": "Cómo conseguirlo",
+  "layerlist.banner.hint": "Rueda o ← → para pasar página. Haz clic en un diseño para ver cómo conseguirlo",
+  "layerlist.banner.pinned": "Fijado",
+  "layerlist.banner.unknown": "No hay datos sobre dónde conseguir este diseño",
+  "layerlist.loom.beyond_limit": "(supera el límite de 6 del telar)"
 }

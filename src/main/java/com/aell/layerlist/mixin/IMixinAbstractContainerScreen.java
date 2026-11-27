@@ -4,7 +4,10 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/** Геометрия окна контейнера — для стыковки панели рядом с ним ({@code hud.HudDock}). */
+/**
+ * Геометрия окна контейнера — для стыковки панели рядом с ним ({@code hud.HudDock}) — и ячейка под курсором для
+ * карточки флага ({@code hud.BannerCard}).
+ */
 @Mixin(AbstractContainerScreen.class)
 public interface IMixinAbstractContainerScreen
 {
@@ -16,4 +19,7 @@ public interface IMixinAbstractContainerScreen
 
     @Accessor("imageWidth")
     int layerlist_getImageWidth();
+
+    @Accessor("hoveredSlot")
+    net.minecraft.world.inventory.Slot layerlist_getHoveredSlot();
 }

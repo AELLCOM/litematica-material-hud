@@ -1,5 +1,140 @@
 # Changelog
 
+## 1.0.42+26.2 — 27.11.2026
+
+**RU**
+
+**Новое — тумблер «Не тот блок» во вкладке «Материалы».** Настройка «Считать „Не тот блок“» теперь переключается прямо в полосе инструментов вкладки, рядом с «Только недостающее» — в настройки HUD за ней ходить не нужно. Это одна и та же настройка: тумблер меняет и панель HUD, и выгрузку списка. Он виден, когда числа сверены с миром — у схемы, размещённой в мире, и у «Списка HUD»; у схемы без размещения его нет, сверять не с чем. Если в полосе тесно, тумблер стоит без подписи: дорожка с оранжевой меткой (цвет «Не тот блок» в проверке блоков), название — в подсказке. Когда «Только пустые места» в настройках HUD выключено, тумблер серый: уже считается всё, что стоит не так.
+
+**EN**
+
+**New — "Wrong block" toggle in the Materials tab.** The "Count 'Wrong block'" setting can now be switched right in the tab's toolbar, next to "Only missing" — no need to open the HUD settings. It is the same setting: the toggle changes the HUD panel and the list export too. It is shown when the numbers are checked against the world — for a schematic placed in the world and for the "HUD list"; a schematic without a placement has nothing to compare with, so the toggle is absent. When the toolbar is tight the toggle has no label: a track with an orange mark (the "Wrong block" colour of block verification), the name is in the tooltip. With "Only empty spots" off in the HUD settings the toggle is greyed out: everything placed wrong is already counted.
+
+## 1.0.41+26.2 — 27.11.2026
+
+**RU**
+
+**Новое — «Считать „Не тот блок“».** Вкладка HUD, под «Только пустые места». С включённой настройкой в нехватку идут не только пустые места («Пропущено» в проверке блоков), но и места, занятые блоком другого типа («Не тот блок»): его всё равно придётся сломать и поставить нужный. Действует сразу на панель, на вкладку «Материалы» и на выгрузку списка. Не то состояние — поворот, половинка, вкл/выкл — по-прежнему не считается: блок тот же, новый не нужен. Флаг, горшок или голова с другим узором считаются не тем блоком. По умолчанию выключено — без неё всё считается как раньше. Если «Только пустые места» выключена, тумблер неактивен: тогда и так считается всё, что стоит не так. Для дальних чанков, которые последний раз проверяла прежняя версия мода, настройка начнёт действовать, когда вы снова окажетесь рядом с ними.
+
+Ниже — то, что вышло в 1.0.40 только для Minecraft 26.3 и приходит в эту версию игры с этим выпуском.
+
+**fix — схема из «Выделения» не показывалась у игроков без Material HUD.** Если в выделении была включена «Своя точка» и она осталась от прежней постройки в другом месте, схема сохранялась относительно неё: блоки оказывались в сотнях и тысячах блоков от точки привязки. Litematica ставит схему точкой привязки в игрока, поэтому у тех, кто загружал такой файл без Material HUD, схема вставала далеко в стороне — её не было видно. Наши «Разместить» и «Ко мне» ставят схему по её блокам, поэтому у автора всё выглядело исправно. Теперь окно «Сохранить схему» замечает далёкую точку привязки (дальше 64 блоков от выделения), предупреждает и по умолчанию возвращает её к выделению — тумблер «Вернуть точку привязки к выделению». Его можно выключить, если точка стоит далеко нарочно. Точка привязки рядом с выделением и выделение без своей точки сохраняются как раньше.
+
+**fix — «прицел» точки привязки включал свою точку без спроса.** Во вкладке «Выделение» кнопка «Двигать в мире» в строке точки привязки работала и с выключенной «Своей точкой»: после неё первый же щелчок инструментом Litematica ставил свою точку привязки в место щелчка вместо угла выделения. Теперь кнопка доступна только со включённой «Своей точкой», а подсказка говорит, как её включить.
+
+**Новое — заметка о далёкой точке привязки.** Во вкладке «Выделение» и на карточке «Смотреть на мир» рядом с «Точкой привязки» появляется «далеко: N бл.», если своя точка стоит дальше 64 блоков от выделения. Подсказка объясняет, чем это грозит и как вернуть точку к выделению.
+
+**Новое — починка уже сохранённых схем.** В «Библиотеке» карточка схемы с далёкой точкой привязки показывает предупреждение и кнопку «Сохранить исправленную копию». Рядом появляется файл с пометкой «(исправлено)»: блоки, сущности и содержимое сундуков те же, а точка привязки стоит в углу схемы — такая копия в Litematica встаёт у игрока. Исходный файл и его размещения не меняются. Другим игрокам отправляйте копию.
+
+**EN**
+
+**New — "Count 'Wrong block'".** HUD tab, under "Only empty spots". With it on, a block is counted as needed not only where the world is empty ("Missing" in block verification) but also where a block of another type stands ("Wrong block"): you will have to break it and place the right one anyway. It applies to the panel, the Materials tab and the list export at once. A wrong state — rotation, half, on/off — is still not counted: the block is the same, no new one is needed. A banner, pot or head with a different pattern counts as a wrong block. Off by default — without it everything is counted as before. If "Only empty spots" is off, the toggle is inactive: everything placed wrong is counted already. For far chunks last checked by an older version of the mod, the toggle starts to apply once you are near them again.
+
+Below is what came out in 1.0.40 for Minecraft 26.3 only and reaches this game version with this release.
+
+**fix — a schematic saved from the Selection tab did not show up for players without Material HUD.** If "Own origin" was on in the selection and the origin was left over from an earlier build somewhere else, the schematic was saved relative to it: its blocks ended up hundreds or thousands of blocks away from the origin. Litematica puts a schematic's origin at the player, so for anyone loading such a file without Material HUD the schematic appeared far away — out of sight. Our "Place" and "To me" position a schematic by its blocks, so for the author everything looked fine. The "Save schematic" window now notices a far origin (more than 64 blocks from the selection), warns about it and by default moves it back to the selection — the "Move the origin back to the selection" toggle. Switch it off if the origin is far away on purpose. An origin next to the selection and a selection without an own origin are saved as before.
+
+**fix — the origin's "Move in world" button switched your own origin on by itself.** In the Selection tab the "Move in world" button in the origin row worked even with "Own origin" off: after it, the very next click with the Litematica tool put an own origin at the clicked spot instead of setting a corner. The button is now available only with "Own origin" on, and its tooltip tells how to switch that on.
+
+**New — far-origin note.** In the Selection tab and on the "Look at the world" card, "far: N blocks" appears next to "Origin point" when your own origin is more than 64 blocks away from the selection. The tooltip explains what that leads to and how to bring the origin back.
+
+**New — repair for schematics you already saved.** In the Library, the card of a schematic with a far origin shows a warning and a "Save a fixed copy" button. A file marked "(fixed)" appears next to it: same blocks, entities and chest contents, but the origin sits at the corner of the schematic — in Litematica such a copy shows up at the player. The original file and its placements stay as they are. Send the copy to other players.
+
+## 1.0.39+26.2 — 25.11.2026
+
+
+**RU**
+
+**fix — «Скрывать порталы» и проверка блоков.** С включённой опцией «Скрывать порталы» (вкладка Ghost Alpha) проверка блоков (Ctrl+B) больше не обводит порталы и рамки портала Энда: ни «пропущено» на порталах из схемы, ни «лишний» на портале, зажжённом в мире. Счётчики проверки их тоже не считают. Голограмм порталов нет — нет и рамок вокруг них. Список материалов порталы по-прежнему показывает.
+
+**EN**
+
+**fix — "Hide portals" and the block check.** With "Hide portals" on (Ghost Alpha tab), the block check (Ctrl+B) no longer outlines portals and End portal frames: neither "missing" on the schematic's portals nor "extra" on a portal lit in the world. The check's counters skip them too. No portal holograms — no boxes around them either. The material list still shows the portals.
+
+### Из 1.0.38 (выходила только для 26.3, 25.11.2026) · from 1.0.38 (26.3 only)
+
+
+**RU**
+
+**Новое — рецепт флага во вкладке «Материалы».** Наведите курсор на флаг с узором в списке материалов — на иконку или название — и рядом откроется та же карточка-карусель, что в инвентаре: «Что нужно» и по странице на каждый узор. Карточка встаёт под строкой флага, так что сама строка со счётом остаётся видна. На карточку можно перевести курсор: колёсико над ней и стрелки ← → листают страницы, щелчок по узору или предмету показывает, как его получить. Над строками колёсико, как и раньше, прокручивает таблицу.
+
+**Новое — закрепить рецепт флага у ткацкого станка.** В меню строки флага (правая кнопка мыши во вкладке «Материалы») появился пункт «Закрепить рецепт у станка». Пока рецепт закреплён, его карточка стоит рядом с окном ткацкого станка — наводить курсор не нужно. Положите флаг в станок: карточка сама откроет следующий шаг, а сделанные отметит. Закреплён может быть один флаг, новый сменяет прежний; закрепление переживает перезапуск игры. Снять — крестиком на карточке или пунктом «Открепить рецепт флага». Пока карточка закреплена, панель «Рецепты флагов у станка» уступает ей место.
+
+**change — в инвентаре рецепт флага только с Shift.** В инвентаре и контейнерах карточка больше не открывается от простого наведения: зажмите Shift и наведите курсор на флаг с узором. Без Shift у флага обычная подсказка предмета. Если с зажатым Shift щёлкнуть мимо карточки — то есть перекладывать предметы, — карточка прячется, пока Shift не отпущен, и не закрывает соседние ячейки.
+
+**Новое — «Только недостающее» без размещения, по инвентарю.** У схемы, которая не размещена в мире, тумблер «Только недостающее» во вкладке «Материалы» больше не выключен: он сверяет схему с инвентарём, как «Скрыть доступные» в Litematica. Остаётся то, чего в инвентаре не хватает, а «Всего» и «Разбивка» показывают, сколько ещё собрать. Предметы в шалкерах и мешках из инвентаря тоже считаются. Сундуки не вычитаются — для этого есть «С учётом склада». Как только схему разместят, сверка снова идёт с местом постройки.
+
+**Новое — числа склада обновляются сами.** Колонки «В инвентаре», «В сундуках» и «Не хватает» меняются, как только вы взяли или положили предметы или открыли сундук. Нажимать «Обновить» больше не нужно.
+
+**EN**
+
+**New — banner recipe in the Materials tab.** Hover a banner with a pattern in the material list — its icon or name — and the same carousel card as in the inventory opens next to it: "What you need" and one page per pattern. The card stands under the banner's row, so the row with its counts stays visible. You can move the cursor onto the card: the mouse wheel over it and the ← → keys flip the pages, a click on a pattern or an item shows how to get it. Over the rows the wheel scrolls the table as before.
+
+**New — pin a banner recipe at the loom.** The row menu of a banner (right click in the Materials tab) has a new item, "Pin recipe at the loom". While a recipe is pinned, its card stands next to the loom window — no hovering needed. Put the banner into the loom: the card opens the next step by itself and marks the finished ones. One banner can be pinned at a time, a new one replaces the previous; the pin survives a game restart. Remove it with the cross on the card or with "Unpin banner recipe". While a card is pinned, the "Banner recipes at the loom" panel gives way to it.
+
+**change — in the inventory the banner recipe needs Shift.** In the inventory and containers the card no longer opens on a plain hover: hold Shift and hover a banner with a pattern. Without Shift the banner shows the usual item tooltip. If you click outside the card with Shift held — that is, move items around — the card hides until Shift is released and does not cover the neighbouring slots.
+
+**New — "Only missing" without a placement, by inventory.** For a schematic that isn't placed in the world, the "Only missing" toggle in the Materials tab is no longer disabled: it compares the schematic with your inventory, like "Hide available" in Litematica. What your inventory lacks remains, and "Total" and "Breakdown" show how much is still to gather. Items in shulker boxes and bundles in your inventory count too. Chests aren't subtracted — "Count storage" does that. Once the schematic is placed, it is compared with the build site again.
+
+**New — storage numbers update by themselves.** The "In inventory", "In chests" and "Missing" columns change as soon as you take or put away items or open a chest. No need to press "Refresh" anymore.
+
+### Из 1.0.37 (выходила только для 26.3, 24.11.2026) · from 1.0.37 (26.3 only)
+
+
+**RU**
+
+**Новое — Party: «Скопировать приглашение».** В окне Party под долями появилась строка «Приглашение» с кнопкой «Скопировать приглашение». Она кладёт в буфер обмена ту же строку, что «Поделиться в чат» отправляет в общий чат, — её можно вставить в личное сообщение или в чат клана. Кнопка есть и у ведущего, и у принявшего приглашение участника.
+
+**Новое — приглашение в истории чата.** После «Поделиться в чат» и после «Скопировать приглашение» приглашение остаётся в истории отправленных сообщений: откройте чат и нажмите стрелку вверх — оно встанет в поле ввода, и его можно разослать ещё раз. Раньше отправленное кнопкой приглашение в историю не попадало.
+
+**EN**
+
+**New — Party: "Copy invitation".** The Party window has a new "Invitation" row under the shares with a "Copy invitation" button. It puts on the clipboard the same line that "Share to chat" sends to public chat — paste it into a private message or a clan chat. The button is there for the host and for a member who accepted the invitation.
+
+**New — the invitation stays in the chat history.** After "Share to chat" and after "Copy invitation" the invitation is kept in the history of sent messages: open the chat and press the up arrow — it appears in the input field and can be sent again. Before, an invitation sent by the button did not get into the history.
+
+### Из 1.0.36 (выходила только для 26.3, 24.11.2026) · from 1.0.36 (26.3 only)
+
+
+**RU**
+
+**Новое — «Рецепт флага при наведении».** В инвентаре и любом контейнере наведите курсор на флаг с узором — вместо обычной подсказки рядом с ячейкой откроется карточка-карусель. Первая страница — «Что нужно»: флаг-основа, красители (сколько каждого), предметы-узоры и ткацкий станок. Дальше по странице на каждый узор, в порядке работы в станке: флаг до, краситель, узор и флаг после; шаги сверх шести узоров станка помечены. Листается колёсиком, клавишами ← → и стрелками на карточке; на карточку можно перевести курсор. Щелчок по узору или по строке предмета открывает «Как получить»: рецепт верстака (бумага и второй предмет) или место, где искать, — сундуки развалин бастиона, хранилища дворца испытаний, картограф-мастер. Работает с любым узорным флагом, не только из схемы. Настройки → HUD → «Рецепт флага при наведении», по умолчанию включено. Тексты карточки переведены на все 14 языков мода, названия предметов и мест — строки самой игры.
+
+**Новое — Party: стройка компанией.** Список материалов схемы делится на доли между игроками, чтобы никто не брал чужие блоки. Во вкладке «Материалы» у схемы появилась кнопка **Party**: впишите ники (свой — первым; игроков онлайн можно выбрать из списка) и нажмите «Создать Party». Номер доли — место ника в составе: первый — #1. Каждый предмет раздаётся целыми стаками поровну, а мелочь, которой меньше стака на человека, достаётся одному. В итоге у всех поровну ячеек инвентаря и разных предметов (с точностью до одного) и почти поровну блоков. «Поделиться в чат» отправляет приглашение обычным сообщением — сервер для этого не нужен, как у точек Xaero. У игроков с Material HUD в чате вместо кода стоит приглашение со ссылкой «Принять приглашение»: по щелчку игрок вступает и видит свою долю в таблице «Материалы», в списке HUD (а значит, и в поиске по сундукам, и в «Перенести всё необходимое») и в выгрузке. В окне Party можно посмотреть долю любого участника или вернуть весь список. Саму схему чат не передаёт: у всех должен быть один и тот же файл. Если список схемы у участника другой, окно Party об этом предупредит.
+
+fix — при «Скрывать блоки без опоры» и «Опоре с соседнего слоя» в список панели попадали блоки, которые с этого слоя поставить нельзя: столбик подвесных табличек друг под другом (табличка слоя держится за табличку слоем выше, а той самой нужна опора ещё выше), пещерная лоза под лозой за слоем и другие цепочки. Список искал опору от слоя сколько угодно далеко. Теперь опора с соседнего слоя считается, только если ставится сама, — как железная цепь над фонарём: фонарь и цепь в списке остаются. Если опоре самой не на чем держаться, ни блока, ни такой опоры в списке нет, пока её опору не построят. Правило проверено на всех сочетаниях «блок + опора» Minecraft 26.3 (справочник — `docs/support/COMBINATIONS.md`).
+
+fix — «Опора с соседнего слоя» показывала опорой песок, гравий, сухой бетон и другие сыпучие блоки, под которыми пусто: поставленные, они падали, а блок слоя оставался в списке. Теперь такая опора не показывается и в список не идёт, пока под ней нет блока.
+
+**EN**
+
+**New — "Banner recipe on hover".** In the inventory and any container, hover a banner with a pattern: instead of the usual tooltip a carousel card opens next to the slot. The first page is "What you need": the base banner, dyes (how many of each), banner pattern items and the loom. Then one page per pattern, in loom order: the banner before, the dye, the pattern and the banner after; steps over the loom limit of six are marked. Flip with the mouse wheel, the ← → keys or the arrows on the card; you can move the cursor onto the card. Click a pattern or an item row to open "How to get it": the crafting recipe (paper plus one more item) or where to find it — bastion remnant chests, trial chamber vaults, the master cartographer. Works for any patterned banner, not only those from the schematic. Settings → HUD → "Banner recipe on hover", on by default. The card is translated into all 14 languages of the mod; item and place names are the game's own strings.
+
+**New — Party: building as a team.** The schematic's material list is split into shares between players, so nobody takes someone else's blocks. The Materials tab of a schematic has a new **Party** button: add the names (yours first; online players can be picked from a list) and press "Create Party". The share number is the position of the name: the first one is #1. Each item is handed out in whole stacks, evenly, and small amounts, less than a stack per person, go to one player. As a result everyone gets the same number of inventory slots and of different items (within one) and nearly the same number of blocks. "Share to chat" sends the invitation as an ordinary chat message — no server side is needed, just like Xaero's waypoints. Players with Material HUD see an invitation with an "Accept invitation" link instead of the code: one click and the player is in and sees their share in the Materials table, in the HUD list (and so in the chest search and in "Move everything needed") and in the export. The Party window shows the share of any member or brings back the full list. The chat does not carry the schematic itself: everyone needs the same file. If a member's schematic list is different, the Party window warns about it.
+
+fix — with "Hide blocks without support" and "Support from adjacent layer" on, the panel list included blocks that cannot be placed from the current layer: a column of hanging signs one under another (the sign of the layer hangs on the sign one layer up, which itself needs a support even higher), cave vines under vines beyond the layer and other chains. The list looked for a support any distance away from the layer. Now a support from the adjacent layer counts only if it can be placed on its own — like an iron chain above a lantern: the lantern and the chain stay in the list. If the support itself has nothing to hold on to, neither the block nor that support is listed until its own support is built. The rule is checked against every "block + support" combination of Minecraft 26.3 (reference: `docs/support/COMBINATIONS.md`).
+
+fix — "Support from adjacent layer" offered sand, gravel, concrete powder and other falling blocks with nothing under them as a support: once placed they fell, and the block of the layer stayed in the list. Now such a support is not shown or listed until there is a block under it.
+
+### Из 1.0.35 (выходила только для 26.3, 24.11.2026) · from 1.0.35 (26.3 only)
+
+
+**RU**
+
+**Новое — «С учётом склада» в выгрузке.** В окне выгрузки переключатель «Материалы по схеме» теперь из трёх вариантов: «Всё», «Только недостающее» и «С учётом склада». Третий вариант выгружает недостающее за вычетом того, что уже лежит в инвентаре и известных сундуках, — то же число, что колонка «Не хватает» во вкладке «Материалы». Если во вкладке включено «С учётом склада», окно сразу открывается с этим вариантом.
+
+**Новое — «Считать до Y» в выгрузке.** Под переключателем — тумблер «Считать до Y = …» (та же настройка, что у HUD и вкладки «Материалы»; саму высоту меняют в настройках HUD). Включили — материалы пересчитываются, в таблицу идёт только то, что на этой высоте и ниже; в шапке таблицы у источника дописано «· до Y = …». На узком экране во вкладке «Материалы» этот тумблер не помещался — теперь он всегда есть в окне выгрузки.
+
+fix — вкладка «Материалы» показывала материалы выключенной схемы: если из нескольких размещений включённым оставить одно, вкладка продолжала показывать прошлую схему, а кнопка «Схема» брала размещение, выбранное в Litematica, даже выключенное. Теперь вкладка показывает включённую схему (если включено несколько — «Список HUD»). Выключенную схему по-прежнему можно открыть самому — через «Материалы» в меню её строки.
+
+**EN**
+
+**New — "Count storage" in the export.** The "Schematic materials" switch of the export window now has three options: "All", "Only missing" and "Count storage". The third one exports what is missing minus what already sits in your inventory and known chests — the same number as the "Missing" column on the Materials tab. If "Count storage" is on in the tab, the window opens with this option.
+
+**New — "Count up to Y" in the export.** Below the switch there is a "Count up to Y = …" toggle (the same setting as in the HUD and the Materials tab; the height itself is changed in HUD settings). Turn it on and the materials are recounted: only what is at this height or below goes into the table, and the table header says "· up to Y = …". On a narrow screen this toggle did not fit on the Materials tab — now it is always there in the export window.
+
+fix — the Materials tab showed materials of a disabled schematic: with several placements and only one left enabled, the tab kept showing the previous schematic, and the "Schematic" button picked the placement selected in Litematica even when it was disabled. Now the tab shows the enabled schematic (the HUD list if several are enabled). A disabled schematic can still be opened on purpose — via "Materials" in its row menu.
+
 ## 1.0.34+26.2 — 23.11.2026
 
 **RU**

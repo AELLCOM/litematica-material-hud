@@ -17,6 +17,9 @@ import fi.dy.masa.malilib.render.GuiContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BooleanSupplier;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -38,10 +41,29 @@ import org.jetbrains.annotations.Nullable;
  * поле не принимает и коротко подсказывает почему. Ники из списка игроков — {@link OnlinePlayers}.
  */
 @Environment(EnvType.CLIENT)
-final class RosterField extends Widget
+public final class RosterField extends Widget
 {
     static final int NICK_MIN = 3;
     static final int NICK_MAX = 16;
+
+    /**
+     * Подписи поля — свои у «Кто собирает» и у состава Party.
+     *
+     * @param title      заголовок пустого списка
+     * @param titleCount заголовок со счётом ников
+     * @param about      зачем этот список — строка под заголовком
+     * @param empty      что написать, пока никого нет
+     * @param cleared    «очищено, ников: N» — рядом с «Вернуть»
+     * @param tooltip    подсказка заголовка
+     * @param numbered   у ников есть номера по порядку: чип пишет «Ник #1»
+     */
+    public record Labels(Supplier<String> title, IntFunction<String> titleCount, Supplier<String> about,
+                         Supplier<String> empty, IntFunction<String> cleared, Supplier<String> tooltip, boolean numbered)
+    {
+        static final Labels COLLECTORS = new Labels(() -> DialogText.t("roster"), count -> DialogText.f("roster.count", count),
+                () -> DialogText.t("roster.about"), () -> DialogText.t("roster.empty"),
+                count -> DialogText.f("roster.cleared", count), () -> DialogText.t("roster.tip"), false);
+    }
 
     private static final Pattern TYPED = Pattern.compile("[A-Za-z0-9_]{" + NICK_MIN + "," + NICK_MAX + "}");
 
@@ -50,6 +72,10 @@ final class RosterField extends Widget
     private static final long REJECT_MS = 3000L;
 
     private final Layers layers;
+    private final NickList store;
+    private final Labels labels;
+    /** Список можно править; нет — только чипы (Party, принятая по приглашению: состав задаёт ведущий). */
+    private BooleanSupplier editable = () -> true;
     private final Button online;
     private final Button clear;
     private final SectionTitle title;
@@ -63,52 +89,84 @@ final class RosterField extends Widget
     private long rejectedAt;
     private boolean rejected;
 
-    /** Чип ника на экране: прямоугольник и зона крестика. */
-    private record Chip(String nick, int x, int y, int w, int crossX) {}
+    /** Чип ника на экране: прямоугольник и зона крестика; {@code text} — подпись (ник, с номером — «Ник #1»). */
+    private record Chip(String nick, String text, int x, int y, int w, int crossX) {}
 
     RosterField(Layers layers)
     {
+        this(layers, NickList.COLLECTORS, Labels.COLLECTORS);
+    }
+
+    public RosterField(Layers layers, NickList store, Labels labels)
+    {
         this.layers = layers;
+        this.store = store;
+        this.labels = labels;
         this.online = new Button(DialogText.t("roster.online"), Button.Style.GHOST, this::pickOnline)
                 .tooltip(DialogText.t("roster.online.tip"));
         this.clear = new Button(DialogText.t("roster.clear"), Button.Style.GHOST, this::clearAll)
                 .tooltip(DialogText.t("roster.clear.tip"));
-        this.title = new SectionTitle(this::titleText, this.online, this.clear).tooltip(DialogText.t("roster.tip"));
+        this.title = new SectionTitle(this::titleText, this.online, this.clear).tooltip(labels.tooltip().get());
         this.input = new TextInput().hint(DialogText.t("roster.hint")).maxLength(NICK_MAX).filter(this::accept)
                 .tooltip(DialogText.f("roster.input.tip", NICK_MIN, NICK_MAX));
         this.input.onSubmit(value -> this.addTyped());
         this.add = new Button(DialogText.t("roster.add"), Button.Style.SECONDARY, this::addTyped);
     }
 
-    private static List<String> roster()
+    /** Править список можно, пока {@code value} отвечает «да» (по умолчанию — всегда). */
+    public RosterField editable(BooleanSupplier value)
     {
-        return SchematicsState.get().roster();
+        this.editable = value;
+        return this;
+    }
+
+    private List<String> roster()
+    {
+        return this.store.list();
+    }
+
+    private boolean canEdit()
+    {
+        return this.editable.getAsBoolean();
+    }
+
+    /** Подпись чипа: ник, а у списка с номерами — «Ник #1». */
+    private String chipText(String nick, int index)
+    {
+        return this.labels.numbered() ? nick + " #" + (index + 1) : nick;
     }
 
     private String titleText()
     {
         int count = roster().size();
 
-        return count == 0 ? DialogText.t("roster") : DialogText.f("roster.count", count);
+        return count == 0 ? this.labels.title().get() : this.labels.titleCount().apply(count);
     }
 
     // ===== Раскладка =====
 
     /** Строки пояснения под заголовком (приглушённые, с переносом). */
-    private static List<String> about(int width)
+    private List<String> about(int width)
     {
-        return Kit.wrap(Kit.font(), DialogText.t("roster.about"), width);
+        return Kit.wrap(Kit.font(), this.labels.about().get(), width);
     }
 
-    private static int aboutHeight(int width)
+    private int aboutHeight(int width)
     {
         return about(width).size() * Ui.TIP_LINE;
     }
 
-    int height(int width)
+    public int height(int width)
     {
-        int h = SectionTitle.HEIGHT + Ui.PAD_MICRO + aboutHeight(width) + Ui.PAD_IN + this.chipsHeight(width) + Ui.PAD_IN
-                + Ui.CTRL_H;
+        int h = SectionTitle.HEIGHT + Ui.PAD_MICRO + aboutHeight(width) + Ui.PAD_IN + this.chipsHeight(width);
+
+        // Без правки поля «+ ник» нет — только чипы
+        if (! this.canEdit())
+        {
+            return h;
+        }
+
+        h += Ui.PAD_IN + Ui.CTRL_H;
         int noteH = this.noteLine.height(width);
 
         return noteH > 0 ? h + Ui.PAD_MICRO + noteH : h;
@@ -128,9 +186,9 @@ final class RosterField extends Widget
         return lines * CHIP_H + Math.max(0, lines - 1) * Ui.PAD_IN;
     }
 
-    private static int chipWidth(Font font, String nick, int width)
+    private int chipWidth(Font font, String text, int width)
     {
-        int full = Ui.PAD_REL + font.width(nick) + Ui.PAD_IN + Glyphs.width(Glyphs.CROSS) + Ui.PAD_REL;
+        int full = Ui.PAD_REL + font.width(text) + (this.canEdit() ? Ui.PAD_IN + Glyphs.width(Glyphs.CROSS) : 0) + Ui.PAD_REL;
 
         return Math.min(full, Math.max(0, width));
     }
@@ -142,9 +200,12 @@ final class RosterField extends Widget
         int cx = 0;
         int line = 0;
 
+        int index = 0;
+
         for (String nick : nicks)
         {
-            int cw = chipWidth(font, nick, width);
+            String text = this.chipText(nick, index++);
+            int cw = this.chipWidth(font, text, width);
 
             if (cx > 0 && cx + cw > width)
             {
@@ -155,8 +216,8 @@ final class RosterField extends Widget
             if (out != null)
             {
                 int chipX = x + cx;
-                out.add(new Chip(nick, chipX, y + line * (CHIP_H + Ui.PAD_IN), cw,
-                        chipX + cw - Ui.PAD_REL - Glyphs.width(Glyphs.CROSS)));
+                out.add(new Chip(nick, text, chipX, y + line * (CHIP_H + Ui.PAD_IN), cw,
+                        this.canEdit() ? chipX + cw - Ui.PAD_REL - Glyphs.width(Glyphs.CROSS) : chipX + cw));
             }
 
             cx += cw + Ui.PAD_IN;
@@ -192,6 +253,10 @@ final class RosterField extends Widget
         Font font = Kit.font();
         boolean connected = Minecraft.getInstance().getConnection() != null;
 
+        boolean edit = this.canEdit();
+
+        this.online.setVisible(edit);
+        this.clear.setVisible(edit);
         this.online.setEnabled(connected);
         this.online.tooltip(connected ? DialogText.t("roster.online.tip") : DialogText.t("roster.offline"));
         this.clear.setEnabled(! roster().isEmpty());
@@ -209,7 +274,7 @@ final class RosterField extends Widget
         if (this.chips.isEmpty())
         {
             int top = ay + Ui.PAD_IN;
-            String hint = Paint.fit(font, DialogText.t("roster.empty"), this.w);
+            String hint = Paint.fit(font, this.labels.empty().get(), this.w);
             Paint.text(ctx, font, hint, this.x, top + 1, Ui.C_TEXT_3, false);
         }
 
@@ -218,16 +283,20 @@ final class RosterField extends Widget
             this.drawChip(ctx, font, chip, mouseX, mouseY);
         }
 
-        this.input.render(ctx, mouseX, mouseY);
-        this.add.render(ctx, mouseX, mouseY);
-        this.noteLine.render(ctx, mouseX, mouseY);
+        if (edit)
+        {
+            this.input.render(ctx, mouseX, mouseY);
+            this.add.render(ctx, mouseX, mouseY);
+            this.noteLine.render(ctx, mouseX, mouseY);
+        }
     }
 
     private void drawChip(GuiContext ctx, Font font, Chip chip, int mouseX, int mouseY)
     {
+        boolean edit = this.canEdit();
         boolean overChip = Paint.hit(mouseX, mouseY, chip.x, chip.y, chip.w, CHIP_H);
-        boolean overCross = overChip && mouseX >= chip.crossX - Ui.PAD_IN;
-        int textRoom = Math.max(0, chip.crossX - Ui.PAD_IN - chip.x - Ui.PAD_REL);
+        boolean overCross = edit && overChip && mouseX >= chip.crossX - Ui.PAD_IN;
+        int textRoom = Math.max(0, chip.crossX - (edit ? Ui.PAD_IN : Ui.PAD_REL) - chip.x - Ui.PAD_REL);
 
         if (Style.vanilla())
         {
@@ -240,17 +309,21 @@ final class RosterField extends Widget
             Paint.roundBorder(ctx, chip.x, chip.y, chip.w, CHIP_H, Ui.R_PILL, overChip ? Ui.C_PANEL_EDGE : Ui.C_DIVIDER);
         }
 
-        Paint.midText(ctx, font, Paint.fit(font, chip.nick, textRoom), chip.x + Ui.PAD_REL, chip.y, CHIP_H, Ui.C_TEXT, false);
-        Glyphs.draw(ctx, Glyphs.CROSS, chip.crossX, chip.y + (CHIP_H - Glyphs.height(Glyphs.CROSS)) / 2,
-                overCross ? Ui.C_DANGER : Ui.C_TEXT_3);
+        Paint.midText(ctx, font, Paint.fit(font, chip.text, textRoom), chip.x + Ui.PAD_REL, chip.y, CHIP_H, Ui.C_TEXT, false);
+
+        if (edit)
+        {
+            Glyphs.draw(ctx, Glyphs.CROSS, chip.crossX, chip.y + (CHIP_H - Glyphs.height(Glyphs.CROSS)) / 2,
+                    overCross ? Ui.C_DANGER : Ui.C_TEXT_3);
+        }
 
         if (overCross)
         {
             Tooltip.offer("export#roster#" + chip.nick, DialogText.f("roster.remove", chip.nick));
         }
-        else if (overChip && font.width(chip.nick) > textRoom)
+        else if (overChip && font.width(chip.text) > textRoom)
         {
-            Tooltip.offer("export#roster#" + chip.nick, chip.nick);
+            Tooltip.offer("export#roster#" + chip.nick, chip.text);
         }
     }
 
@@ -321,7 +394,7 @@ final class RosterField extends Widget
             return;
         }
 
-        Added result = addAll(List.of(nick));
+        Added result = addAll(this.store, List.of(nick));
 
         if (result.duplicate() != null)
         {
@@ -329,7 +402,7 @@ final class RosterField extends Widget
         }
         else if (result.full())
         {
-            this.say(DialogText.f("roster.full", SchematicsState.ROSTER_MAX), Ui.C_WARN);
+            this.say(DialogText.f("roster.full", this.store.max()), Ui.C_WARN);
         }
         else
         {
@@ -346,7 +419,7 @@ final class RosterField extends Widget
     {
         this.input.setFocused(false);
 
-        if (PlayerPicker.open(this.layers) == null)
+        if (PlayerPicker.open(this.layers, this.store) == null)
         {
             this.say(DialogText.t("roster.offline"), Ui.C_WARN);
         }
@@ -365,12 +438,12 @@ final class RosterField extends Widget
             return;
         }
 
-        SchematicsState.get().setRoster(List.of());
+        this.store.set(List.of());
         // Ростер команды собирают долго — случайное «Очистить» должно отменяться
-        this.message = new StatusLine.Message(DialogText.f("roster.cleared", before.size()), Ui.C_WARN,
+        this.message = new StatusLine.Message(this.labels.cleared().apply(before.size()), Ui.C_WARN,
                 List.of(new Toasts.Action(DialogText.t("roster.undo"), () ->
                 {
-                    SchematicsState.get().setRoster(before);
+                    this.store.set(before);
                     this.message = null;
                 })));
         this.messageAt = Util.getMillis();
@@ -380,12 +453,12 @@ final class RosterField extends Widget
     record Added(int added, @Nullable String duplicate, boolean full) {}
 
     /**
-     * Добавить в конец, без повторов (регистр не важен) и не больше {@link SchematicsState#ROSTER_MAX}.
+     * Добавить в конец, без повторов (регистр не важен) и не больше {@link NickList#max()}.
      * Общее для поля «+ ник» и выбора игроков онлайн.
      */
-    static Added addAll(List<String> nicks)
+    static Added addAll(NickList store, List<String> nicks)
     {
-        List<String> next = new ArrayList<>(roster());
+        List<String> next = new ArrayList<>(store.list());
         List<String> seen = new ArrayList<>();
         next.forEach(nick -> seen.add(nick.toLowerCase(Locale.ROOT)));
 
@@ -403,7 +476,7 @@ final class RosterField extends Widget
                 continue;
             }
 
-            if (next.size() >= SchematicsState.ROSTER_MAX)
+            if (next.size() >= store.max())
             {
                 full = true;
                 break;
@@ -416,7 +489,7 @@ final class RosterField extends Widget
 
         if (added > 0)
         {
-            SchematicsState.get().setRoster(next);
+            store.set(next);
         }
 
         return new Added(added, nicks.size() == 1 ? duplicate : null, full);
@@ -432,6 +505,11 @@ final class RosterField extends Widget
             return true;
         }
 
+        if (! this.canEdit())
+        {
+            return false;
+        }
+
         if (Kit.left(click))
         {
             for (Chip chip : List.copyOf(this.chips))
@@ -441,7 +519,7 @@ final class RosterField extends Widget
                     Vanilla.click();
                     List<String> next = new ArrayList<>(roster());
                     next.remove(chip.nick);
-                    SchematicsState.get().setRoster(next);
+                    this.store.set(next);
                     return true;
                 }
             }
@@ -468,7 +546,7 @@ final class RosterField extends Widget
     @Override
     public @Nullable TextInput textInput()
     {
-        return this.input;
+        return this.canEdit() ? this.input : null;
     }
 
     // ===== Харнесс (через ExportWindow.TestHooks) =====

@@ -26,17 +26,17 @@ import org.jetbrains.annotations.Nullable;
  * <p>С 0.0.27 итог выгрузки живёт здесь, а не тостом: тост ложился поверх подвала окна.
  */
 @Environment(EnvType.CLIENT)
-final class StatusLine extends Widget
+public final class StatusLine extends Widget
 {
     /** Что показать; {@code color} — токен смысла ({@code Theme}/{@code Ui}); действия — кнопками строки. */
-    record Message(String text, int color, List<Toasts.Action> actions)
+    public record Message(String text, int color, List<Toasts.Action> actions)
     {
-        Message
+        public Message
         {
             actions = List.copyOf(actions);
         }
 
-        Message(String text, int color)
+        public Message(String text, int color)
         {
             this(text, color, List.of());
         }
@@ -47,12 +47,12 @@ final class StatusLine extends Widget
 
     private final Supplier<@Nullable Message> source;
 
-    StatusLine(Supplier<@Nullable Message> source)
+    public StatusLine(Supplier<@Nullable Message> source)
     {
         this.source = source;
     }
 
-    int height(int width)
+    public int height(int width)
     {
         Message message = this.message();
 
@@ -60,7 +60,7 @@ final class StatusLine extends Widget
     }
 
     /** Что показано сейчас ({@code null} — строка скрыта). */
-    @Nullable Message message()
+    public @Nullable Message message()
     {
         Message message = this.source.get();
 
@@ -71,7 +71,7 @@ final class StatusLine extends Widget
      * Где кнопка действия с подписью {@code label} на экране: {@code {x, y, w, h}}; {@code null} — такой нет
      * или строка скрыта.
      */
-    int @Nullable [] actionBox(String label)
+    public int @Nullable [] actionBox(String label)
     {
         Message message = this.message();
 

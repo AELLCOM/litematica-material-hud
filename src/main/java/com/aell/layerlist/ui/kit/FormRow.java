@@ -30,14 +30,31 @@ public final class FormRow extends Widget
     private final Widget control;
     private final int controlW;
     private final boolean stacked;
+    /** Полю можно занять всё место справа от названия, а не только половину строки. */
+    private final boolean wide;
 
     private FormRow(String label, @Nullable String tooltip, Widget control, int controlW, boolean stacked)
+    {
+        this(label, tooltip, control, controlW, stacked, false);
+    }
+
+    private FormRow(String label, @Nullable String tooltip, Widget control, int controlW, boolean stacked, boolean wide)
     {
         this.label = label;
         this.tooltip = tooltip;
         this.control = control;
         this.controlW = controlW;
         this.stacked = stacked;
+        this.wide = wide;
+    }
+
+    /**
+     * Как {@link #inline}, но поле шире половины строки: ему — всё, что осталось после названия (переключатель из
+     * трёх вариантов в половину строки не помещался и обрезал подписи).
+     */
+    public static FormRow wide(String label, @Nullable String tooltip, Widget control, int controlW)
+    {
+        return new FormRow(label, tooltip, control, controlW, false, true);
     }
 
     public static FormRow inline(String label, @Nullable String tooltip, Widget control, int controlW)
@@ -71,7 +88,8 @@ public final class FormRow extends Widget
         }
         else
         {
-            int cw = Math.min(this.controlW, w / 2);
+            int room = this.wide ? Math.max(w / 2, w - Kit.font().width(this.label) - Ui.PAD_GROUP) : w / 2;
+            int cw = Math.min(this.controlW, room);
             this.control.setBounds(x + w - cw, y + (h - Ui.CTRL_H) / 2, cw, Ui.CTRL_H);
         }
     }

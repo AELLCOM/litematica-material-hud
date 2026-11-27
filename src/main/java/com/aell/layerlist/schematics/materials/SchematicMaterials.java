@@ -118,6 +118,21 @@ public final class SchematicMaterials
     }
 
     /**
+     * Вся схема без «Считать до Y» и всегда с сущностями — основа делёжа Party: у всех участников с той же
+     * схемой список один и тот же, какие бы настройки счёта у кого ни стояли.
+     */
+    public static CompletableFuture<List<MaterialRow>> ofLitematicaWhole(LitematicaSchematic schematic)
+    {
+        Objects.requireNonNull(schematic, "schematic");
+        Minecraft mc = Minecraft.getInstance();
+        Job job = new Job(schematic, true);
+
+        return CompletableFuture.supplyAsync(job::prepare, mc)
+                .thenApplyAsync(Job::countStates, Util.backgroundExecutor())
+                .thenApplyAsync(Job::rows, mc);
+    }
+
+    /**
      * Строки по подсчёту блоков (анализ выделенной области, вкладка «Выделение»): как у схемы, «не хватает» =
      * «всего». Только клиентский поток.
      */
@@ -344,10 +359,10 @@ public final class SchematicMaterials
         return rows;
     }
 
-    private static List<MaterialRow> rows(Tally tally, LocalPlayer player)
+    private static List<MaterialRow> rows(Tally tally, LocalPlayer player, boolean allEntities)
     {
-        // Тот же выключатель, что у HUD: не считаешь сущности там — не видишь их и здесь
-        Object2IntOpenHashMap<DataItems.Key> entities = LayerListConfigs.COUNT_ENTITIES.getBooleanValue()
+        // Тот же выключатель, что у HUD: не считаешь сущности там — не видишь их и здесь (основа Party — всегда с ними)
+        Object2IntOpenHashMap<DataItems.Key> entities = allEntities || LayerListConfigs.COUNT_ENTITIES.getBooleanValue()
                 ? tally.entities() : new Object2IntOpenHashMap<>();
 
         List<MaterialListEntry> entries = MaterialRows.build(
@@ -483,6 +498,8 @@ public final class SchematicMaterials
     private static final class Job
     {
         private final LitematicaSchematic schematic;
+        /** Вся схема: без границы высоты и с сущностями при любых настройках ({@link #ofLitematicaWhole}). */
+        private final boolean whole;
         private final List<Region> regions = new ArrayList<>();
         /** Правка палитры заменой блоков на момент снятия регионов: сменилась за время счёта — счёт не кешируется. */
         private int generation;
@@ -493,7 +510,13 @@ public final class SchematicMaterials
 
         Job(LitematicaSchematic schematic)
         {
+            this(schematic, false);
+        }
+
+        Job(LitematicaSchematic schematic, boolean whole)
+        {
             this.schematic = schematic;
+            this.whole = whole;
         }
 
         /** Клиентский поток: проверить мир, взять готовый счёт или снять регионы для фона. */
@@ -510,7 +533,7 @@ public final class SchematicMaterials
             // Отключения (блоки и сущности) — до счёта: схему могли прочитать в другом потоке, сущности ждут мира
             BlockReplacements.ensure(this.schematic);
 
-            this.limitY = MaterialCutoff.limitY();
+            this.limitY = this.whole ? Long.MAX_VALUE : MaterialCutoff.limitY();
             // С границей счёт другой — кэш по схеме его не отдаёт и не принимает
             this.tally = this.limitY == Long.MAX_VALUE ? TALLIES.get(this.schematic) : null;
 
@@ -574,7 +597,7 @@ public final class SchematicMaterials
                 }
             }
 
-            return SchematicMaterials.rows(this.tally, mc.player);
+            return SchematicMaterials.rows(this.tally, mc.player, this.whole);
         }
 
         /** Смещение региона по Y в схеме: Y клетки в схеме = смещение + локальный Y. */

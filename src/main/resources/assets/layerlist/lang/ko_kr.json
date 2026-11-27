@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "블록 너머로 표시",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "구역 테두리를 모든 것 위에 그려서 건물 안에서도 보이게 해요",
   "modmenu.descriptionTranslation.layerlist": "현재 레이어에 필요한 Litematica 재료 목록을 HUD로 표시하고, 필요한 블록이 들어 있는 상자, 통, 셜커 상자를 표시합니다. Ghost Alpha 및 Easy Place 모듈을 포함합니다.",
-  "modmenu.summaryTranslation.layerlist": "현재 레이어에 필요한 Litematica 재료 목록을 HUD로 표시하고, 필요한 블록이 들어 있는 상자, 통, 셜커 상자를 표시합니다. Ghost Alpha 및 Easy Place 모듈을 포함합니다."
+  "modmenu.summaryTranslation.layerlist": "현재 레이어에 필요한 Litematica 재료 목록을 HUD로 표시하고, 필요한 블록이 들어 있는 상자, 통, 셜커 상자를 표시합니다. Ghost Alpha 및 Easy Place 모듈을 포함합니다.",
+  "layerlist.config.bannerCard.name": "커서를 올리면 현수막 제작법 표시",
+  "layerlist.config.bannerCard.tooltip": "보관함과 모든 컨테이너에서 Shift를 누른 채 무늬가 있는 현수막에 커서를 올리면 일반 툴팁 대신 넘겨 볼 수 있는 카드가 나타납니다. 'Materials' 탭에서는 목록의 현수막에 커서를 올리기만 하면 카드가 열리며, 행 메뉴에서 베틀 옆에 고정할 수 있습니다. 첫 페이지에는 필요한 것(바탕 현수막, 염료, 현수막 무늬, 베틀)이 표시되고, 이어서 무늬마다 한 페이지씩 이전 현수막, 염료, 무늬, 결과가 표시됩니다. 마우스 휠, ← → 키 또는 카드의 버튼으로 페이지를 넘길 수 있습니다. 무늬나 아이템을 클릭하면 얻는 방법(제작법 또는 찾을 수 있는 곳)이 표시됩니다. 기본값: 켜짐",
+  "layerlist.banner.needs": "필요한 것",
+  "layerlist.banner.step": "%s단계 / 총 %s단계",
+  "layerlist.banner.patterns": "무늬: %s개",
+  "layerlist.banner.over_limit": "베틀에는 6개까지만 들어갑니다",
+  "layerlist.banner.no_item": "현수막 무늬 아이템이 필요 없음",
+  "layerlist.banner.needs_item": "필요한 아이템: %s",
+  "layerlist.banner.kept": "베틀에서 소모되지 않습니다",
+  "layerlist.banner.how": "얻는 방법",
+  "layerlist.banner.hint": "휠 또는 ← → 로 넘기기. 무늬를 클릭하면 얻는 방법 표시",
+  "layerlist.banner.pinned": "고정됨",
+  "layerlist.banner.unknown": "이 무늬를 얻는 방법에 대한 정보가 없습니다",
+  "layerlist.loom.beyond_limit": "(베틀 한도 6개 초과)"
 }
