@@ -73,9 +73,19 @@ final class ExportDialog
                          @Nullable ExportFormat format, String fileName, @Nullable ExportSource.Kind kind,
                          boolean narrowed, @Nullable SchematicEntry entry, long disabledBlocks)
     {
+        openRows(screen, name, sourceLabel, rows, format, fileName, kind, narrowed, entry, disabledBlocks, null);
+    }
+
+    /** То же и пересчёт строк для «Считать до Y» окна ({@code null} — настройка на строки не действует). */
+    static void openRows(GuiSchematics screen, String name, String sourceLabel, List<MaterialRow> rows,
+                         @Nullable ExportFormat format, String fileName, @Nullable ExportSource.Kind kind,
+                         boolean narrowed, @Nullable SchematicEntry entry, long disabledBlocks,
+                         @Nullable ExportSource.Recount recount)
+    {
         String title = name.isBlank() ? Tr.t("export.title") : Tr.f("export.title_for", name);
         ExportWindow.open(host(screen), title, name,
-                List.of(ExportSource.rows(sourceLabel, rows, fileName, kind, narrowed, entry, disabledBlocks)), 0, format);
+                List.of(ExportSource.rows(sourceLabel, rows, fileName, kind, narrowed, entry, disabledBlocks, recount)), 0,
+                format);
     }
 
     /**
@@ -84,15 +94,16 @@ final class ExportDialog
      */
     static void open(GuiSchematics screen, MaterialsExport request)
     {
-        // «Только недостающее» окна — как у таблицы: иначе количество в выгрузке разошлось бы с её
-        // колонкой «Всего» (у списка HUD там недостающее). Флажок окна общий и запоминается — так и задумано
+        // «Только недостающее» и «С учётом склада» окна — как у таблицы: иначе количество в выгрузке разошлось бы с её
+        // колонками «Всего» (у списка HUD там недостающее) и «Не хватает». Выбор окна общий и запоминается — так и задумано
         SchematicsState state = SchematicsState.get();
         state.setExportOptions(request.options(state.exportOptions()));
 
         openRows(screen, request.title(), request.source(), request.rows(), format(request.format()),
                 request.fileName(), request.hud() ? ExportSource.Kind.HUD
                         : request.placed() ? ExportSource.Kind.PLACED : ExportSource.Kind.SCHEMATIC,
-                request.rows().size() < request.sourceRows(), request.hud() ? null : request.entry(), request.disabledBlocks());
+                request.rows().size() < request.sourceRows(), request.hud() ? null : request.entry(), request.disabledBlocks(),
+                request.recount());
     }
 
     /** Кнопки подвала «Материалов» → кнопки окна; без {@code default}, чтобы новый формат не прошёл молча. */

@@ -21,16 +21,16 @@ import org.jetbrains.annotations.Nullable;
  * текст — по желанию ({@link #tooltip}).
  */
 @Environment(EnvType.CLIENT)
-final class SectionTitle extends Widget
+public final class SectionTitle extends Widget
 {
     /** Высота строки заголовка вместе с линией. */
-    static final int HEIGHT = Ui.SECTION_H + Ui.BORDER;
+    public static final int HEIGHT = Ui.SECTION_H + Ui.BORDER;
 
     private final Supplier<String> text;
     private final List<Button> trailing;
     private @Nullable String tooltip;
 
-    SectionTitle(Supplier<String> text, Button... trailing)
+    public SectionTitle(Supplier<String> text, Button... trailing)
     {
         this.text = text;
         this.trailing = List.of(trailing);
@@ -63,7 +63,7 @@ final class SectionTitle extends Widget
     }
 
     /** Подсказка при наведении на текст заголовка (не на кнопки справа). */
-    SectionTitle tooltip(@Nullable String text)
+    public SectionTitle tooltip(@Nullable String text)
     {
         this.tooltip = text;
         return this;

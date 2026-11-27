@@ -36,6 +36,46 @@ public abstract class MixinAbstractContainerScreen
     {
         com.aell.layerlist.hud.LayerHudRenderer.renderUnderTooltip(graphics, mouseX, mouseY);
         com.aell.layerlist.hud.LoomGuide.render(graphics, (net.minecraft.client.gui.screens.Screen) (Object) this);
+        // Карточка узорного флага — поверх панелей: она у самой ячейки и перекрывает соседние
+        com.aell.layerlist.hud.BannerCard.render(graphics, (net.minecraft.client.gui.screens.Screen) (Object) this, mouseX, mouseY);
+    }
+
+    // Карточка узорного флага заменяет подсказку предмета: под открытой карточкой игра её не рисует
+    @Inject(method = "renderTooltip", at = @At("HEAD"), cancellable = true, require = 0)
+    private void layerlist_bannerCardInsteadOfTooltip(GuiGraphics graphics, int mouseX, int mouseY, CallbackInfo ci)
+    {
+        if (com.aell.layerlist.hud.BannerCard.hidesTooltip((net.minecraft.client.gui.screens.Screen) (Object) this))
+        {
+            ci.cancel();
+        }
+    }
+
+    // ← → листают карточку узорного флага — до того, как экран сдвинет ими фокус кнопок; в поле ввода (поиск
+    // творческого инвентаря, книга рецептов) стрелки остаются стрелками
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true, require = 0)
+    private void layerlist_bannerCardKeys(net.minecraft.client.input.KeyEvent event,
+            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir)
+    {
+        net.minecraft.client.gui.screens.Screen self = (net.minecraft.client.gui.screens.Screen) (Object) this;
+
+        if (! (self.getFocused() instanceof net.minecraft.client.gui.components.EditBox)
+                && com.aell.layerlist.hud.BannerCard.keyPressed(self, event.key()))
+        {
+            cir.setReturnValue(true);
+        }
+    }
+
+    // Колёсико над узорным флагом или его карточкой листает карточку. Карточка открыта с зажатым Shift, а с ним
+    // часть систем (macOS) присылает прокрутку по горизонтали — берём ту ось, что не ноль
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true, require = 0)
+    private void layerlist_bannerCardScroll(double mouseX, double mouseY, double scrollX, double scrollY,
+            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir)
+    {
+        if (com.aell.layerlist.hud.BannerCard.mouseScrolled((net.minecraft.client.gui.screens.Screen) (Object) this, mouseX, mouseY,
+                scrollY != 0.0D ? scrollY : scrollX))
+        {
+            cir.setReturnValue(true);
+        }
     }
 
     // Клавиша панели материалов (Y) в инвентаре и контейнерах — перед ванильной проверкой клавиши инвентаря:
@@ -70,8 +110,11 @@ public abstract class MixinAbstractContainerScreen
     private void layerlist_transferButton(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick,
             org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir)
     {
-        if (com.aell.layerlist.hud.TransferButton.mouseClicked((net.minecraft.client.gui.screens.Screen) (Object) this,
-                event.x(), event.y(), event.button()))
+        // Карточка узорного флага лежит поверх всего — её щелчок первый
+        if (com.aell.layerlist.hud.BannerCard.mouseClicked((net.minecraft.client.gui.screens.Screen) (Object) this,
+                event.x(), event.y(), event.button())
+                || com.aell.layerlist.hud.TransferButton.mouseClicked((net.minecraft.client.gui.screens.Screen) (Object) this,
+                        event.x(), event.y(), event.button()))
         {
             cir.setReturnValue(true);
         }

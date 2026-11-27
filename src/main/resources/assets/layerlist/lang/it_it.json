@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "Visibili attraverso i blocchi",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Disegna le cornici delle zone sopra a tutto, così le vedi dentro la costruzione",
   "modmenu.descriptionTranslation.layerlist": "Mostra la lista dei materiali di Litematica per il layer attuale come HUD e segna i bauli, i barili e le shulker box che contengono i blocchi necessari. Include i moduli Ghost Alpha ed Easy Place.",
-  "modmenu.summaryTranslation.layerlist": "Mostra la lista dei materiali di Litematica per il layer attuale come HUD e segna i bauli, i barili e le shulker box che contengono i blocchi necessari. Include i moduli Ghost Alpha ed Easy Place."
+  "modmenu.summaryTranslation.layerlist": "Mostra la lista dei materiali di Litematica per il layer attuale come HUD e segna i bauli, i barili e le shulker box che contengono i blocchi necessari. Include i moduli Ghost Alpha ed Easy Place.",
+  "layerlist.config.bannerCard.name": "Ricetta dello stendardo al passaggio del cursore",
+  "layerlist.config.bannerCard.tooltip": "Nell'inventario e in qualsiasi contenitore, tieni premuto Shift e passa il cursore su uno stendardo con motivi: al posto della solita descrizione compare una scheda da sfogliare. Nella scheda «Materials» si apre passando il cursore su uno stendardo dell'elenco, e dal menu della riga la si può fissare accanto al telaio. La prima pagina mostra che cosa serve: lo stendardo di base, i coloranti, i motivi per stendardo e il telaio. Poi c'è una pagina per ogni motivo: lo stendardo prima, il colorante, il motivo e il risultato. Sfoglia con la rotellina, i tasti ← → o i pulsanti della scheda. Fai clic su un motivo o su un oggetto per vedere come ottenerlo: la ricetta o il luogo in cui trovarlo. Attivo per impostazione predefinita",
+  "layerlist.banner.needs": "Che cosa serve",
+  "layerlist.banner.step": "Passo %s di %s",
+  "layerlist.banner.patterns": "Motivi: %s",
+  "layerlist.banner.over_limit": "nel telaio ce ne stanno solo 6",
+  "layerlist.banner.no_item": "Non serve un motivo per stendardo",
+  "layerlist.banner.needs_item": "Serve: %s",
+  "layerlist.banner.kept": "Non si consuma nel telaio",
+  "layerlist.banner.how": "Come ottenerlo",
+  "layerlist.banner.hint": "Rotellina o ← → per sfogliare. Fai clic su un motivo per vedere come ottenerlo",
+  "layerlist.banner.pinned": "Fissato",
+  "layerlist.banner.unknown": "Nessun dato su dove trovare questo motivo",
+  "layerlist.loom.beyond_limit": "(oltre il limite di 6 del telaio)"
 }

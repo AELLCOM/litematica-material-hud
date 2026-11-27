@@ -83,6 +83,12 @@ public final class LoomGuide
             return;
         }
 
+        // Закреплённая карточка флага стоит на этом же месте и рассказывает то же подробнее — панель уступает
+        if (BannerPin.shows(screen))
+        {
+            return;
+        }
+
         if (lastLevel != Minecraft.getInstance().level)
         {
             lastLevel = Minecraft.getInstance().level;
@@ -136,7 +142,7 @@ public final class LoomGuide
     }
 
     /** С другой стороны окна, чем панель материалов; не влезает — под панелью; и там нет — не рисуем. */
-    private static HudDock.@Nullable Dock place(Screen screen, int width, int height, double scale)
+    static HudDock.@Nullable Dock place(Screen screen, int width, int height, double scale)
     {
         boolean hudRight = LayerListConfigs.HUD_DOCK_RIGHT.getBooleanValue();
         HudDock.Dock hud = LayerHudRenderer.dockBesideContainer(screen);

@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "Durch Blöcke sichtbar",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Zonenrahmen über allem zeichnen, damit du sie im Inneren des Baus siehst",
   "modmenu.descriptionTranslation.layerlist": "Zeigt die Materialliste von Litematica für die aktuelle Ebene als HUD an und markiert die Truhen, Fässer und Shulker-Kisten, in denen die benötigten Blöcke liegen. Enthält die Module Ghost Alpha und Easy Place.",
-  "modmenu.summaryTranslation.layerlist": "Zeigt die Materialliste von Litematica für die aktuelle Ebene als HUD an und markiert die Truhen, Fässer und Shulker-Kisten, in denen die benötigten Blöcke liegen. Enthält die Module Ghost Alpha und Easy Place."
+  "modmenu.summaryTranslation.layerlist": "Zeigt die Materialliste von Litematica für die aktuelle Ebene als HUD an und markiert die Truhen, Fässer und Shulker-Kisten, in denen die benötigten Blöcke liegen. Enthält die Module Ghost Alpha und Easy Place.",
+  "layerlist.config.bannerCard.name": "Bannerrezept beim Überfahren mit der Maus",
+  "layerlist.config.bannerCard.tooltip": "Im Inventar und in jedem Behälter: Halte Shift gedrückt und fahre mit der Maus über ein Banner mit Muster — statt des üblichen Tooltips erscheint eine Karte zum Blättern. Im Tab «Materials» öffnet sich die Karte, sobald du über ein Banner in der Liste fährst; über das Zeilenmenü lässt sie sich neben dem Webstuhl anheften. Die erste Seite zeigt, was du brauchst: Grundbanner, Farbstoffe, Bannervorlagen und den Webstuhl. Danach folgt eine Seite je Muster: das Banner vorher, der Farbstoff, das Muster und das Ergebnis. Blättere mit dem Mausrad, den Tasten ← → oder den Schaltflächen der Karte. Ein Klick auf ein Muster oder einen Gegenstand zeigt, wie man ihn bekommt: das Rezept oder den Fundort. Standardmäßig an",
+  "layerlist.banner.needs": "Das brauchst du",
+  "layerlist.banner.step": "Schritt %s von %s",
+  "layerlist.banner.patterns": "Muster: %s",
+  "layerlist.banner.over_limit": "der Webstuhl fasst nur 6",
+  "layerlist.banner.no_item": "Keine Bannervorlage nötig",
+  "layerlist.banner.needs_item": "Benötigt: %s",
+  "layerlist.banner.kept": "Wird im Webstuhl nicht verbraucht",
+  "layerlist.banner.how": "So bekommst du es",
+  "layerlist.banner.hint": "Mausrad oder ← → zum Blättern. Klick auf ein Muster zeigt, wie man es bekommt",
+  "layerlist.banner.pinned": "Angeheftet",
+  "layerlist.banner.unknown": "Keine Angaben, woher dieses Muster stammt",
+  "layerlist.loom.beyond_limit": "(über dem Webstuhl-Limit von 6)"
 }

@@ -7,6 +7,7 @@ import com.aell.layerlist.schematics.library.LoadedSchematic;
 import com.aell.layerlist.schematics.library.SchematicEntry;
 import com.aell.layerlist.schematics.library.SchematicInfo;
 import com.aell.layerlist.schematics.library.SchematicLibrary;
+import com.aell.layerlist.schematics.library.SchematicOrigin;
 import com.aell.layerlist.schematics.library.SchematicTrash;
 import com.aell.layerlist.schematics.library.VoxelSnapshot;
 import com.aell.layerlist.schematics.place.PlacementEditorScreen;
@@ -163,6 +164,10 @@ public final class GuiSchematics extends GuiBase
 
     private @Nullable SchematicEntry selected;
     private @Nullable CompletableFuture<SchematicInfo> selectedInfo;
+    /** Габарит блоков выбранной схемы относительно её точки привязки (1.0.40): карточка предупреждает о потерянной. */
+    private @Nullable CompletableFuture<SchematicOrigin.Extent> selectedOrigin;
+    /** Файл, для которого сейчас пишется копия с исправленной точкой привязки. */
+    private @Nullable SchematicEntry fixingOrigin;
     private @Nullable CompletableFuture<VoxelSnapshot> snapshot;
     private boolean snapshotApplied;
     private @Nullable SchematicEntry placing;
@@ -1516,6 +1521,18 @@ public final class GuiSchematics extends GuiBase
         this.infoCache.clear();
     }
 
+    private CompletableFuture<SchematicOrigin.Extent> origin(SchematicEntry entry)
+    {
+        try
+        {
+            return SchematicLibrary.get().origin(entry);
+        }
+        catch (RuntimeException error)
+        {
+            return CompletableFuture.failedFuture(error);
+        }
+    }
+
     @Nullable SchematicEntry selected()
     {
         return this.selected;
@@ -1530,6 +1547,74 @@ public final class GuiSchematics extends GuiBase
     @Nullable Throwable selectedInfoError()
     {
         return failure(this.selectedInfo);
+    }
+
+    /** Габарит блоков выбранной схемы от её точки привязки; {@code null} — ещё читается, не .litematic или не прочитан. */
+    SchematicOrigin.@Nullable Extent selectedOrigin()
+    {
+        return done(this.selectedOrigin);
+    }
+
+    boolean fixingOrigin()
+    {
+        return this.fixingOrigin != null;
+    }
+
+    /**
+     * «Исправить» в карточке «Библиотеки» (1.0.40): рядом с файлом пишется копия, у которой точка привязки стоит в углу
+     * схемы, — такая в Litematica встаёт у игрока. Исходный файл не меняем: его размещения в мирах держатся на прежних
+     * положениях регионов. Готово — копия выбрана в списке с «NEW».
+     */
+    void fixOrigin(SchematicEntry entry)
+    {
+        if (this.fixingOrigin != null || entry.directory())
+        {
+            return;
+        }
+
+        Path dir = entry.path().toAbsolutePath().normalize().getParent();
+
+        if (dir == null)
+        {
+            return;
+        }
+
+        String base = entry.name() + " " + Tr.t("info.origin_fix.suffix");
+        Path target = dir.resolve(base + ".litematic");
+
+        for (int i = 2; Files.exists(target); ++i)
+        {
+            target = dir.resolve(base + " " + i + ".litematic");
+        }
+
+        Path made = target;
+        CompletableFuture<SchematicOrigin.Extent> work;
+
+        try
+        {
+            work = SchematicLibrary.get().fixOrigin(entry, made);
+        }
+        catch (RuntimeException e)
+        {
+            work = CompletableFuture.failedFuture(e);
+        }
+
+        this.fixingOrigin = entry;
+        Tooltip.reset();
+
+        work.whenCompleteAsync((extent, error) ->
+        {
+            this.fixingOrigin = null;
+
+            if (error != null || extent == null)
+            {
+                this.toasts.show(Tr.f("info.origin_fix.failed", error == null ? "?" : Tr.reason(error)), Ui.C_DANGER);
+                return;
+            }
+
+            this.toasts.show(Tr.f("info.origin_fix.done", made.getFileName().toString()), Theme.GREEN);
+            this.showSaved(made);
+        }, Minecraft.getInstance());
     }
 
     boolean snapshotPending()
@@ -1551,6 +1636,7 @@ public final class GuiSchematics extends GuiBase
 
         this.selected = entry;
         this.selectedInfo = entry == null ? null : this.info(entry);
+        this.selectedOrigin = entry == null ? null : this.origin(entry);
         this.snapshotApplied = false;
 
         if (entry == null)

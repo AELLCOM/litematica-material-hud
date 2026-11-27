@@ -3,6 +3,7 @@ package com.aell.layerlist.hud;
 import com.aell.layerlist.api.CountScope;
 import com.aell.layerlist.api.LayerListApi;
 import com.aell.layerlist.config.LayerListConfigs;
+import com.aell.layerlist.party.Parties;
 import com.aell.layerlist.shaded.ui.Paint;
 import com.aell.layerlist.shaded.ui.Strings;
 import com.aell.layerlist.shaded.ui.Style;
@@ -603,6 +604,18 @@ public class LayerHudRenderer implements IInfoHudRenderer
             addonLines.add(StringUtils.translate("layerlist.hud.stock_hidden", stockHidden));
         }
 
+        // Party: список — доля участника; подпись короткая, как всё в HUD (полное — в окне Party)
+        Parties.HudShare party = manager.getPartyShare();
+
+        if (party != null)
+        {
+            addonLines = new ArrayList<>(addonLines);
+            addonLines.add(party.applied() != null
+                    ? StringUtils.translate("layerlist.hud.party", party.applied().number(),
+                            party.applied().party().roster().size())
+                    : Strings.plain("layerlist.hud.party_several"));
+        }
+
         long total = manager.getBlocksTotal();
         long missing = manager.getBlocksMissing();
         long placed = total - missing;
@@ -631,6 +644,13 @@ public class LayerHudRenderer implements IInfoHudRenderer
                     : Strings.plain("layerlist.hud.empty");
             // Всё спрятанное складом — тоже «готово»: зелёным, как собранный слой
             doneOk |= stockHidden > 0;
+
+            // Party: постройка не готова, но в доле участника строк не осталось — это не «пусто»
+            if (! doneOk && ! supportWait && party != null && party.applied() != null && missing > 0)
+            {
+                doneOk = true;
+                doneText = Strings.plain("layerlist.hud.party_done");
+            }
         }
 
         String pageText = pages > 1 ? buildPageText(page + 1, pages) : null;

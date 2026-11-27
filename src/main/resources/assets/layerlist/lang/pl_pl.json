@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "Widoczne przez bloki",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Rysuje ramki stref na wierzchu wszystkiego, żeby było je widać w środku budowli",
   "modmenu.descriptionTranslation.layerlist": "Pokazuje listę materiałów Litematica dla bieżącej warstwy jako HUD i oznacza skrzynie, beczki oraz skrzynie shulkerów, w których są potrzebne bloki. Zawiera moduły Ghost Alpha i Easy Place.",
-  "modmenu.summaryTranslation.layerlist": "Pokazuje listę materiałów Litematica dla bieżącej warstwy jako HUD i oznacza skrzynie, beczki oraz skrzynie shulkerów, w których są potrzebne bloki. Zawiera moduły Ghost Alpha i Easy Place."
+  "modmenu.summaryTranslation.layerlist": "Pokazuje listę materiałów Litematica dla bieżącej warstwy jako HUD i oznacza skrzynie, beczki oraz skrzynie shulkerów, w których są potrzebne bloki. Zawiera moduły Ghost Alpha i Easy Place.",
+  "layerlist.config.bannerCard.name": "Przepis na sztandar po najechaniu",
+  "layerlist.config.bannerCard.tooltip": "W ekwipunku i w każdym pojemniku przytrzymaj Shift i najedź kursorem na sztandar ze wzorem: zamiast zwykłej podpowiedzi pojawi się karta z przewijanymi stronami. W karcie «Materials» otwiera się ona po najechaniu na sztandar na liście, a z menu wiersza można ją przypiąć obok krosna. Pierwsza strona pokazuje, czego potrzebujesz: sztandar bazowy, barwniki, wzory sztandaru i krosno. Dalej jest po jednej stronie na każdy wzór: sztandar przed, barwnik, wzór i wynik. Strony przewijasz kółkiem myszy, klawiszami ← → albo przyciskami na karcie. Kliknij wzór lub przedmiot, aby zobaczyć, jak go zdobyć: przepis albo miejsce, w którym można go znaleźć. Domyślnie włączone",
+  "layerlist.banner.needs": "Czego potrzebujesz",
+  "layerlist.banner.step": "Krok %s z %s",
+  "layerlist.banner.patterns": "Wzory: %s",
+  "layerlist.banner.over_limit": "w krośnie mieści się tylko 6",
+  "layerlist.banner.no_item": "Wzór sztandaru nie jest potrzebny",
+  "layerlist.banner.needs_item": "Potrzebny przedmiot: %s",
+  "layerlist.banner.kept": "Nie zużywa się w krośnie",
+  "layerlist.banner.how": "Jak zdobyć",
+  "layerlist.banner.hint": "Kółko lub ← → — przewijanie. Kliknij wzór, aby zobaczyć, jak go zdobyć",
+  "layerlist.banner.pinned": "Przypięty",
+  "layerlist.banner.unknown": "Brak danych, skąd wziąć ten wzór",
+  "layerlist.loom.beyond_limit": "(ponad limit 6 wzorów krosna)"
 }

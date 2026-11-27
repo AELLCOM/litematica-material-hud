@@ -3,6 +3,140 @@
 English release notes as published on [Modrinth](https://modrinth.com/mod/material-hud/changelog), newest first.
 The original Russian notes are in [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.42 — 2026-11-27
+
+Minecraft 26.3, 26.2, 1.21.11
+
+#### Added
+- **"Wrong block" toggle in the Materials tab.** The "Count 'Wrong block'" setting from 1.0.41 can now be switched right in the toolbar of the Materials tab, next to "Only missing" — no need to open the HUD settings. It is the same setting, so the HUD panel and the list export follow it too. The toggle is shown when the list is checked against the world: for a schematic placed in the world and for the "HUD list". When the toolbar is tight it has no label — a switch with an orange mark (the "Wrong block" colour of the block check), and the name is in the tooltip. With "Only empty spots" off in the HUD settings the toggle is greyed out: everything placed wrong is counted already.
+
+#### 📦 You need
+
+Minecraft 1.21.11 · Fabric Loader · Fabric API · malilib · Litematica · Java 21 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
+## 1.0.41 — 2026-11-27
+
+Minecraft 26.3, 26.2, 1.21.11
+
+The fix from 1.0.40, until now only for Minecraft 26.3, comes to 26.2 and 1.21.11 with this release.
+
+#### Added
+- **"Count 'Wrong block'".** A new toggle in the HUD tab, right under "Only empty spots". With it on, the material list counts a block as needed not only where the world is empty ("Missing" in the block check) but also where a block of another type stands ("Wrong block"): you will have to break it and place the right one anyway. It applies to the HUD panel, the Materials tab and the list export at once. A wrong state — rotation, half, on/off — is still not counted: the block is the same, no new one is needed. A banner, pot or head with a different pattern counts as a wrong block. Off by default — without it everything is counted exactly as before. With "Only empty spots" off the toggle is inactive: everything placed wrong is counted already. For far chunks last checked by an older version of the mod, the toggle starts to apply once you are near them again.
+- **Far-origin note** ("far: N blocks") next to "Origin point" in the Selection tab, and **"Save a fixed copy"** in the Library for schematics you already saved: same blocks, entities and chest contents, but the origin sits at the corner of the schematic.
+
+#### Fixed
+- fix — **A schematic saved from the Selection tab did not show up for players without Material HUD** when "Own origin" was left far away from an earlier build: its blocks ended up hundreds of blocks from the origin, and Litematica placed the schematic out of sight. The "Save schematic" window now notices a far origin (more than 64 blocks from the selection), warns about it and by default moves it back to the selection.
+- fix — **The origin's "Move in world" button switched your own origin on by itself.** It is now available only with "Own origin" on.
+
+Details: 1.0.40 in the [changelog](https://modrinth.com/mod/material-hud/changelog).
+
+#### 📦 You need
+
+Minecraft 1.21.11 · Fabric Loader · Fabric API · malilib · Litematica · Java 21 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
+## 1.0.40 — 2026-11-27
+
+Minecraft 26.3
+
+#### Fixed
+- fix — **A schematic saved from the Selection tab did not show up for players without Material HUD.** If "Own origin" was on in the selection and the origin was left over from an earlier build somewhere else, the schematic was saved relative to it: its blocks ended up hundreds or thousands of blocks away from the origin. Litematica puts a schematic's origin at the player, so for anyone loading such a file without Material HUD the schematic appeared far away — out of sight. Our "Place" and "To me" position a schematic by its blocks, so for the author everything looked fine. The "Save schematic" window now notices a far origin (more than 64 blocks from the selection), warns about it and by default moves it back to the selection. Switch the toggle off if the origin is far away on purpose. An origin next to the selection and a selection without an own origin are saved as before.
+- fix — **The origin's "Move in world" button switched your own origin on by itself.** In the Selection tab that button worked even with "Own origin" off: after it, the very next click with the Litematica tool put an own origin at the clicked spot instead of setting a corner. The button is now available only with "Own origin" on.
+
+#### Added
+- **Far-origin note.** In the Selection tab and on the "Look at the world" card, "far: N blocks" appears next to "Origin point" when your own origin is more than 64 blocks away from the selection.
+- **Repair for schematics you already saved.** In the Library, the card of a schematic with a far origin shows a warning and a "Save a fixed copy" button. A file marked "(fixed)" appears next to it: same blocks, entities and chest contents, but the origin sits at the corner of the schematic — in Litematica such a copy shows up at the player. The original file and its placements stay as they are. Send the copy to other players.
+
+#### 📦 You need
+
+Minecraft 26.3 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
+## 1.0.39 — 2026-11-25
+
+Minecraft 26.3, 26.2, 1.21.11
+
+Everything from 1.0.35–1.0.38, until now only for Minecraft 26.3, comes to 26.2 and 1.21.11 with this release.
+
+#### New
+- **Party: building as a team.** The Materials tab of a schematic has a **Party** button: the material list is split into shares between players, in whole stacks, so nobody takes someone else's blocks. Send the invitation with "Share to chat" or "Copy invitation" — players with Material HUD join with one click and see their share in the table, the HUD list and the export. No server side needed; everyone needs the same schematic file.
+- **Banner recipes.** Hover a banner with a pattern — in the Materials tab, or with Shift held in the inventory and containers — and a recipe card opens: "What you need" and one page per pattern in loom order. Click a pattern or an item to see how to get it.
+- **Pin a banner recipe at the loom.** Right-click a banner row in the Materials tab → "Pin recipe at the loom": the card stands next to the loom window, opens the next step when you put the banner in and marks the finished ones.
+- **"Only missing" without a placement — by inventory.** For a schematic that isn't placed, the toggle works like "Hide available" in Litematica and hides what you already carry, shulker boxes and bundles included. Chests aren't subtracted — "Count storage" does that.
+- **Storage numbers update by themselves.** "In inventory", "In chests" and "Missing" change as soon as you take or put away items or open a chest.
+- **Export: "Count storage" and "Count up to Y".** The export window can export what is missing minus your inventory and known chests, and count only what is at or below a set height.
+
+#### Fixed
+- fix — "Hide portals" now applies to the block check (Ctrl+B) too: no boxes on portals and End portal frames, and the counters skip them.
+- fix — the Materials tab showed the materials of a disabled schematic; now it shows the enabled one.
+- fix — "Support from adjacent layer" listed blocks whose support could not be placed itself (hanging sign columns, vine chains) and offered falling blocks with nothing under them as a support.
+
+Details of each step: 1.0.35–1.0.38 in the [changelog](https://modrinth.com/mod/material-hud/changelog).
+
+#### 📦 You need
+
+Minecraft 1.21.11 · Fabric Loader · Fabric API · malilib · Litematica · Java 21 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
+## 1.0.38 — 2026-11-25
+
+Minecraft 26.3
+
+#### New
+- **"Only missing" without a placement — by inventory.** For a schematic that isn't placed in the world, the "Only missing" toggle in the Materials tab now works like "Hide available" in Litematica: it hides what you already carry. "Total" and "Breakdown" show how much is still to gather. Items in shulker boxes and bundles in your inventory count too. Chests aren't subtracted — "Count storage" does that. Once the schematic is placed, it is compared with the build site again.
+
+- **Storage numbers update by themselves.** The "In inventory", "In chests" and "Missing" columns change as soon as you take or put away items or open a chest — no need to press "Refresh".
+- **Banner recipe in the Materials tab.** Hover a banner with a pattern in the material list — its icon or name — and the recipe card opens next to it: "What you need" and one page per pattern. Move the cursor onto the card: the mouse wheel and the ← → keys flip the pages, a click on a pattern or an item shows how to get it.
+
+- **Pin a banner recipe at the loom.** Right-click a banner row in the Materials tab → "Pin recipe at the loom". The card then stands next to the loom window without hovering, opens the next step when you put the banner in and marks the finished ones. One banner at a time; the pin survives a restart. Remove it with the cross on the card or "Unpin banner recipe".
+
+#### Changed
+- **In the inventory the banner recipe needs Shift.** In the inventory and containers the card no longer opens on a plain hover: hold Shift and hover a banner with a pattern. Clicking outside the card with Shift held (moving items) hides it until Shift is released, so it doesn't cover neighbouring slots.
+
+#### 📦 You need
+
+Minecraft 26.3 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
+## 1.0.37 — 2026-11-24
+
+Minecraft 26.3
+
+#### New
+- **Party: "Copy invitation".** The Party window has a new "Invitation" row under the shares with a "Copy invitation" button. It puts on the clipboard the same line that "Share to chat" sends to public chat — paste it into a private message or a clan chat. The button is there for the host and for a member who accepted the invitation.
+- **The invitation stays in the chat history.** After "Share to chat" and after "Copy invitation" the invitation is kept in the history of sent messages: open the chat and press the up arrow — it appears in the input field and can be sent again.
+
+#### 📦 You need
+
+Minecraft 26.3 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
+## 1.0.36 — 2026-11-24
+
+Minecraft 26.3
+
+#### New
+- **Party: building as a team.** The schematic's material list is split into shares between players, so nobody takes someone else's blocks. The Materials tab of a schematic has a new **Party** button: add the names (yours first; online players can be picked from a list) and press "Create Party". Each item is handed out in whole stacks, evenly; small amounts go to one player. "Share to chat" sends the invitation as an ordinary chat message — no server side is needed, just like Xaero's waypoints. Players with Material HUD see an "Accept invitation" link: one click and they are in and see their share in the Materials table, in the HUD list (and so in the chest search and in "Move everything needed") and in the export. The chat does not carry the schematic itself: everyone needs the same file.
+- **Banner recipe on hover.** In the inventory and any container, hover a banner with a pattern: instead of the usual tooltip a carousel card opens next to the slot. The first page is "What you need": the base banner, dyes, banner pattern items and the loom. Then one page per pattern, in loom order: the banner before, the dye, the pattern and the banner after. Flip with the mouse wheel, the ← → keys or the arrows on the card. Click a pattern or an item to see how to get it: the crafting recipe or where to find it — bastion remnant chests, trial chamber vaults, the master cartographer. Works for any patterned banner, not only those from the schematic. Settings → HUD → "Banner recipe on hover", on by default; the card is translated into all 14 languages of the mod.
+
+#### Fixed
+- fix — with "Hide blocks without support" and "Support from adjacent layer" on, the panel list included blocks that cannot be placed from the current layer: a column of hanging signs one under another, cave vines under vines beyond the layer and other chains. Now a support from the adjacent layer counts only if it can be placed on its own — like an iron chain above a lantern: the lantern and the chain stay in the list. If the support itself has nothing to hold on to, the block is not listed until that support can be built.
+- fix — "Support from adjacent layer" offered sand, gravel, concrete powder and other falling blocks with nothing under them as a support: once placed they fell. Now such a support is not shown or listed until there is a block under it.
+
+#### 📦 You need
+
+Minecraft 26.3 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
+## 1.0.35 — 2026-11-24
+
+Minecraft 26.3
+
+#### New
+- **"Count storage" in the export.** The "Schematic materials" switch of the export window now has three options: "All", "Only missing" and "Count storage". The third one exports what is missing minus what already sits in your inventory and known chests — the same number as the "Missing" column on the Materials tab. If "Count storage" is on in the tab, the window opens with this option.
+- **"Count up to Y" in the export.** Below the switch there is a "Count up to Y = …" toggle — the same setting as in the HUD and on the Materials tab (the height itself is set in HUD settings). Turn it on and the materials are recounted: only what is at this height or below goes into the table, and the table header says "· up to Y = …". On a narrow screen this toggle did not fit on the Materials tab — now it is always there in the export window.
+
+#### Fixed
+- fix — the Materials tab showed materials of a disabled schematic. With several placements and only one left enabled, the tab kept showing the previous schematic, and the "Schematic" button picked the placement selected in Litematica even when it was disabled. Now the tab shows the enabled schematic (the HUD list if several are enabled). A disabled schematic can still be opened on purpose — via "Materials" in its row menu.
+
+#### 📦 You need
+
+Minecraft 26.3 · Fabric Loader · Fabric API · malilib · Litematica · Java 25 · Syncmatica — optional · Voxy — optional · Chest Tracker — optional
+
 ## 1.0.34 — 2026-11-23
 
 Minecraft 26.3, 26.2, 1.21.11

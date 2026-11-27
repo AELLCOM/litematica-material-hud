@@ -1,6 +1,7 @@
 package com.aell.layerlist.schematics.gui;
 
 import com.aell.layerlist.schematics.SchematicsConfig;
+import com.aell.layerlist.schematics.library.SchematicOrigin;
 import com.aell.layerlist.shaded.ui.Paint;
 import com.aell.layerlist.shaded.ui.Strings;
 import com.aell.layerlist.shaded.ui.Style;
@@ -324,6 +325,28 @@ public final class SelectionHud
         row(ctx, l, 2, card, card.originY(), SelectionPane.originShown(selection), explicit, selection != null,
                 selection != null && selection.isOriginSelected());
         originTag(ctx, card, explicit);
+        originFar(ctx, font, card, SelectionPane.originGap(selection), card.right() - toggleW);
+    }
+
+    /**
+     * Своя точка привязки далеко от выделения (1.0.40) — заметка рядом с подписью «Точка привязки», между ней и
+     * тумблером «Своя точка» ({@code right} — его левый край). Не влезла — бежит. Ближе {@link SchematicOrigin#FAR} — пусто.
+     */
+    static void originFar(GuiContext ctx, Font font, Card card, int gap, int right)
+    {
+        if (gap <= SchematicOrigin.FAR)
+        {
+            return;
+        }
+
+        int x = card.inner() + font.width(Tr.t("selection.origin.title")) + Ui.PAD_REL;
+        int room = right - Ui.PAD_REL - x;
+
+        if (room > 0)
+        {
+            Paint.midMarquee(ctx, font, Tr.f("selection.origin.far", Tr.num(gap)), x, card.originCaptionY(), CAPTION_H, room,
+                    Ui.C_WARN, false);
+        }
     }
 
     /** Строка карточки без ввода: три поля с «+/−», прицел и «к игроку» — как {@code SelectionPane.CornerBlock}. */
@@ -346,7 +369,8 @@ public final class SelectionHud
 
         int color = row == 0 ? SelectionPane.C_CORNER1 : row == 1 ? SelectionPane.C_CORNER2 : SelectionPane.C_ORIGIN;
         l.grab[row].style(grabbed ? Button.Style.PRIMARY : Button.Style.SECONDARY).accent(color).selected(grabbed);
-        l.grab[row].setEnabled(pos != null);
+        // Строка точки привязки: двигать в мире — только свою (см. SelectionPane.CornerBlock.refresh)
+        l.grab[row].setEnabled(row == 2 ? enabled || grabbed : pos != null);
         l.grab[row].setBounds(card.grabX(), y, ICON_W, ROW_H);
         l.grab[row].render(ctx, -1, -1);
         l.toPlayer[row].setEnabled(enabled);

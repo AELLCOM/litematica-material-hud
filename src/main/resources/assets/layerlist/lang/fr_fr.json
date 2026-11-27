@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "Visible à travers les blocs",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Dessiner les cadres des zones par-dessus tout, pour les voir à l'intérieur de la construction",
   "modmenu.descriptionTranslation.layerlist": "Affiche la liste des matériaux Litematica de la couche actuelle sous forme de HUD et repère les coffres, tonneaux et boîtes de shulker qui contiennent les blocs nécessaires. Inclut les modules Ghost Alpha et Easy Place.",
-  "modmenu.summaryTranslation.layerlist": "Affiche la liste des matériaux Litematica de la couche actuelle sous forme de HUD et repère les coffres, tonneaux et boîtes de shulker qui contiennent les blocs nécessaires. Inclut les modules Ghost Alpha et Easy Place."
+  "modmenu.summaryTranslation.layerlist": "Affiche la liste des matériaux Litematica de la couche actuelle sous forme de HUD et repère les coffres, tonneaux et boîtes de shulker qui contiennent les blocs nécessaires. Inclut les modules Ghost Alpha et Easy Place.",
+  "layerlist.config.bannerCard.name": "Recette de la bannière au survol",
+  "layerlist.config.bannerCard.tooltip": "Dans l'inventaire et dans tout conteneur, maintenez Maj et survolez une bannière à motifs : à la place de l'infobulle habituelle apparaît une carte à feuilleter. Dans l'onglet « Materials », la carte s'ouvre au survol d'une bannière de la liste, et le menu de la ligne permet de l'épingler à côté du métier à tisser. La première page indique ce qu'il faut : la bannière de base, les teintures, les motifs de bannière et le métier à tisser. Viennent ensuite une page par motif : la bannière avant, la teinture, le motif et le résultat. Feuilletez avec la molette, les touches ← → ou les boutons de la carte. Cliquez sur un motif ou un objet pour voir comment l'obtenir : sa recette ou l'endroit où le trouver. Activé par défaut",
+  "layerlist.banner.needs": "Ce qu'il faut",
+  "layerlist.banner.step": "Étape %s sur %s",
+  "layerlist.banner.patterns": "Motifs : %s",
+  "layerlist.banner.over_limit": "le métier à tisser n'en accepte que 6",
+  "layerlist.banner.no_item": "Aucun motif de bannière requis",
+  "layerlist.banner.needs_item": "Objet requis : %s",
+  "layerlist.banner.kept": "N'est pas consommé dans le métier à tisser",
+  "layerlist.banner.how": "Comment l'obtenir",
+  "layerlist.banner.hint": "Molette ou ← → pour feuilleter. Cliquez sur un motif pour voir comment l'obtenir",
+  "layerlist.banner.pinned": "Épinglée",
+  "layerlist.banner.unknown": "Aucune donnée sur la provenance de ce motif",
+  "layerlist.loom.beyond_limit": "(au-delà de la limite de 6 du métier à tisser)"
 }

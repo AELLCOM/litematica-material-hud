@@ -313,12 +313,18 @@ public final class LayerListSettings implements SettingsModel
                         Model.Option.toggle("countEntities", Values.of(LayerListConfigs.COUNT_ENTITIES)),
                         Model.Option.toggle("shortfallOnlyMissing",
                                 Values.of(LayerListConfigs.SHORTFALL_ONLY_MISSING)),
+                        // 27.11.2026: «Не тот блок» проверки — тоже в нехватку (панель, «Материалы», выгрузка)
+                        Model.Option.toggle("shortfallWrongBlocks",
+                                Values.of(LayerListConfigs.SHORTFALL_WRONG_BLOCKS))
+                                .child().gate(LayerListSettings::wrongBlocksGate)
+                                .swatch(LayerVerifier.Category.WRONG_BLOCK::color),
                         Model.Option.toggle("showShortfall", Values.of(LayerListConfigs.SHOW_SHORTFALL))
                                 .swatch(LayerHudRenderer::badColor),
                         Model.Option.toggle("showProgressBar", Values.of(LayerListConfigs.SHOW_PROGRESS_BAR))
                                 .swatch(LayerHudRenderer::okColor),
                         Model.Option.toggle("hudCountInBoxes", Values.of(LayerListConfigs.HUD_COUNT_IN_BOXES)),
                         Model.Option.toggle("loomGuide", Values.of(LayerListConfigs.LOOM_GUIDE)),
+                        Model.Option.toggle("bannerCard", Values.of(LayerListConfigs.BANNER_CARD)),
                         Model.Option.toggle("sortByName", Values.of(LayerListConfigs.SORT_BY_NAME)),
                         Model.Option.integer("itemsPerPage", Values.of(LayerListConfigs.ITEMS_PER_PAGE),
                                 Num.Scale.LINEAR)),
@@ -701,6 +707,14 @@ public final class LayerListSettings implements SettingsModel
         return LayerListConfigs.STOCK_NEAR_ONLY.getBooleanValue()
                 ? null
                 : new Model.Reason(text("gate.stock_near_off"), false);
+    }
+
+    /** «Только пустые места» выключена — в нехватку и так идёт всё, что стоит не так: тумблеру нечего добавить. */
+    private static @Nullable Model.Reason wrongBlocksGate()
+    {
+        return LayerListConfigs.SHORTFALL_ONLY_MISSING.getBooleanValue()
+                ? null
+                : new Model.Reason(text("gate.only_empty_off"), false);
     }
 
     private static @Nullable Model.Reason chestTrackerGate()

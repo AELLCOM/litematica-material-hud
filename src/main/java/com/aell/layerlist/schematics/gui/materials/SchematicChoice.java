@@ -23,6 +23,10 @@ import org.jetbrains.annotations.Nullable;
  * одним размещением видел только «Список HUD» — «Схема» была серой). Кандидаты — размещения мира (выбранное в
  * Litematica — первым) и загруженные в Litematica схемы-файлы без размещений. Одна схема определяется сама:
  * выбранное в Litematica размещение, иначе единственный кандидат; несколько — выбирает игрок из списка.
+ *
+ * <p>Выключенные размещения сами не определяются, пока в мире есть включённое (1.0.35): игрок выключил лишние
+ * схемы и оставил одну — «Материалы» открывались со схемой выключенного (оно оставалось выбранным в Litematica).
+ * Из списка их по-прежнему можно выбрать.
  */
 @Environment(EnvType.CLIENT)
 public final class SchematicChoice
@@ -91,17 +95,41 @@ public final class SchematicChoice
         return out;
     }
 
-    /** Схема без вопросов: выбранное в Litematica размещение, иначе единственный кандидат; {@code null} — нет одной. */
+    /**
+     * Схема без вопросов: выбранное в Litematica размещение, иначе единственный кандидат; {@code null} — нет одной.
+     * Пока в мире есть включённое размещение, выключенные — не кандидаты.
+     */
     public static @Nullable TableSource single(List<Option> options)
     {
         SchematicPlacement selected = selectedPlacement();
+        List<SchematicPlacement> all = PlacementOps.all();
+        boolean anyEnabled = false;
 
-        if (selected != null && PlacementOps.all().contains(selected))
+        for (SchematicPlacement placement : all)
+        {
+            anyEnabled |= placement.isEnabled();
+        }
+
+        if (selected != null && all.contains(selected) && (selected.isEnabled() || ! anyEnabled))
         {
             return new TableSource.Placed(selected);
         }
 
-        return options.size() == 1 ? options.getFirst().source() : null;
+        TableSource only = null;
+        int count = 0;
+
+        for (Option option : options)
+        {
+            if (anyEnabled && option.source() instanceof TableSource.Placed placed && ! placed.placement().isEnabled())
+            {
+                continue;
+            }
+
+            only = option.source();
+            ++count;
+        }
+
+        return count == 1 ? only : null;
     }
 
     private static @Nullable SchematicPlacement selectedPlacement()

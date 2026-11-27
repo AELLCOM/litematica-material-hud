@@ -55,7 +55,12 @@ final class JsonExport
         root.addProperty("source", request.source());
         root.addProperty("created", data.created().atZone(ZoneId.systemDefault())
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
-        root.addProperty("filter", request.options().onlyMissing() ? "missing" : "all");
+        root.addProperty("filter", switch (request.options().amount())
+        {
+            case ALL -> "all";
+            case MISSING -> "missing";
+            case STOCK -> "stock";
+        });
 
         JsonArray roster = new JsonArray();
         request.roster().forEach(roster::add);

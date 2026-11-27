@@ -6,6 +6,7 @@ import com.aell.layerlist.config.LayerListConfigs;
 import com.aell.layerlist.easyplace.Potting;
 import com.aell.layerlist.ghost.GhostSupport;
 import com.aell.layerlist.ghost.InventoryGhosts;
+import com.aell.layerlist.ghost.PortalGhosts;
 import com.aell.layerlist.shaded.ui.Strings;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
@@ -160,6 +161,7 @@ public final class LayerVerifier
     /** Версия набора предметов «голограмм по инвентарю», под которую собраны рамки. */
     private int inventoryVersion = -1;
     private boolean supportFilter;
+    private boolean portalFilter;
     private int rangeTicks;
     private BlockPos lastRenderOrigin = BlockPos.ZERO;
 
@@ -453,6 +455,13 @@ public final class LayerVerifier
         if (GhostSupport.hideUnsupported() != this.supportFilter)
         {
             this.supportFilter = GhostSupport.hideUnsupported();
+            this.visibleDirty = true;
+        }
+
+        // И при переключении «скрывать порталы»
+        if (PortalGhosts.active() != this.portalFilter)
+        {
+            this.portalFilter = PortalGhosts.active();
             this.visibleDirty = true;
         }
 
@@ -827,7 +836,8 @@ public final class LayerVerifier
 
         boolean byInventory = InventoryGhosts.active();
         boolean bySupport = GhostSupport.hideUnsupported() && mc.level != null;
-        BlockGetter schematicView = byInventory || bySupport
+        boolean byPortals = PortalGhosts.active() && mc.level != null;
+        BlockGetter schematicView = byInventory || bySupport || byPortals
                 ? (this.schematicBlocks != null ? this.schematicBlocks : SchematicWorldHandler.getSchematicWorld())
                 : null;
         BlockPos.MutableBlockPos cell = new BlockPos.MutableBlockPos();
@@ -857,6 +867,15 @@ public final class LayerVerifier
             if (bySupport && schematicView != null && category == Category.MISSING
                     && GhostSupport.unsupported(schematicView.getBlockState(cell.set(x, y, z)),
                             mc.level.getBlockState(cell), cell, mc.level, schematicView))
+            {
+                continue;
+            }
+
+            // «Скрывать порталы» (25.11.2026): голограмм порталов и рамок нет — нет и рамок проверки, ни на портале
+            // из схемы («пропущено», «не то состояние» у рамки без ока), ни на зажжённом в мире («лишний»)
+            if (byPortals && schematicView != null
+                    && (PortalGhosts.portal(schematicView.getBlockState(cell.set(x, y, z)))
+                        || PortalGhosts.portal(mc.level.getBlockState(cell))))
             {
                 continue;
             }

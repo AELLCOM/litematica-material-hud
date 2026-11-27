@@ -329,7 +329,8 @@ public final class SchematicsState
                     bool(export, "onlyMissing", defaults.onlyMissing()),
                     bool(export, "icons", defaults.icons()),
                     bool(export, "rawMaterials", defaults.rawMaterials()),
-                    bool(export, "chart", defaults.chart()));
+                    bool(export, "chart", defaults.chart()),
+                    bool(export, "useStock", defaults.useStock()));
         }
     }
 
@@ -355,6 +356,7 @@ public final class SchematicsState
         export.addProperty("icons", this.exportOptions.icons());
         export.addProperty("rawMaterials", this.exportOptions.rawMaterials());
         export.addProperty("chart", this.exportOptions.chart());
+        export.addProperty("useStock", this.exportOptions.useStock());
         root.add("export", export);
 
         return root;

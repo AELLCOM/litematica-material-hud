@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "Ver através dos blocos",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "Desenha os contornos das zonas por cima de tudo, para você vê-los dentro da construção",
   "modmenu.descriptionTranslation.layerlist": "Mostra a lista de materiais do Litematica para a camada atual como HUD e marca os baús, barris e caixas de shulker que contêm os blocos necessários. Inclui os módulos Ghost Alpha e Easy Place.",
-  "modmenu.summaryTranslation.layerlist": "Mostra a lista de materiais do Litematica para a camada atual como HUD e marca os baús, barris e caixas de shulker que contêm os blocos necessários. Inclui os módulos Ghost Alpha e Easy Place."
+  "modmenu.summaryTranslation.layerlist": "Mostra a lista de materiais do Litematica para a camada atual como HUD e marca os baús, barris e caixas de shulker que contêm os blocos necessários. Inclui os módulos Ghost Alpha e Easy Place.",
+  "layerlist.config.bannerCard.name": "Receita do estandarte ao passar o cursor",
+  "layerlist.config.bannerCard.tooltip": "No inventário e em qualquer recipiente, segure Shift e passe o cursor sobre um estandarte com figuras: no lugar da dica comum aparece um cartão com páginas. Na aba «Materials» o cartão abre ao passar o cursor sobre um estandarte da lista, e pelo menu da linha é possível fixá-lo ao lado do tear. A primeira mostra o que é necessário: o estandarte base, os corantes, as figuras para estandarte e o tear. Depois há uma página para cada figura: o estandarte antes, o corante, a figura e o resultado. Vire as páginas com a roda do mouse, as teclas ← → ou os botões do cartão. Clique em uma figura ou em um item para ver como obtê-lo: a receita ou o lugar onde encontrá-lo. Ativado por padrão",
+  "layerlist.banner.needs": "O que é necessário",
+  "layerlist.banner.step": "Passo %s de %s",
+  "layerlist.banner.patterns": "Figuras: %s",
+  "layerlist.banner.over_limit": "no tear só cabem 6",
+  "layerlist.banner.no_item": "Não é preciso uma figura para estandarte",
+  "layerlist.banner.needs_item": "Item necessário: %s",
+  "layerlist.banner.kept": "Não é consumido no tear",
+  "layerlist.banner.how": "Como obter",
+  "layerlist.banner.hint": "Roda do mouse ou ← → para virar a página. Clique em uma figura para ver como obtê-la",
+  "layerlist.banner.pinned": "Fixado",
+  "layerlist.banner.unknown": "Sem dados sobre onde obter esta figura",
+  "layerlist.loom.beyond_limit": "(acima do limite de 6 do tear)"
 }

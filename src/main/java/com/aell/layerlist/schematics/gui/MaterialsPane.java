@@ -2,7 +2,10 @@ package com.aell.layerlist.schematics.gui;
 
 import com.aell.layerlist.config.LayerListConfigs;
 import com.aell.layerlist.core.LayerCountManager;
+import com.aell.layerlist.core.MaterialCutoff;
+import com.aell.layerlist.party.Parties;
 import com.aell.layerlist.schematics.gui.export.ExportNames;
+import com.aell.layerlist.schematics.gui.export.ExportSource;
 import com.aell.layerlist.schematics.gui.export.ExportsFolder;
 import com.aell.layerlist.schematics.gui.materials.BlockPicker;
 import com.aell.layerlist.schematics.gui.materials.ExportFormat;
@@ -14,6 +17,7 @@ import com.aell.layerlist.schematics.gui.materials.ReplaceCell;
 import com.aell.layerlist.schematics.gui.materials.SchematicChoice;
 import com.aell.layerlist.schematics.gui.materials.StorageFind;
 import com.aell.layerlist.schematics.gui.materials.TableSource;
+import com.aell.layerlist.schematics.gui.party.PartyWindow;
 import com.aell.layerlist.schematics.library.SchematicEntry;
 import com.aell.layerlist.schematics.materials.Availability;
 import com.aell.layerlist.schematics.materials.BlockReplacements;
@@ -22,6 +26,7 @@ import com.aell.layerlist.schematics.materials.MaterialRow;
 import com.aell.layerlist.schematics.materials.ReplacementStates;
 import com.aell.layerlist.schematics.materials.SchematicMaterials;
 import com.aell.layerlist.shaded.ui.Nav;
+import com.aell.layerlist.storage.StorageIndex;
 import com.aell.layerlist.shaded.ui.Paint;
 import com.aell.layerlist.shaded.ui.SettingsScreen;
 import com.aell.layerlist.shaded.ui.Strings;
@@ -114,9 +119,17 @@ final class MaterialsPane extends Pane
     private static final int BAR_W = 120;
     private static final long BAR_PERIOD_MS = 1200L;
     private static final long HUD_POLL_MS = 1000L;
+    /** Как часто сверять инвентарь и склад с числами строк (взял предметы — строки обновились). */
+    private static final long STOCK_POLL_MS = 250L;
     private static final long SHOW_SECONDS_AFTER_MS = 1000L;
     /** Дольше этого свежий счёт после правки не ждём: показываем, что есть. */
     private static final long COUNTER_AWAIT_MS = 15_000L;
+    /** Пересчёт для окна выгрузки: HUD замечает новую настройку на следующем тике. */
+    private static final long EXPORT_HUD_MIN_MS = 150L;
+    /** Список HUD не сменился и счёт не идёт (считать нечего) — отдаём что есть. */
+    private static final long EXPORT_HUD_IDLE_MS = 1500L;
+    /** Дольше окно выгрузки пересчёт не ждёт. */
+    private static final long EXPORT_RECOUNT_MAX_MS = 120_000L;
     /** Тиков без данных и без прохода по чанкам, после которых счётчик считается пустым (≈ 1 с). */
     private static final int GIVE_UP_TICKS = 20;
     private static final long GIVE_UP_RETRY_MS = 10_000L;
@@ -136,14 +149,32 @@ final class MaterialsPane extends Pane
     private final Toggle changedOnly;
     private final Toggle stockAware;
     private final Toggle cutoff;
+    /**
+     * «Не тот блок» (27.11.2026): та же настройка, что «Считать „Не тот блок“» у HUD — в недостающее идут и места,
+     * занятые блоком другого типа. Виден, когда числа сверены с миром (список HUD, схема размещена); в тесной полосе —
+     * без подписи: дорожка с меткой цвета «Не тот блок» проверки, подпись в подсказке.
+     */
+    private final Toggle wrongBlocks;
     private final Button schematicButton;
     private final Button hudButton;
+    /** Party схемы: окно состава и долей; подпись показывает, чья доля сейчас в таблице. */
+    private final Button partyButton;
+    /** Строки последнего счёта до делёжа Party: по ним таблица пересобирается, когда сменили состав или вид. */
+    private List<MaterialRow> rawRows = List.of();
+    private boolean rawVerified;
+    /** Строки {@link #rawRows} есть (счёт дошёл до таблицы хоть раз у этого источника). */
+    private boolean rawSet;
+    /** Доля Party, которой показаны строки; {@code null} — весь список. */
+    private Parties.@Nullable Applied party;
+    private long partyRevision = Parties.revision();
     private final IconButton refreshButton;
     private final Button retry;
     private final Map<ExportFormat, Button> exportButtons = new EnumMap<>(ExportFormat.class);
     private final Button more;
     private final Button folder = ExportsFolder.button();
     private final ReplaceCell replaceCell = new ReplaceCell();
+    /** Карточка «как сделать флаг» у строки флага с узором. */
+    private final BannerRowCard bannerCard = new BannerRowCard();
     /** Свой счётчик размещений схемы (сверка с миром); {@code null} — схема не размещена или источник не схема. */
     private @Nullable LayerCountManager counter;
     /** Источник, для которого создан счётчик. */
@@ -161,8 +192,14 @@ final class MaterialsPane extends Pane
     /** Счётчик ничего не насчитал и не считает (схема пуста или мир не тот): показан файл целиком, как у неразмещённой. */
     private boolean counterGaveUp;
     private long counterGaveUpAt;
-    /** Схема-источник не размещена в мире: «Только недостающее» недоступно, таблица — весь файл. */
+    /** Схема-источник не размещена в мире: таблица — весь файл, «Только недостающее» сверяет с инвентарём. */
     private boolean unplaced;
+    /** Строки таблицы собраны со сверкой по инвентарю (схема не размещена): сменилось — пересобрать. */
+    private boolean linesByInventory;
+    /** Инвентарь и склад, по которым сняты числа строк: сменились — числа обновляются без пересчёта схемы. */
+    private long stockStamp;
+    private long stockRevision;
+    private long stockCheckedAt;
     /** Строки файла из {@link MaterialsJob}: нужны, пока счётчик не дал своих, и если не даст вовсе. */
     private List<MaterialRow> fileRows = List.of();
     /** Строки таблицы собраны счётчиком размещений (сверены с миром). */
@@ -181,6 +218,17 @@ final class MaterialsPane extends Pane
     private @Nullable TableSource lastSchematic;
     /** Выбор «Библиотеки», который таблица уже видела: сменился — таблица идёт за ним. */
     private @Nullable SchematicEntry seenSelection;
+    /** Вкладка «Материалы» была открыта на прошлом тике: вход на неё виден по смене. */
+    private boolean onTab;
+    /** Источник только что открыт явно (карточка, меню размещения, группа): при входе на вкладку его не подменять. */
+    private boolean keepOnEnter;
+    /** Размещения источника были выключены уже тогда, когда его открыли: игрок выбрал такой сам — не подменять. */
+    private boolean offWhenShown;
+    /** Граница «Считать до Y», с которой посчитаны строки: сменили не тумблером таблицы — пересчитать. */
+    private long shownLimit = MaterialCutoff.limitY();
+    private @Nullable TableSource offChecked;
+    private boolean offResult;
+    private long offAt;
     private @Nullable MaterialsJob job;
     private boolean jobApplied;
     private List<MaterialLine> lines = List.of();
@@ -224,7 +272,7 @@ final class MaterialsPane extends Pane
 
         this.table = new Table<MaterialLine>(ROW_H).columns(
                 Table.Column.<MaterialLine>fixed("", ICON_COL)
-                        .cell(MaterialsPane::renderIconCell)
+                        .cell(this::renderIconCell)
                         .onClick(this::itemClick),
                 Table.Column.<MaterialLine>flex(Tr.t("materials.col.item"), 3)
                         .minWidth(ITEM_COL_MIN)
@@ -239,7 +287,8 @@ final class MaterialsPane extends Pane
                         .tooltip(MaterialsPane::totalTip)
                         .headerTooltip(Tr.t("materials.col.total.tip"))
                         .liveTitle(() -> Tr.t(this.showLeft() ? "materials.col.left" : "materials.col.total"),
-                                () -> Tr.t(this.showLeft() ? "materials.col.left.tip" : "materials.col.total.tip"))
+                                () -> Tr.t(! this.showLeft() ? "materials.col.total.tip"
+                                        : this.verifiedRows ? "materials.col.left.tip" : "materials.col.left.tip.inventory"))
                         .sort(MaterialLine.byCount(line -> this.showLeft() ? line.lack() : line.need()))
                         .descendingFirst(),
                 Table.Column.<MaterialLine>flex(Tr.t("materials.col.breakdown"), 2)
@@ -315,6 +364,16 @@ final class MaterialsPane extends Pane
             LayerListConfigs.MATERIAL_CUTOFF.setBooleanValue(value);
             this.refresh();
         }).tooltip(Tr.t("materials.cutoff.tip"));
+        // «Не тот блок» — общая настройка с HUD: что, кроме пустых мест, считать недостающим
+        this.wrongBlocks = new Toggle(Tr.t("materials.wrong_blocks"), LayerListConfigs.SHORTFALL_WRONG_BLOCKS::getBooleanValue,
+                value ->
+        {
+            LayerListConfigs.SHORTFALL_WRONG_BLOCKS.setBooleanValue(value);
+            // Настройка HUD: в файл сразу, как из экрана настроек (вылет игры её не потеряет)
+            new LayerListConfigs().save();
+            this.recountShortfall();
+        }).swatch(com.aell.layerlist.verify.LayerVerifier.Category.WRONG_BLOCK.color())
+                .tooltip(Tr.t("materials.wrong_blocks.tip"));
         this.changedOnly = new Toggle(Tr.t("materials.only_changed"), () -> onlyChanged, value ->
         {
             onlyChanged = value;
@@ -323,6 +382,7 @@ final class MaterialsPane extends Pane
         this.schematicButton = new Button("", Button.Style.SECONDARY, this::showSchematic);
         this.hudButton = new Button(Tr.t("materials.source.hud"), Button.Style.SECONDARY,
                 () -> this.show(new TableSource.Hud(), false)).tooltip(Tr.t("materials.source.hud.tip"));
+        this.partyButton = new Button(Tr.t("materials.party"), Button.Style.SECONDARY, this::openParty);
         this.refreshButton = new IconButton(Glyphs.REFRESH, Tr.t("materials.refresh.tip"), Button.Style.GHOST,
                 this::refresh);
         this.retry = new Button(Tr.t("materials.retry"), Button.Style.SECONDARY, this::refresh);
@@ -365,6 +425,7 @@ final class MaterialsPane extends Pane
                 : new TableSource.Hud();
 
         this.seenSelection = this.screen.selected();
+        this.keepOnEnter = true;
         this.show(next, false);
     }
 
@@ -372,6 +433,7 @@ final class MaterialsPane extends Pane
     void openGroup(com.aell.layerlist.schematics.place.PlacementGroups.Group group)
     {
         this.seenSelection = this.screen.selected();
+        this.keepOnEnter = true;
         this.show(new TableSource.Group(group.name(), group.members()), false);
     }
 
@@ -389,6 +451,7 @@ final class MaterialsPane extends Pane
     /** Анализ выделенной области — строками таблицы (вкладка «Выделение»). */
     void openArea(TableSource.Area area)
     {
+        this.keepOnEnter = true;
         this.show(area, false);
     }
 
@@ -400,6 +463,27 @@ final class MaterialsPane extends Pane
         }
     }
 
+    /**
+     * «Не тот блок» переключили: счёт файла схемы тот же, заново — только сверка с миром. Панель HUD заметила бы
+     * настройку на своём следующем пересчёте (до секунды) — будим сразу; «Список HUD» таблица перечитает сама
+     * ({@link #pollHud}), как только он сменится.
+     */
+    private void recountShortfall()
+    {
+        LayerCountManager.getInstance().markDirty();
+
+        if (this.source != null && ! (this.source instanceof TableSource.Hud))
+        {
+            this.show(this.source, false);
+        }
+    }
+
+    /** «Не тот блок» что-то меняет: числа сверены с миром — список HUD или схема, размещённая в мире. */
+    private boolean wrongBlocksApply()
+    {
+        return this.source instanceof TableSource.Hud || this.counter != null;
+    }
+
     private void show(TableSource next, boolean recount)
     {
         if (this.job != null)
@@ -409,12 +493,22 @@ final class MaterialsPane extends Pane
 
         boolean same = sameSource(next, this.source);
         this.source = next;
+        this.shownLimit = MaterialCutoff.limitY();
+
+        if (! same)
+        {
+            this.offWhenShown = switchedOff(next);
+        }
+
         this.syncCounter(next, same, recount);
 
         // Другая схема — старые строки чужие; тот же источник (пересчёт) — пусть стоят до новых
         if (! same)
         {
             this.lines = List.of();
+            this.rawRows = List.of();
+            this.rawSet = false;
+            this.party = null;
             this.table.body().setScroll(0);
             this.applyFilter(false);
         }
@@ -493,7 +587,8 @@ final class MaterialsPane extends Pane
             return this.source;
         }
 
-        if (this.lastSchematic != null)
+        // Схему, чьи размещения выключены (а включены другие), сама кнопка не подставляет — ни последнюю, ни из «Библиотеки»
+        if (this.lastSchematic != null && ! this.switchedOffNow(this.lastSchematic))
         {
             return this.lastSchematic;
         }
@@ -502,10 +597,85 @@ final class MaterialsPane extends Pane
 
         if (selected != null)
         {
-            return new TableSource.File(selected);
+            TableSource file = new TableSource.File(selected);
+
+            if (! this.switchedOffNow(file))
+            {
+                return file;
+            }
         }
 
         return SchematicChoice.single(this.choices());
+    }
+
+    /**
+     * Все размещения источника выключены в Litematica, а в мире есть включённые другие (1.0.35): игрок оставил
+     * включённой другую схему — сама таблица такой источник не показывает (явный выбор игрока остаётся).
+     * Схема-файл без размещений — не «выключена»: её просто смотрят из «Библиотеки».
+     */
+    static boolean switchedOff(TableSource source)
+    {
+        Predicate<SchematicPlacement> matcher = matcher(source);
+
+        if (matcher == null)
+        {
+            return false;
+        }
+
+        boolean own = false;
+        boolean otherEnabled = false;
+
+        try
+        {
+            for (SchematicPlacement placement : DataManager.getSchematicPlacementManager().getAllSchematicsPlacements())
+            {
+                if (matcher.test(placement))
+                {
+                    if (placement.isEnabled())
+                    {
+                        return false;
+                    }
+
+                    own = true;
+                }
+                else if (placement.isEnabled())
+                {
+                    otherEnabled = true;
+                }
+            }
+        }
+        catch (RuntimeException e)
+        {
+            return false;
+        }
+
+        return own && otherEnabled;
+    }
+
+    /** {@link #switchedOff} не чаще раза в секунду на источник: кнопка «Схема» спрашивает каждый кадр. */
+    private boolean switchedOffNow(TableSource source)
+    {
+        long now = Util.getMillis();
+
+        if (source != this.offChecked || now - this.offAt >= HUD_POLL_MS || now < this.offAt)
+        {
+            this.offChecked = source;
+            this.offAt = now;
+            this.offResult = switchedOff(source);
+        }
+
+        return this.offResult;
+    }
+
+    /**
+     * Что показать вместо схемы с выключенными размещениями: единственную включённую (или выбранную в Litematica,
+     * если она включена), а когда включено несколько — «Список HUD»: он и считает все включённые размещения.
+     */
+    private TableSource enabledTarget()
+    {
+        TableSource single = SchematicChoice.single(SchematicChoice.options());
+
+        return single != null && ! switchedOff(single) ? single : new TableSource.Hud();
     }
 
     private List<SchematicChoice.Option> choices()
@@ -549,16 +719,47 @@ final class MaterialsPane extends Pane
 
         if (this.screen.tab() != GuiSchematics.Tab.MATERIALS)
         {
+            this.onTab = false;
             return;
         }
 
+        boolean entered = ! this.onTab;
+        boolean keep = this.keepOnEnter;
+        this.onTab = true;
+        this.keepOnEnter = false;
         SchematicEntry selected = this.screen.selected();
 
         // Вкладку открыли щелчком по строке подвкладок, а не кнопкой «Материалы»
         if (this.source == null)
         {
+            TableSource first = selected != null ? new TableSource.File(selected) : new TableSource.Hud();
             this.seenSelection = selected;
-            this.show(selected != null ? new TableSource.File(selected) : new TableSource.Hud(), false);
+            // Схема из «Библиотеки» стоит в мире выключенной, а включена другая — показываем включённую
+            this.show(switchedOff(first) ? this.enabledTarget() : first, false);
+            return;
+        }
+
+        // Пока были на другой вкладке, размещения этой схемы выключили и оставили другую: таблица идёт за включённой.
+        // Схему, которую открыли уже выключенной (явный выбор игрока), не трогаем
+        if (entered && ! keep)
+        {
+            boolean off = switchedOff(this.source);
+
+            if (off && ! this.offWhenShown)
+            {
+                this.seenSelection = selected;
+                this.lastSchematic = null;
+                this.show(this.enabledTarget(), false);
+                return;
+            }
+
+            this.offWhenShown = off;
+        }
+
+        // «Считать до Y» сменили в окне выгрузки или в настройках: строки посчитаны со старой границей
+        if (this.shownLimit != MaterialCutoff.limitY())
+        {
+            this.refresh();
             return;
         }
 
@@ -581,6 +782,86 @@ final class MaterialsPane extends Pane
 
         this.pollHud();
         this.pollCounter();
+        this.pollStock();
+
+        // Party: сменили состав или чью долю показывать, досчиталась основа схемы — те же строки, другая доля
+        if (this.partyRevision != Parties.revision())
+        {
+            this.partyRevision = Parties.revision();
+
+            if (this.rawSet && this.partySchematic() != null)
+            {
+                this.setRows(this.rawRows, this.rawVerified);
+            }
+        }
+    }
+
+    /**
+     * Раз в {@link #STOCK_POLL_MS}: игрок взял или положил предметы (или открыл сундук) — числа «В инвентаре», «В сундуках»
+     * и «Не хватает» обновляются на тех же строках, а у неразмещённой схемы «Только недостающее» сразу прячет то, что
+     * теперь есть в инвентаре (как Litematica). Схему или размещение поставили/убрали — строки пересобираются с нужной сверкой.
+     */
+    private void pollStock()
+    {
+        long now = Util.getMillis();
+
+        if (! this.rawSet || now - this.stockCheckedAt < STOCK_POLL_MS && now >= this.stockCheckedAt)
+        {
+            return;
+        }
+
+        this.stockCheckedAt = now;
+        long stamp = Availability.inventoryStamp();
+        long revision = StorageIndex.getInstance().revision();
+        boolean byInventory = this.byInventory();
+
+        if (stamp == this.stockStamp && revision == this.stockRevision && byInventory == this.linesByInventory)
+        {
+            return;
+        }
+
+        boolean restamp = stamp != this.stockStamp || revision != this.stockRevision;
+        this.stockStamp = stamp;
+        this.stockRevision = revision;
+        List<MaterialRow> rows = this.rawRows;
+
+        if (restamp)
+        {
+            Availability have = Availability.capture();
+            rows = restamp(rows, have);
+            this.fileRows = restamp(this.fileRows, have);
+        }
+
+        this.setRows(rows, this.rawVerified);
+    }
+
+    private static List<MaterialRow> restamp(List<MaterialRow> rows, Availability have)
+    {
+        List<MaterialRow> out = new ArrayList<>(rows.size());
+        rows.forEach(row -> out.add(have.restamp(row)));
+        return out;
+    }
+
+    /** Строки сверять с инвентарём, а не с миром: источник — схема, и она не размещена (или счёт размещения не дал строк). */
+    private boolean byInventory()
+    {
+        return this.unplaced && ! (this.source instanceof TableSource.Hud);
+    }
+
+    /** Схема, у которой может быть Party: источник — один файл или одно размещение (не группа, не список HUD). */
+    private @Nullable LitematicaSchematic partySchematic()
+    {
+        return this.source instanceof TableSource.File || this.source instanceof TableSource.Placed ? this.schematic : null;
+    }
+
+    private void openParty()
+    {
+        LitematicaSchematic target = this.partySchematic();
+
+        if (target != null && this.source != null)
+        {
+            PartyWindow.open(this.screen.layers, target, this.source.name());
+        }
     }
 
     private void pollJob()
@@ -843,7 +1124,21 @@ final class MaterialsPane extends Pane
 
     private void setRows(List<MaterialRow> rows, boolean verified)
     {
+        this.rawRows = rows;
+        this.rawVerified = verified;
+        this.rawSet = true;
+        this.partyRevision = Parties.revision();
+        // Party: строки — доля участника (чужие предметы уходят, числа — его часть)
+        this.party = Parties.applied(this.partySchematic());
+
+        if (this.party != null)
+        {
+            rows = this.party.rows(rows);
+        }
+
         this.verifiedRows = verified;
+        boolean byInventory = ! verified && this.byInventory();
+        this.linesByInventory = this.byInventory();
         MaterialLine selected = this.table.selectedItem();
         String selectedKey = this.selectAfter != null ? this.selectAfter : selected == null ? null : selected.key();
         this.selectAfter = null;
@@ -873,7 +1168,7 @@ final class MaterialsPane extends Pane
                 state.layersOff().forEach(layer -> layers.add(layer + 1));
             }
 
-            built.add(MaterialLine.of(row, hud, verified, Tr::num, from, layers));
+            built.add(MaterialLine.of(row, hud, verified, byInventory, Tr::num, from, layers));
         }
 
         // Отключённые блоки схемы: в счёте их больше нет (стали воздухом). Строка остаётся на своём месте —
@@ -998,7 +1293,7 @@ final class MaterialsPane extends Pane
                     .thenComparing(MaterialLine.BY_NAME));
             this.shown = byLeft;
         }
-        this.totals = MaterialFilter.Totals.of(this.shown, this.verifiedRows && this.filter.onlyMissing());
+        this.totals = MaterialFilter.Totals.of(this.shown, this.leftRows() && this.filter.onlyMissing());
         this.table.setItems(this.shown);
         this.table.setEmptyText(this.emptyText());
 
@@ -1008,16 +1303,25 @@ final class MaterialsPane extends Pane
         }
     }
 
-    /** «Только недостающее» действует: включено и есть с чем сверять (схема, не размещённая в мире, — нечем). */
+    /**
+     * «Только недостающее» действует. Схему, размещённую в мире, оно сверяет с миром, а не размещённую — с инвентарём
+     * (вместе с шалкерами и мешками в нём; сундуки — дело «С учётом склада»), как «Скрыть доступные» Litematica.
+     */
     private boolean missingActive()
     {
-        return onlyMissing && ! this.unplaced;
+        return onlyMissing;
     }
 
-    /** Колонки «Всего» и «Разбивка» показывают остаток (сколько ещё поставить): сверенная схема и «Только недостающее». */
+    /** У строк остаток отличается от «Всего»: сверены с миром или с инвентарём. */
+    private boolean leftRows()
+    {
+        return this.verifiedRows || this.linesByInventory;
+    }
+
+    /** Колонки «Всего» и «Разбивка» показывают остаток (сколько ещё поставить или собрать) при «Только недостающем». */
     private boolean showLeft()
     {
-        return this.verifiedRows && this.missingActive();
+        return this.leftRows() && this.missingActive();
     }
 
     private String emptyText()
@@ -1054,6 +1358,11 @@ final class MaterialsPane extends Pane
         if (this.verifiedRows && this.filter.onlyMissing() && ! this.filter.useStock())
         {
             return Tr.t("materials.empty.placed");
+        }
+
+        if (this.linesByInventory && this.filter.onlyMissing() && ! this.filter.useStock())
+        {
+            return Tr.t("materials.empty.inventory");
         }
 
         return Tr.t("materials.empty.covered");
@@ -1100,9 +1409,10 @@ final class MaterialsPane extends Pane
     // ===== Замена блоков =====
 
     /** Иконка предмета; у отключённого блока — притушена фоном панели, как выключенный пункт. */
-    private static void renderIconCell(GuiContext ctx, MaterialLine line, int x, int y, int w, int h, boolean hovered,
+    private void renderIconCell(GuiContext ctx, MaterialLine line, int x, int y, int w, int h, boolean hovered,
             int mouseX, int mouseY)
     {
+        this.offerBannerCard(line, hovered, y, h);
         int ix = x + Ui.PAD_IN;
         int iy = y + (h - ICON) / 2;
         ctx.renderItem(line.stack(), ix, iy);
@@ -1114,9 +1424,22 @@ final class MaterialsPane extends Pane
         }
     }
 
+    /**
+     * Курсор на иконке или названии флага с узором — карточке рецепта ({@link BannerRowCard}). У отключённого блока
+     * карточки нет: там подсказка говорит, как его вернуть.
+     */
+    private void offerBannerCard(MaterialLine line, boolean hovered, int rowY, int rowH)
+    {
+        if (hovered && ! line.disabled())
+        {
+            this.bannerCard.hover(line.key(), line.stack(), rowY, rowH);
+        }
+    }
+
     private void renderItemCell(GuiContext ctx, MaterialLine line, int x, int y, int w, int h, boolean hovered,
             int mouseX, int mouseY)
     {
+        this.offerBannerCard(line, hovered, y, h);
         boolean replaceable = this.rowState(line).replaceable();
         String layers = line.layersOff().isEmpty() ? null : layersText(line.layersOff());
         String revertTip = line.disabled() ? Tr.f("materials.disabled.enable.tip", line.name())
@@ -1580,7 +1903,7 @@ final class MaterialsPane extends Pane
 
     private static String missingTip(MaterialLine line)
     {
-        return Tr.f("materials.cell.missing", Tr.num(line.lack()), Tr.num(line.inventory()), Tr.num(line.chests()),
+        return Tr.f("materials.cell.missing", Tr.num(line.toPlace()), Tr.num(line.inventory()), Tr.num(line.chests()),
                 line.shortageText());
     }
 
@@ -1606,7 +1929,11 @@ final class MaterialsPane extends Pane
         return this.toolbarY() + Ui.CTRL_H + Ui.PAD_IN;
     }
 
-    /** Полоса инструментов: источник слева, поиск посередине, тумблер и «Пересчитать» справа. */
+    /**
+     * Полоса инструментов: источник слева, поиск посередине, тумблеры и «Пересчитать» справа. Справа налево:
+     * «Только недостающее», «Не тот блок» (когда числа сверены с миром), «С учётом склада», «Считать до Y»,
+     * «Изменённые», «Сброс».
+     */
     private void layoutToolbar()
     {
         Font font = Kit.font();
@@ -1637,10 +1964,18 @@ final class MaterialsPane extends Pane
         }
         this.hudButton.selected(this.source instanceof TableSource.Hud);
 
-        // Схема не размещена: сверять не с чем — тумблер выключен, рамка и подсказка объясняют почему
-        this.missingOnly.setEnabled(! this.unplaced);
-        this.missingOnly.highlight(this.unplaced);
-        this.missingOnly.tooltip(Tr.t(this.unplaced ? "materials.only_missing.unplaced"
+        // Party: у одной схемы (файл или размещение); в подписи — чья доля сейчас в таблице
+        boolean partyHere = this.partySchematic() != null;
+        this.partyButton.setEnabled(partyHere);
+        this.partyButton.label(this.party != null ? Tr.f("materials.party.share", this.party.number()) : Tr.t("materials.party"));
+        this.partyButton.selected(this.party != null);
+        this.partyButton.tooltip(! partyHere ? Tr.t("materials.party.tip.off")
+                : this.party != null ? Tr.f("materials.party.tip.share", this.party.nick(), this.party.number(),
+                        this.party.party().roster().size())
+                : Tr.t("materials.party.tip"));
+
+        // Схема не размещена: сверять с миром нечем — тумблер сверяет с инвентарём, подсказка говорит об этом
+        this.missingOnly.tooltip(Tr.t(this.linesByInventory ? "materials.only_missing.unplaced"
                 : this.verifiedRows ? "materials.only_missing.tip.placed" : "materials.only_missing.tip"));
 
         int iconSize = IconButton.size();
@@ -1648,6 +1983,7 @@ final class MaterialsPane extends Pane
         right -= iconSize + Ui.PAD_REL;
 
         int hudW = this.hudButton.preferredWidth(font);
+        int partyW = this.partyButton.preferredWidth(font);
         int schematicW = Math.min(this.schematicButton.preferredWidth(font), Math.max(SOURCE_MIN, this.w * 3 / 10));
         int toggleW = this.missingOnly.preferredWidth(font);
         boolean reset = this.resetAllShown();
@@ -1655,7 +1991,7 @@ final class MaterialsPane extends Pane
         int changedW = reset ? this.changedOnly.preferredWidth(font) : 0;
         // «Сброс» и «Изменённые» тоже просят места у подписи схемы — но не у тумблера «Только недостающее»
         int extra = reset ? resetW + changedW + Ui.PAD_GROUP * 2 : 0;
-        int spare = right - left - schematicW - hudW - toggleW - Ui.PAD_GROUP * 2 - SEARCH_MIN;
+        int spare = right - left - schematicW - hudW - partyW - toggleW - Ui.PAD_GROUP * 3 - SEARCH_MIN;
 
         if (spare - extra < 0)
         {
@@ -1677,9 +2013,9 @@ final class MaterialsPane extends Pane
             toggleW = Math.max(TOGGLE_MIN, toggleW + spare);
         }
 
-        this.schematicButton.setBounds(left, rowY, schematicW, Ui.CTRL_H);
-        this.hudButton.setBounds(left + schematicW, rowY, hudW, Ui.CTRL_H);
-        left += schematicW + hudW + Ui.PAD_GROUP;
+        // Левая группа встаёт ниже: «Не тот блок» ещё может попросить места у подписи схемы
+        int groupLeft = left;
+        left += schematicW + hudW + Ui.PAD_GROUP + partyW + Ui.PAD_GROUP;
 
         this.missingOnly.setBounds(right - toggleW, rowY, toggleW, Ui.CTRL_H);
         right -= toggleW + Ui.PAD_GROUP;
@@ -1702,11 +2038,78 @@ final class MaterialsPane extends Pane
         this.stockAware.setVisible(showStock);
         this.stockAware.setBounds(0, 0, 0, 0);
         taken += showStock ? stockW + Ui.PAD_GROUP : 0;
+
+        // «Не тот блок» — вплотную к «Только недостающее» (он решает, что считать недостающим). Пропадать ему нельзя
+        // (27.11.2026: «где кнопка?»): сначала встаёт без подписи — дорожка с меткой, а не хватило и на это — место
+        // отдаёт подпись схемы, как «Сбросу», за ней — подпись «Только недостающее» (тот же порядок, что у тесной
+        // полосы выше; полная подпись — в подсказке). «С учётом склада» решён выше и от него не зависит: пока он
+        // на месте, не хватает не больше ширины самого тумблера — это подписи отдают всегда
+        boolean wrongOn = LayerListConfigs.SHORTFALL_ONLY_MISSING.getBooleanValue();
+        this.wrongBlocks.setEnabled(wrongOn);
+        this.wrongBlocks.tooltip(Tr.t(wrongOn ? "materials.wrong_blocks.tip" : "materials.wrong_blocks.tip.off"));
+        this.wrongBlocks.compact(true);
+        int wrongW = this.wrongBlocks.preferredWidth(font);
+        boolean showWrong = false;
+
+        if (this.wrongBlocksApply())
+        {
+            int lack = SEARCH_MIN - (right - left - taken - wrongW - Ui.PAD_GROUP);
+            int fromSchematic = Math.min(Math.max(0, lack), Math.max(0, schematicW - SOURCE_MIN));
+            int fromToggle = Math.max(0, lack) - fromSchematic;
+
+            // Подписи ужимаются, только если этого хватит: иначе тумблера всё равно не будет
+            if (lack > 0 && fromToggle <= Math.max(0, toggleW - TOGGLE_MIN))
+            {
+                schematicW -= fromSchematic;
+                left -= fromSchematic;
+
+                if (fromToggle > 0)
+                {
+                    toggleW -= fromToggle;
+                    right += fromToggle;
+                    this.missingOnly.setBounds(right + Ui.PAD_GROUP, rowY, toggleW, Ui.CTRL_H);
+                }
+            }
+
+            showWrong = right - left - taken - wrongW - Ui.PAD_GROUP >= SEARCH_MIN;
+        }
+
+        this.wrongBlocks.setVisible(showWrong);
+        this.wrongBlocks.setBounds(0, 0, 0, 0);
+        taken += showWrong ? wrongW + Ui.PAD_GROUP : 0;
+
         // «Считать до Y» — если осталось место; общая настройка с HUD
         int cutoffW = this.cutoff.preferredWidth(font);
         boolean showCutoff = right - left - taken - cutoffW - Ui.PAD_GROUP >= SEARCH_MIN;
         this.cutoff.setVisible(showCutoff);
         this.cutoff.setBounds(0, 0, 0, 0);
+        taken += showCutoff ? cutoffW + Ui.PAD_GROUP : 0;
+
+        // Место осталось и после остальных тумблеров — «Не тот блок» с подписью
+        if (showWrong)
+        {
+            this.wrongBlocks.compact(false);
+            int fullW = this.wrongBlocks.preferredWidth(font);
+
+            if (right - left - taken - (fullW - wrongW) >= SEARCH_MIN)
+            {
+                wrongW = fullW;
+            }
+            else
+            {
+                this.wrongBlocks.compact(true);
+            }
+        }
+
+        this.schematicButton.setBounds(groupLeft, rowY, schematicW, Ui.CTRL_H);
+        this.hudButton.setBounds(groupLeft + schematicW, rowY, hudW, Ui.CTRL_H);
+        this.partyButton.setBounds(groupLeft + schematicW + hudW + Ui.PAD_GROUP, rowY, partyW, Ui.CTRL_H);
+
+        if (showWrong)
+        {
+            this.wrongBlocks.setBounds(right - wrongW, rowY, wrongW, Ui.CTRL_H);
+            right -= wrongW + Ui.PAD_GROUP;
+        }
 
         if (showStock)
         {
@@ -1743,12 +2146,18 @@ final class MaterialsPane extends Pane
 
         this.schematicButton.render(ctx, mouseX, mouseY);
         this.hudButton.render(ctx, mouseX, mouseY);
+        this.partyButton.render(ctx, mouseX, mouseY);
         this.search.render(ctx, mouseX, mouseY);
         this.missingOnly.render(ctx, mouseX, mouseY);
 
         if (this.stockAware.visible())
         {
             this.stockAware.render(ctx, mouseX, mouseY);
+        }
+
+        if (this.wrongBlocks.visible())
+        {
+            this.wrongBlocks.render(ctx, mouseX, mouseY);
         }
 
         if (this.cutoff.visible())
@@ -1768,24 +2177,35 @@ final class MaterialsPane extends Pane
 
         if (current != null && current.stage() == MaterialsJob.Stage.FAILED)
         {
+            this.bannerCard.close();
             this.renderError(ctx, font, current.error(), mouseX, mouseY);
             return;
         }
 
         if (busy && this.lines.isEmpty() && current != null)
         {
+            this.bannerCard.close();
             this.renderLoading(ctx, font, current);
             return;
         }
 
         this.replaceCell.beginFrame();
-        this.table.render(ctx, mouseX, mouseY);
+        // Курсор на карточке флага: строки под ней его не видят
+        boolean onCard = this.bannerCard.captures(mouseX, mouseY);
+        this.bannerCard.beginFrame();
+        this.table.render(ctx, onCard ? -1 : mouseX, onCard ? -1 : mouseY);
 
         if (busy)
         {
             // Пересчёт поверх старых строк: тонкая полоса по нижней кромке полосы инструментов
             progress(ctx, this.x, this.toolbarBottom() - Ui.PAD_MICRO + 1, this.w, Ui.PAD_MICRO);
         }
+
+        // Карточка рецепта флага — поверх строк; под открытым меню или окном её нет
+        int row = onCard ? -1 : this.table.body().indexAt(mouseX, mouseY);
+        List<MaterialLine> rows = this.table.body().items();
+        this.bannerCard.render(ctx, mouseX, mouseY, row >= 0 && row < rows.size() ? rows.get(row).key() : null,
+                this.table.x(), this.table.y(), this.table.w(), this.table.h(), mouseX >= 0 && ! this.screen.layers.any());
     }
 
     private void renderLoading(GuiContext ctx, Font font, MaterialsJob current)
@@ -1891,6 +2311,22 @@ final class MaterialsPane extends Pane
             if (far > 0)
             {
                 text += Tr.f("materials.totals_unverified", Tr.num(far));
+            }
+        }
+
+        // Party: итоги подвала — по доле, а не по всей схеме; чья она — первым словом
+        if (this.party != null)
+        {
+            text = Tr.f("materials.party.footer", this.party.nick(), this.party.number()) + Ui.TITLE_SEPARATOR + text;
+        }
+        else if (this.source instanceof TableSource.Hud)
+        {
+            Parties.HudShare hudShare = LayerCountManager.getInstance().getPartyShare();
+
+            if (hudShare != null && hudShare.applied() != null)
+            {
+                text = Tr.f("materials.party.footer", hudShare.applied().nick(), hudShare.applied().number())
+                        + Ui.TITLE_SEPARATOR + text;
             }
         }
 
@@ -2050,6 +2486,37 @@ final class MaterialsPane extends Pane
             return;
         }
 
+        List<MaterialRow> rows = this.exportRows();
+        boolean hud = current instanceof TableSource.Hud;
+        String label = this.sourceLabel();
+
+        // Party: в таблицу сбора идёт доля — шапка выгрузки говорит чья
+        if (this.party != null)
+        {
+            label = label + Tr.f("materials.party.source", this.party.nick(), this.party.number());
+        }
+
+        // Файл — по схеме: у размещения это файл его схемы, а не имя размещения
+        String fileName = switch (current)
+        {
+            case TableSource.File file -> ExportNames.of(file.entry());
+            case TableSource.Placed placed -> ExportNames.of(placed.placement());
+            case TableSource.Group group -> group.name();
+            case TableSource.Hud ignored -> ExportNames.hud();
+            case TableSource.Area area -> area.name();
+        };
+        // Сверенная схема: «только недостающее» — как в таблице, не принудительно; окно знает, что строки сверены с миром.
+        // «Считать до Y» окна пересчитывает таблицу; у выделенной области граница высоты счёт не меняет
+        MaterialsExport request = new MaterialsExport(hud ? label : current.name(), label, rows, this.positions(),
+                hud || this.missingActive() && ! this.linesByInventory, format, current.entry(), fileName, hud, this.exportDisabledBlocks(),
+                this.verifiedRows, this.filter.useStock(), current instanceof TableSource.Area ? null : new ExportRecount());
+
+        this.openExportDialog(request);
+    }
+
+    /** Строки для выгрузки — как видны в таблице, в её порядке. */
+    private List<MaterialRow> exportRows()
+    {
         List<MaterialRow> rows = new ArrayList<>(this.shown.size());
 
         for (MaterialLine line : this.table.body().items())
@@ -2061,17 +2528,11 @@ final class MaterialsPane extends Pane
             }
         }
 
-        boolean hud = current instanceof TableSource.Hud;
-        String label = this.sourceLabel();
-        // Файл — по схеме: у размещения это файл его схемы, а не имя размещения
-        String fileName = switch (current)
-        {
-            case TableSource.File file -> ExportNames.of(file.entry());
-            case TableSource.Placed placed -> ExportNames.of(placed.placement());
-            case TableSource.Group group -> group.name();
-            case TableSource.Hud ignored -> ExportNames.hud();
-            case TableSource.Area area -> area.name();
-        };
+        return rows;
+    }
+
+    private long exportDisabledBlocks()
+    {
         long disabledBlocks = 0L;
 
         for (MaterialLine line : this.lines)
@@ -2082,11 +2543,87 @@ final class MaterialsPane extends Pane
             }
         }
 
-        // Сверенная схема: «только недостающее» — как в таблице, не принудительно; окно знает, что строки сверены с миром
-        MaterialsExport request = new MaterialsExport(hud ? label : current.name(), label, rows, this.positions(),
-                hud || this.missingActive(), format, current.entry(), fileName, hud, disabledBlocks, this.verifiedRows);
+        return disabledBlocks;
+    }
 
-        this.openExportDialog(request);
+    /**
+     * Пересчёт для окна выгрузки (1.0.35): «Считать до Y» в окне — та же настройка, что тумблер таблицы; таблица
+     * считает заново, окно забирает её строки, когда счёт дошёл до конца.
+     */
+    private final class ExportRecount implements ExportSource.Recount
+    {
+        /** Список HUD на момент просьбы: пока он тот же, HUD ещё не пересчитал. */
+        private @Nullable List<MaterialListEntry> staleHud;
+        private long since;
+
+        @Override
+        public void start()
+        {
+            this.staleHud = LayerCountManager.getInstance().getAllEntries();
+            this.since = Util.getMillis();
+            MaterialsPane.this.refresh();
+        }
+
+        @Override
+        public @Nullable ExportSource.Fresh poll()
+        {
+            if (MaterialsPane.this.recounting(this.staleHud, Util.getMillis() - this.since))
+            {
+                return null;
+            }
+
+            List<MaterialRow> rows = MaterialsPane.this.exportRows();
+
+            return new ExportSource.Fresh(rows, rows.size() < MaterialsPane.this.positions(),
+                    MaterialsPane.this.exportDisabledBlocks());
+        }
+    }
+
+    /**
+     * Таблица ещё считает после «Обновить»: идёт загрузка, сверка с миром не отдала свежий список или HUD ещё не
+     * опубликовал новый счёт (его строки таблица перечитывает сама, раз в секунду).
+     *
+     * @param staleHud список HUD до пересчёта
+     * @param passed   сколько прошло с просьбы, мс
+     */
+    private boolean recounting(@Nullable List<MaterialListEntry> staleHud, long passed)
+    {
+        MaterialsJob current = this.job;
+
+        if (current != null && (current.running() || ! this.jobApplied))
+        {
+            return true;
+        }
+
+        if (this.source instanceof TableSource.Hud)
+        {
+            LayerCountManager hud = LayerCountManager.getInstance();
+
+            // HUD замечает настройку на следующем тике; считать нечего — список не сменится, ждём недолго
+            if (passed < EXPORT_HUD_MIN_MS)
+            {
+                return true;
+            }
+
+            if (hud.isCounting())
+            {
+                return passed < EXPORT_RECOUNT_MAX_MS;
+            }
+
+            return hud.getAllEntries() != this.hudEntries
+                    || hud.getAllEntries() == staleHud && passed < EXPORT_HUD_IDLE_MS;
+        }
+
+        LayerCountManager counter = this.counter;
+
+        if (counter == null || passed > EXPORT_RECOUNT_MAX_MS)
+        {
+            return false;
+        }
+
+        // Сверка: ждём свежий список, конец прохода по чанкам и пока таблица его заберёт
+        return this.counterAwait || counter.isCounting()
+                || counter.hasData() && counter.getEntries() != this.counterEntries;
     }
 
     /** Единственная точка вызова окна выгрузки: строки без пересчёта, формат уже выбран. */
@@ -2204,6 +2741,15 @@ final class MaterialsPane extends Pane
             items.add(ContextMenu.Item.of(find, () -> this.find(line)).withTooltip(marking ? null : tip));
         }
 
+        // Флаг с узором: его рецепт можно закрепить — карточка встанет у окна ткацкого станка
+        if (com.aell.layerlist.hud.BannerCard.patterned(line.stack()))
+        {
+            boolean pinned = com.aell.layerlist.hud.BannerPin.is(line.stack());
+            items.add(ContextMenu.Item.of(Tr.t(pinned ? "materials.menu.banner_unpin" : "materials.menu.banner_pin"),
+                    () -> this.pinBanner(line, ! pinned))
+                    .withTooltip(Tr.t(pinned ? "materials.menu.banner_unpin.tip" : "materials.menu.banner_pin.tip")));
+        }
+
         items.add(ContextMenu.Item.separator());
         items.add(ContextMenu.Item.of(Tr.t("materials.menu.copy_name"),
                 () -> this.copy(line.name(), "materials.toast.name_copied")));
@@ -2257,6 +2803,21 @@ final class MaterialsPane extends Pane
         }
     }
 
+    /** Закрепить рецепт флага у ткацкого станка (или открепить). Закреплён всегда один флаг — новый сменяет прежний. */
+    private void pinBanner(MaterialLine line, boolean pin)
+    {
+        if (pin)
+        {
+            com.aell.layerlist.hud.BannerPin.pin(line.stack());
+            this.screen.toast(Tr.f("materials.toast.banner_pinned", line.name()), Theme.GREEN);
+        }
+        else
+        {
+            com.aell.layerlist.hud.BannerPin.unpin();
+            this.screen.toast(Tr.t("materials.toast.banner_unpinned"), Ui.C_TEXT_2);
+        }
+    }
+
     private void copy(String text, String toastKey)
     {
         Minecraft.getInstance().keyboardHandler.setClipboard(text);
@@ -2292,13 +2853,20 @@ final class MaterialsPane extends Pane
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean doubleClick)
     {
+        // Карточка флага лежит поверх строк — её щелчок первый
+        if (this.bannerCard.mouseClicked(click.x(), click.y(), click.button()))
+        {
+            return true;
+        }
+
         if (this.search.mouseClicked(click, doubleClick))
         {
             this.table.setFocused(false);
             return true;
         }
 
-        for (Button button : List.of(this.schematicButton, this.hudButton, this.refreshButton, this.resetAllButton))
+        for (Button button : List.of(this.schematicButton, this.hudButton, this.partyButton, this.refreshButton,
+                this.resetAllButton))
         {
             if (button.mouseClicked(click, doubleClick))
             {
@@ -2308,6 +2876,7 @@ final class MaterialsPane extends Pane
 
         if (this.missingOnly.mouseClicked(click, doubleClick) || this.changedOnly.mouseClicked(click, doubleClick)
                 || this.stockAware.visible() && this.stockAware.mouseClicked(click, doubleClick)
+                || this.wrongBlocks.visible() && this.wrongBlocks.mouseClicked(click, doubleClick)
                 || this.cutoff.visible() && this.cutoff.mouseClicked(click, doubleClick))
         {
             return true;
@@ -2343,8 +2912,8 @@ final class MaterialsPane extends Pane
     @Override
     public boolean mouseReleased(MouseButtonEvent click)
     {
-        for (Button button : List.of(this.schematicButton, this.hudButton, this.refreshButton, this.retry, this.more,
-                this.folder))
+        for (Button button : List.of(this.schematicButton, this.hudButton, this.partyButton, this.refreshButton, this.retry,
+                this.more, this.folder))
         {
             button.mouseReleased(click);
         }
@@ -2360,7 +2929,8 @@ final class MaterialsPane extends Pane
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount)
     {
-        return this.table.mouseScrolled(mouseX, mouseY, amount);
+        // Над карточкой флага колёсико листает её; над строками — как всегда, таблицу
+        return this.bannerCard.mouseScrolled(mouseX, mouseY, amount) || this.table.mouseScrolled(mouseX, mouseY, amount);
     }
 
     @Override
@@ -2384,6 +2954,12 @@ final class MaterialsPane extends Pane
             }
 
             return this.search.keyPressed(key);
+        }
+
+        // ← → листают открытую карточку флага, Backspace — назад со страницы «Как получить»
+        if (this.bannerCard.keyPressed(code))
+        {
+            return true;
         }
 
         MaterialLine selected = this.table.selectedItem();

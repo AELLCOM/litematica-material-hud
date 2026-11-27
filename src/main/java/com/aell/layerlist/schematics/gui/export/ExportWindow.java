@@ -1,6 +1,8 @@
 package com.aell.layerlist.schematics.gui.export;
 
 import com.aell.layerlist.config.LayerListConfigs;
+import com.aell.layerlist.core.MaterialCutoff;
+import com.aell.layerlist.core.Shortfall;
 import com.aell.layerlist.schematics.SchematicsState;
 import com.aell.layerlist.schematics.export.ExportOptions;
 import com.aell.layerlist.schematics.export.ExportRequest;
@@ -71,7 +73,7 @@ public final class ExportWindow extends Modal
     public record Host(Layers layers, Toasts toasts, BooleanSupplier alive) {}
 
     /** Тот же ли запрос, что у скопированных частей Discord (иначе «Следующая часть» не к месту). */
-    private record DiscordKey(String title, ExportSource source, boolean onlyMissing) {}
+    private record DiscordKey(String title, ExportSource source, ExportOptions.Amount amount, long limitY) {}
 
     /** Открытое сейчас окно выгрузки (модальное — одно); ему же — итог выгрузки, начатой в окне, которое уже закрыли. */
     private static @Nullable ExportWindow current;
@@ -83,6 +85,8 @@ public final class ExportWindow extends Modal
     private final FormatGrid formats;
     private final DiscordRow discord;
     private final StatusLine status;
+    /** «Считать до Y» — общая настройка с HUD и вкладкой «Материалы»; меняет счёт, источник пересчитывается. */
+    private final Toggle cutoff;
 
     private ExportSource source;
     private @Nullable ExportJob job;
@@ -91,7 +95,7 @@ public final class ExportWindow extends Modal
 
     // Итоги строк: пересчёт только при смене строк или фильтра
     private @Nullable List<MaterialRow> statsRows;
-    private boolean statsMissing;
+    private ExportOptions.Amount statsAmount = ExportOptions.Amount.ALL;
     private int statsPositions;
     private long statsBlocks;
 
@@ -121,12 +125,24 @@ public final class ExportWindow extends Modal
                 Math.max(Ui.CTRL_W, sourceBox.preferredWidth(font)));
         this.row(sourceRow, sourceRow.height());
 
-        Segmented<Boolean> filter = new Segmented<>(List.of(false, true),
-                missing -> missing ? DialogText.t("filter.missing") : DialogText.t("filter.all"),
-                () -> options().onlyMissing(), this::setOnlyMissing).tooltip(DialogText.t("filter.tip"));
-        FormRow filterRow = FormRow.inline(DialogText.t("filter"), DialogText.t("filter.tip"), filter,
+        Segmented<ExportOptions.Amount> filter = new Segmented<>(List.of(ExportOptions.Amount.values()),
+                amount -> DialogText.t(switch (amount)
+                {
+                    case ALL -> "filter.all";
+                    case MISSING -> "filter.missing";
+                    case STOCK -> "filter.stock";
+                }),
+                () -> options().amount(), this::setAmount).tooltip(DialogText.t("filter.tip"));
+        // Три варианта шире половины строки — переключателю всё место справа от названия
+        FormRow filterRow = FormRow.wide(DialogText.t("filter"), DialogText.t("filter.tip"), filter,
                 filter.preferredWidth(font));
         this.row(filterRow, filterRow.height());
+
+        // Высота — из настроек HUD; у выделенной области настройка счёт не меняет — строки нет
+        this.cutoff = new Toggle(DialogText.f("cutoff", LayerListConfigs.MATERIAL_CUTOFF_Y.getIntegerValue()),
+                LayerListConfigs.MATERIAL_CUTOFF::getBooleanValue, this::setCutoff).tooltip(DialogText.t("cutoff.tip"));
+        ToggleFlow cutoffRow = new ToggleFlow(this.cutoff);
+        this.row(cutoffRow, width -> this.source.recountable() ? cutoffRow.height(width) : 0);
 
         StatusLine rowsLine = new StatusLine(this::rowsMessage);
         this.row(rowsLine, rowsLine::height);
@@ -140,13 +156,13 @@ public final class ExportWindow extends Modal
 
         ToggleFlow checks = new ToggleFlow(
                 new Toggle(DialogText.t("icons"), () -> options().icons(),
-                        value -> setOptions(o -> new ExportOptions(o.onlyMissing(), value, o.rawMaterials(), o.chart())))
+                        value -> setOptions(o -> new ExportOptions(o.onlyMissing(), value, o.rawMaterials(), o.chart(), o.useStock())))
                         .tooltip(DialogText.t("icons.tip")),
                 new Toggle(DialogText.t("raw"), () -> options().rawMaterials(),
-                        value -> setOptions(o -> new ExportOptions(o.onlyMissing(), o.icons(), value, o.chart())))
+                        value -> setOptions(o -> new ExportOptions(o.onlyMissing(), o.icons(), value, o.chart(), o.useStock())))
                         .tooltip(DialogText.t("raw.tip")),
                 new Toggle(DialogText.t("chart"), () -> options().chart(),
-                        value -> setOptions(o -> new ExportOptions(o.onlyMissing(), o.icons(), o.rawMaterials(), value)))
+                        value -> setOptions(o -> new ExportOptions(o.onlyMissing(), o.icons(), o.rawMaterials(), value, o.useStock())))
                         .tooltip(DialogText.t("chart.tip")));
         this.row(checks, checks::height);
 
@@ -215,15 +231,36 @@ public final class ExportWindow extends Modal
         SchematicsState.get().setExportOptions(change.apply(options()));
     }
 
-    private void setOnlyMissing(boolean value)
+    private void setAmount(ExportOptions.Amount amount)
     {
-        setOptions(o -> new ExportOptions(value, o.icons(), o.rawMaterials(), o.chart()));
+        setOptions(o -> o.withAmount(amount));
+    }
+
+    /** «Считать до Y»: настройка общая (HUD, вкладка «Материалы»), строки источника считаются заново. */
+    private void setCutoff(boolean value)
+    {
+        if (this.busy())
+        {
+            return;
+        }
+
+        LayerListConfigs.MATERIAL_CUTOFF.setBooleanValue(value);
+        this.source.recount();
+        this.result = null;
+    }
+
+    /** Граница высоты, с которой посчитаны строки источника; {@link Long#MAX_VALUE} — без границы. */
+    private long limitY()
+    {
+        return this.source.recountable() ? MaterialCutoff.limitY() : Long.MAX_VALUE;
     }
 
     private void pickSource(ExportSource next)
     {
         this.source = next;
         next.load();
+        // «Считать до Y» переключили, пока был выбран другой источник: строки этого посчитаны по-старому
+        next.sync();
         this.result = null;
     }
 
@@ -245,8 +282,16 @@ public final class ExportWindow extends Modal
         }
 
         SchematicsState state = SchematicsState.get();
+        String label = this.source.label();
+        long limit = this.limitY();
 
-        return new ExportRequest(this.title(), this.source.label(), rows, state.roster(), state.exportOptions(),
+        // Граница высоты — в подпись источника: шапка таблицы скажет, что посчитана не вся постройка
+        if (limit != Long.MAX_VALUE)
+        {
+            label = label + DialogText.f("cutoff.source", limit);
+        }
+
+        return new ExportRequest(this.title(), label, rows, state.roster(), state.exportOptions(),
                 this.source.fileName());
     }
 
@@ -258,9 +303,10 @@ public final class ExportWindow extends Modal
     /** Позиций и блоков после фильтра — так же, как их отберёт выгрузка (количество больше нуля). */
     private void updateStats(List<MaterialRow> rows)
     {
-        boolean missing = options().onlyMissing();
+        ExportOptions options = options();
+        ExportOptions.Amount amount = options.amount();
 
-        if (rows == this.statsRows && missing == this.statsMissing)
+        if (rows == this.statsRows && amount == this.statsAmount)
         {
             return;
         }
@@ -270,7 +316,7 @@ public final class ExportWindow extends Modal
 
         for (MaterialRow row : rows)
         {
-            long quantity = missing ? row.missing() : row.total();
+            long quantity = options.quantity(row);
 
             if (quantity > 0L)
             {
@@ -280,7 +326,7 @@ public final class ExportWindow extends Modal
         }
 
         this.statsRows = rows;
-        this.statsMissing = missing;
+        this.statsAmount = amount;
         this.statsPositions = positions;
         this.statsBlocks = blocks;
     }
@@ -337,8 +383,14 @@ public final class ExportWindow extends Modal
      */
     private @Nullable StatusLine.Message filterAbout()
     {
-        String text = filterAbout(this.source.kind(), options().onlyMissing(),
-                LayerListConfigs.SHORTFALL_ONLY_MISSING.getBooleanValue());
+        String text = filterAbout(this.source.kind(), options().amount(), Shortfall.current());
+        long limit = this.limitY();
+
+        if (limit != Long.MAX_VALUE)
+        {
+            String note = DialogText.f("cutoff.about", limit);
+            text = text == null ? note : text + " " + note;
+        }
 
         if (text != null && this.source.narrowed())
         {
@@ -359,17 +411,41 @@ public final class ExportWindow extends Modal
 
     public static @Nullable String filterAbout(@Nullable ExportSource.Kind kind, boolean onlyMissing, boolean onlyEmpty)
     {
+        return filterAbout(kind, onlyMissing ? ExportOptions.Amount.MISSING : ExportOptions.Amount.ALL, onlyEmpty);
+    }
+
+    /** То же с «С учётом склада»: у схемы без сверки склад вычитается из всей постройки, у остальных — из недостающего. */
+    public static @Nullable String filterAbout(@Nullable ExportSource.Kind kind, ExportOptions.Amount amount, boolean onlyEmpty)
+    {
+        return filterAbout(kind, amount, onlyEmpty ? Shortfall.EMPTY : Shortfall.ALL);
+    }
+
+    /** То же по режиму нехватки целиком: с 27.11.2026 у списка HUD есть и «пустые + не тот блок». */
+    public static @Nullable String filterAbout(@Nullable ExportSource.Kind kind, ExportOptions.Amount amount, Shortfall shortfall)
+    {
         if (kind == null)
         {
             return null;
         }
+
+        if (amount == ExportOptions.Amount.STOCK)
+        {
+            return DialogText.t(kind == ExportSource.Kind.SCHEMATIC ? "filter.about.schematic.stock" : "filter.about.stock");
+        }
+
+        boolean onlyMissing = amount == ExportOptions.Amount.MISSING;
 
         return switch (kind)
         {
             case SCHEMATIC -> DialogText.t(onlyMissing ? "filter.about.schematic.missing" : "filter.about.schematic.all");
             case PLACED -> DialogText.t(onlyMissing ? "filter.about.placed.missing" : "filter.about.placed.all");
             case HUD -> DialogText.t(! onlyMissing ? "filter.about.hud.all"
-                    : onlyEmpty ? "filter.about.hud.missing" : "filter.about.hud.missing_wrong");
+                    : switch (shortfall)
+                    {
+                        case EMPTY -> "filter.about.hud.missing";
+                        case WRONG_BLOCKS -> "filter.about.hud.missing_wrong_block";
+                        case ALL -> "filter.about.hud.missing_wrong";
+                    });
         };
     }
 
@@ -391,6 +467,10 @@ public final class ExportWindow extends Modal
             this.job.tick();
         }
 
+        // «Считать до Y»: у источника, чей счёт она не меняет, строки нет; во время записи файла не переключается
+        this.cutoff.setVisible(this.source.recountable());
+        this.cutoff.setEnabled(! this.busy());
+
         String why = this.blocked();
         this.formats.update(why);
         this.discord.update(! this.busy());
@@ -403,7 +483,7 @@ public final class ExportWindow extends Modal
 
     private DiscordKey discordKey()
     {
-        return new DiscordKey(this.title(), this.source, options().onlyMissing());
+        return new DiscordKey(this.title(), this.source, options().amount(), this.limitY());
     }
 
     // ===== Выгрузка =====

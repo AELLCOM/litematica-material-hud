@@ -29,6 +29,8 @@ import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BigDripleafBlock;
 import net.minecraft.world.level.block.BigDripleafStemBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.BrushableBlock;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.GrowingPlantBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -225,6 +227,24 @@ public final class GhostSupport
         }
     }
 
+    /**
+     * Блок ставится сам: держится в мире {@code world} как есть ({@link #survives}) и не упадёт. Так проверяется опора с
+     * соседнего слоя (правило владельца 24.11.2026): цепь, под которой на слое висит фонарь, ставится хоть в воздухе —
+     * она опора; подвесная табличка над табличкой слоя сама требует опоры — её с этого слоя не поставить, она не опора.
+     */
+    public static boolean standsAlone(BlockState state, BlockGetter world, BlockPos pos)
+    {
+        return survives(state, world, pos) && ! falls(state, world, pos);
+    }
+
+    /** Сыпучий блок (песок, гравий, бетонная смесь, наковальня, подозрительный песок), под которым пусто: упадёт. */
+    public static boolean falls(BlockState state, BlockGetter world, BlockPos pos)
+    {
+        Block block = state.getBlock();
+        return (block instanceof FallingBlock || block instanceof BrushableBlock)
+                && FallingBlock.isFree(world.getBlockState(pos.below()));
+    }
+
     /** Мир с одной подставленной клеткой — «как будто опору уже поставили (или убрали)». */
     public static BlockGetter with(BlockGetter world, BlockPos at, BlockState state)
     {
@@ -259,7 +279,8 @@ public final class GhostSupport
      *   <li>{@link #NOW} — сейчас: держится в мире как есть (или клетка уже занята — тогда это не «не поставлено»);</li>
      *   <li>{@link #LATER} — после опоры: в мире держаться не на чем, но опора — блок схемы, которого ещё нет и который
      *       строится в этой же работе (сам ставится сейчас или тоже после своей опоры — цепочкой до корня, стоящего в
-     *       мире). Голограмма такого блока скрыта, пока опоры нет, а в списке HUD он и опора учитываются;</li>
+     *       мире). Опора с соседнего слоя — только та, что ставится сама ({@link #standsAlone}): дальше от слоя
+     *       цепочка не идёт. Голограмма такого блока скрыта, пока опоры нет, а в списке HUD он и опора учитываются;</li>
      *   <li>{@link #NEVER} — никак, пока мир не изменится: ни в мире, ни среди строящихся блоков схемы опоры нет.
      *       Скрыт полностью — и голограммой, и из списка HUD.</li>
      * </ul>
@@ -273,12 +294,60 @@ public final class GhostSupport
 
     /**
      * Какие клетки схемы строятся «в этой работе»: {@code near} — сосед проверяемой клетки со стороны {@code side}.
-     * У списка HUD это клетки его счёта (слой, зона) и — при «Опоре с соседнего слоя» — сосед по оси слоёв вне слоя.
+     * У списка HUD это клетки его счёта (слой, зона) и — при «Опоре с соседнего слоя» — клетка вплотную к слою по его
+     * оси ({@link #layerReach}).
      */
     @FunctionalInterface
     public interface Reach
     {
         boolean allows(BlockPos near, Direction side);
+
+        /**
+         * Разрешённая клетка лежит вне слоя — это опора с соседнего слоя. Опорой (и звеном цепочки) она считается,
+         * только если ставится сама ({@link #standsAlone}); её собственную опору дальше от слоя не ищем: с этого слоя
+         * её не поставить (правило владельца 24.11.2026 — столбик подвесных табличек друг под другом).
+         */
+        default boolean outside(BlockPos near)
+        {
+            return false;
+        }
+    }
+
+    /**
+     * Работа списка HUD: слой {@code range} ({@code all} — счёт без слоёв) и область аддона {@code scope}; при «Опоре с
+     * соседнего слоя» ({@code adjacentAxis} — ось слоёв, иначе {@code null}) — ещё клетка вплотную к слою по этой оси.
+     * Вторая клетка от слоя и дальше в работу не входят никогда.
+     */
+    public static Reach layerReach(LayerRange range, boolean all, @Nullable Direction.Axis adjacentAxis,
+            @Nullable java.util.function.Predicate<BlockPos> scope)
+    {
+        return new Reach()
+        {
+            @Override
+            public boolean allows(BlockPos near, Direction side)
+            {
+                if (scope != null && ! scope.test(near))
+                {
+                    return false;
+                }
+
+                if (all || rawWithinRange(range, near.getX(), near.getY(), near.getZ()))
+                {
+                    return true;
+                }
+
+                // Вне слоя — только вплотную к нему: клетка, из которой сюда шагнули, сама лежит в слое
+                return adjacentAxis != null && side.getAxis() == adjacentAxis
+                        && rawWithinRange(range, near.getX() - side.getStepX(), near.getY() - side.getStepY(),
+                                near.getZ() - side.getStepZ());
+            }
+
+            @Override
+            public boolean outside(BlockPos near)
+            {
+                return ! all && ! rawWithinRange(range, near.getX(), near.getY(), near.getZ());
+            }
+        };
     }
 
     /** Глубина цепочки «опора опоры»: дальше не идём — блок считается непоставимым, пока корень не построят. */
@@ -444,6 +513,12 @@ public final class GhostSupport
             return null;
         }
 
+        // Опора с соседнего слоя — только та, что ставится сама: держится в мире как есть и не упадёт
+        if (reach != null && reach.outside(near) && ! standsAlone(support, world, near))
+        {
+            return null;
+        }
+
         return support;
     }
 
@@ -575,8 +650,16 @@ public final class GhostSupport
                 continue;
             }
 
+            // Звено на соседнем слое годится, только если ставится само; его цепочку дальше от слоя не тянем
+            boolean out = reach != null && reach.outside(near);
+
+            if (out && ! standsAlone(kin, world, near))
+            {
+                continue;
+            }
+
             if (survives(state, new Overlay(world).put(near, kin), pos)
-                    && supported(kin, near, world, schematic, reach, pos, depth - 1, budget))
+                    && (out || supported(kin, near, world, schematic, reach, pos, depth - 1, budget)))
             {
                 return true;
             }
@@ -591,8 +674,11 @@ public final class GhostSupport
 
             for (Long2ObjectMap.Entry<BlockState> entry : all.put.long2ObjectEntrySet())
             {
-                if (! supported(entry.getValue(), BlockPos.of(entry.getLongKey()), world, schematic, reach, pos, depth - 1,
-                        budget))
+                BlockPos link = BlockPos.of(entry.getLongKey());
+
+                // Звено с соседнего слоя сюда попало, только если ставится само (см. выше)
+                if (! (reach != null && reach.outside(link))
+                        && ! supported(entry.getValue(), link, world, schematic, reach, pos, depth - 1, budget))
                 {
                     each = false;
                     break;
@@ -940,8 +1026,11 @@ public final class GhostSupport
                                     BlockState support = schematicWorld.getBlockState(near);
                                     BlockState there = level.getBlockState(near);
 
-                                    // Опора — только если с ней блок и правда устоит
+                                    // Опора — только если с ней блок и правда устоит. Сыпучая опора, под которой
+                                    // пусто, упадёт — её с этого слоя не поставить (24.11.2026); опору, которой самой
+                                    // не на чем держаться, прячет «Скрывать блоки без опоры» при сборке чанка
                                     if (! support.isAir() && there != support && free(there)
+                                            && ! falls(support, level, near)
                                             && supported(wanted, cell, new Overlay(level).put(near, support),
                                                     schematicWorld, LAYER, null, MAX_CHAIN, new int[]{CHECK_BUDGET}))
                                     {

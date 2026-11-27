@@ -28,5 +28,7 @@ public abstract class MixinAbstractRecipeBookScreen
             CallbackInfo ci)
     {
         com.aell.layerlist.hud.LayerHudRenderer.renderUnderTooltip(graphics, mouseX, mouseY);
+        // Карточка узорного флага — как в остальных окнах с ячейками (MixinAbstractContainerScreen)
+        com.aell.layerlist.hud.BannerCard.render(graphics, (net.minecraft.client.gui.screens.Screen) (Object) this, mouseX, mouseY);
     }
 }

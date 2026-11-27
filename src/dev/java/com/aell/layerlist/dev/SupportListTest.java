@@ -2,6 +2,7 @@ package com.aell.layerlist.dev;
 
 import com.aell.layerlist.config.LayerListConfigs;
 import com.aell.layerlist.core.LayerCountManager;
+import com.aell.layerlist.ghost.GhostSupport;
 import com.aell.layerlist.ghost.HiddenGhosts;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.materials.MaterialListEntry;
@@ -42,6 +43,14 @@ import net.minecraft.world.phys.Vec3;
  * </ul>
  * Одиночный слой: опора факела на соседнем слое — без «Опоры с соседнего слоя» факела и булыжника в списке нет, с ней
  * оба есть. Режим выключен — список прежний: в нём всё, опора вне слоя — всегда.
+ *
+ * <p>Правило владельца 24.11.2026 — опора с соседнего слоя годится, только если ставится сама:
+ * <ul>
+ *   <li>фонарь слоя под цепью со слоя выше — цепь ставится хоть в воздухе: фонарь и цепь в списке;</li>
+ *   <li>столбик подвесных табличек друг под другом: табличка слоя держится за табличку слоем выше, а той самой нужна
+ *       опора ещё выше — с этого слоя её не поставить: ни одной таблички столбика в списке нет. Потолок над
+ *       столбиком построили в мире — верхняя табличка ставится сама, обе в списке.</li>
+ * </ul>
  */
 @Environment(EnvType.CLIENT)
 public final class SupportListTest implements CovJob
@@ -61,6 +70,13 @@ public final class SupportListTest implements CovJob
     private static final int[] FARMLAND = {14, 0, 1};
     private static final int[] CLAY = {16, 0, 1};
     private static final int[] STEM = {16, 1, 1};
+    private static final int[] LANTERN = {3, 1, 3};
+    private static final int[] CHAIN = {3, 2, 3};
+    /** Столбик подвесных табличек друг под другом: потолок, под ним три таблички. */
+    private static final int[] COLUMN_CEILING = {5, 3, 3};
+    private static final int[] COLUMN_TOP = {5, 2, 3};
+    private static final int[] COLUMN_MID = {5, 1, 3};
+    private static final int[] COLUMN_LOW = {5, 0, 3};
 
     /** Кадр под программным рендером снимается с опозданием в секунды: после снимка стенд ждёт и только потом меняет мир. */
     private static final long SHOT_HOLD_MS = 3500L;
@@ -72,6 +88,11 @@ public final class SupportListTest implements CovJob
     private long afterWait;
     private long totalWhenOff;
     private SchematicPlacement placement;
+    /** Общая проверка с Party (24.11.2026): список слоя до делёжа, доля свою и сколько клеток скрыто без опоры. */
+    private Map<String, int[]> partyBefore;
+    private Map<String, int[]> partyMine;
+    private long partyHiddenBefore;
+    private com.aell.layerlist.party.Party party;
     private boolean hideWas;
     private boolean fromLayersWas;
     private boolean onlyMissingWas;
@@ -146,6 +167,14 @@ public final class SupportListTest implements CovJob
             command(server, set(REF, 6, 0, 1, "minecraft:bricks"));
             command(server, set(REF, 6, 1, 1, "minecraft:stone_pressure_plate"));
             command(server, set(REF, 6, 2, 1, "minecraft:white_carpet"));
+            // 4а. Фонарь под цепью: цепь — слоем выше (пример владельца 24.11.2026)
+            command(server, set(REF, CHAIN, "minecraft:iron_chain[axis=y]"));
+            command(server, set(REF, LANTERN, "minecraft:lantern[hanging=true]"));
+            // 4б. Столбик подвесных табличек друг под другом (жалоба владельца 24.11.2026)
+            command(server, set(REF, COLUMN_CEILING, "minecraft:birch_planks"));
+            command(server, set(REF, COLUMN_TOP, "minecraft:jungle_hanging_sign[rotation=0,attached=false]"));
+            command(server, set(REF, COLUMN_MID, "minecraft:jungle_hanging_sign[rotation=0,attached=false]"));
+            command(server, set(REF, COLUMN_LOW, "minecraft:jungle_hanging_sign[rotation=0,attached=false]"));
             // 5. Настенная подвесная табличка: с блоком сбоку (в схеме) и без блоков сбоку вовсе
             command(server, set(REF, 9, 1, 1, "minecraft:polished_andesite"));
             command(server, set(REF, WALL_SIGN, "minecraft:oak_wall_hanging_sign[facing=south]"));
@@ -246,6 +275,8 @@ public final class SupportListTest implements CovJob
                 this.expect(list, "режим выключен", "oak_hanging_sign", 1, 1);
                 this.expect(list, "режим выключен", "big_dripleaf", 2, 2);
                 this.expect(list, "режим выключен", "carrot", 1, 1);
+                this.expect(list, "режим выключен", "lantern", 1, 1);
+                this.expect(list, "режим выключен", "jungle_hanging_sign", 3, 3);
                 this.check("режим выключен: скрытых нет", LayerCountManager.getInstance().getBlocksHidden() == 0L,
                         "скрыто " + LayerCountManager.getInstance().getBlocksHidden());
                 this.totalWhenOff = LayerCountManager.getInstance().getBlocksTotal();
@@ -263,6 +294,11 @@ public final class SupportListTest implements CovJob
                 this.expect(list, "режим включён", "stone_pressure_plate", 1, 1);
                 this.expect(list, "режим включён", "white_carpet", 1, 1);
                 this.expect(list, "режим включён", "bricks", 1, 1);
+                // Без слоёв всё строится в этой работе: фонарь после цепи, столбик табличек — после потолка
+                this.expect(list, "режим включён", "lantern", 1, 1);
+                this.expect(list, "режим включён", "iron_chain", 1, 1);
+                this.expect(list, "режим включён", "jungle_hanging_sign", 3, 3);
+                this.expect(list, "режим включён", "birch_planks", 1, 1);
                 this.expect(list, "режим включён", "oak_hanging_sign", 1, 1);
                 this.expect(list, "режим включён", "polished_andesite", 1, 1);
                 this.expect(list, "режим включён", "sugar_cane", 1, 1);
@@ -345,31 +381,151 @@ public final class SupportListTest implements CovJob
                 this.expect(list, "слой, опора соседнего слоя выключена", "oak_hanging_sign", 1, 1);
                 this.expect(list, "слой, опора соседнего слоя выключена", "polished_andesite", 1, 1);
                 this.expect(list, "слой, опора соседнего слоя выключена", "lever", 1, 1);
+                this.absent(list, "слой, опора соседнего слоя выключена", "lantern");
+                this.absent(list, "слой, опора соседнего слоя выключена", "iron_chain");
+                this.absent(list, "слой, опора соседнего слоя выключена", "jungle_hanging_sign");
                 shot(mc, "слой без опоры соседнего слоя");
                 this.then(() -> LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setBooleanValue(true), 4500L);
             }
             case 6 ->
             {
                 Map<String, int[]> list = this.list();
-                this.expect(list, "слой, опора соседнего слоя включена", "torch", 1, 1);
-                this.expect(list, "слой, опора соседнего слоя включена", "cobblestone", 1, 1);
-                this.expect(list, "слой, опора соседнего слоя включена", "stone_pressure_plate", 1, 1);
-                this.expect(list, "слой, опора соседнего слоя включена", "bricks", 1, 1);
-                this.absent(list, "слой, опора соседнего слоя включена", "birch_hanging_sign");
+                String when = "слой, опора соседнего слоя включена";
+                this.expect(list, when, "torch", 1, 1);
+                this.expect(list, when, "cobblestone", 1, 1);
+                this.expect(list, when, "stone_pressure_plate", 1, 1);
+                this.expect(list, when, "bricks", 1, 1);
+                this.absent(list, when, "birch_hanging_sign");
+                // Цепь со слоя выше ставится сама, хоть в воздухе: фонарь и цепь в списке (24.11.2026)
+                this.expect(list, when, "lantern", 1, 1);
+                this.expect(list, when, "iron_chain", 1, 1);
+                // Стебель большой бросянки и её лист слоем выше держат друг друга: лист ставится следом — оба в списке
+                this.expect(list, when, "big_dripleaf", 2, 2);
+                // Столбик табличек: опоре со слоя выше самой нужна опора — с этого слоя столбик не поставить
+                this.absent(list, when, "jungle_hanging_sign");
+                this.absent(list, when, "birch_planks");
+                this.check(when + ": цепь — опора вне слоя и видна, фонарь под ней скрыт",
+                        GhostSupport.isSupportCell(at(TARGET, CHAIN).getX(), at(TARGET, CHAIN).getY(), at(TARGET, CHAIN).getZ())
+                                && ! HiddenGhosts.hidden(at(TARGET, CHAIN)) && HiddenGhosts.hidden(at(TARGET, LANTERN)),
+                        "цепь скрыта " + HiddenGhosts.hidden(at(TARGET, CHAIN)) + ", фонарь скрыт "
+                                + HiddenGhosts.hidden(at(TARGET, LANTERN)));
+                this.check(when + ": таблички столбика скрыты обе — и слоя, и слоем выше",
+                        HiddenGhosts.hidden(at(TARGET, COLUMN_MID)) && HiddenGhosts.hidden(at(TARGET, COLUMN_TOP)),
+                        "слоя " + HiddenGhosts.hidden(at(TARGET, COLUMN_MID)) + ", слоем выше "
+                                + HiddenGhosts.hidden(at(TARGET, COLUMN_TOP)));
                 shot(mc, "слой с опорой соседнего слоя");
-                // Режим выключен — как с 13.10.2026: блок слоя и его опора вне слоя в списке всегда
-                this.then(() ->
-                {
-                    LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setBooleanValue(false);
-                    LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setBooleanValue(false);
-                }, 4500L);
+                // Потолок над столбиком строим в мире — верхняя табличка теперь ставится сама
+                this.then(() -> server.execute(() -> command(server, set(TARGET, COLUMN_CEILING, "minecraft:birch_planks"))),
+                        4500L);
             }
             case 7 ->
             {
                 Map<String, int[]> list = this.list();
+                String when = "слой, потолок над столбиком в мире";
+                // Табличка слоя и её опора слоем выше; потолок — уже не «эта работа»
+                this.expect(list, when, "jungle_hanging_sign", 2, 2);
+                this.absent(list, when, "birch_planks");
+                this.check(when + ": табличка слоем выше — опора вне слоя и видна",
+                        GhostSupport.isSupportCell(at(TARGET, COLUMN_TOP).getX(), at(TARGET, COLUMN_TOP).getY(),
+                                at(TARGET, COLUMN_TOP).getZ()) && ! HiddenGhosts.hidden(at(TARGET, COLUMN_TOP)),
+                        "скрыта " + HiddenGhosts.hidden(at(TARGET, COLUMN_TOP)));
+                shot(mc, "потолок построен — таблички в списке");
+                // Ставим её — табличка слоя ставится сейчас, а опора уже построена
+                this.then(() -> server.execute(() -> command(server, set(TARGET, COLUMN_TOP,
+                        "minecraft:jungle_hanging_sign[rotation=0,attached=false]"))), 4500L);
+            }
+            case 8 ->
+            {
+                Map<String, int[]> list = this.list();
+                String when = "слой, верхняя табличка в мире";
+                this.expect(list, when, "jungle_hanging_sign", 2, 1);
+                this.check(when + ": голограмма таблички слоя видна", ! HiddenGhosts.hidden(at(TARGET, COLUMN_MID)), "");
+                // Дальше — вместе с Party: основу делёжа (вся схема) она считает в фоне, первый вызов запускает счёт
+                com.aell.layerlist.party.Parties.base(this.placement.getSchematic());
+                wait = 3000L;
+            }
+            case 9 ->
+            {
+                // Party из двух участников на ту же схему: список HUD становится долей. Скрытые без опоры клетки в долю
+                // попасть не должны — делится уже список без них
+                String when = "Party + без опоры";
+                com.aell.layerlist.party.Parties.Base base = com.aell.layerlist.party.Parties.base(this.placement.getSchematic());
+                this.check(when + ": основа делёжа схемы посчитана", base != null, "");
+                this.partyBefore = this.list();
+                this.partyHiddenBefore = LayerCountManager.getInstance().getBlocksHidden();
+                this.check(when + ": до Party в слое есть скрытые без опоры клетки", this.partyHiddenBefore > 0L,
+                        "скрыто " + this.partyHiddenBefore);
+
+                if (base != null)
+                {
+                    this.party = new com.aell.layerlist.party.Party(com.aell.layerlist.party.Parties.newId(), "dev-supportlist",
+                            java.util.List.of(com.aell.layerlist.party.Parties.self(), "Sosed"), base.fingerprint(), true,
+                            com.aell.layerlist.party.Party.VIEW_MINE,
+                            com.aell.layerlist.party.Parties.fileOf(this.placement.getSchematic()), "", Util.getMillis());
+                    com.aell.layerlist.party.Parties.put(this.party);
+                    this.recount();
+                }
+
+                wait = 4500L;
+            }
+            case 10 ->
+            {
+                String when = "Party + без опоры, своя доля";
+                LayerCountManager hud = LayerCountManager.getInstance();
+                this.partyMine = this.list();
+                this.check(when + ": список HUD — доля Party", hud.getPartyShare() != null && hud.getPartyShare().applied() != null,
+                        String.valueOf(hud.getPartyShare()));
+                this.check(when + ": скрытых без опоры столько же", hud.getBlocksHidden() == this.partyHiddenBefore,
+                        "было " + this.partyHiddenBefore + ", стало " + hud.getBlocksHidden());
+                this.absent(this.partyMine, when, "birch_hanging_sign");
+                this.check(when + ": доля — часть списка слоя, чужих строк нет", this.within(this.partyMine, this.partyBefore),
+                        "доля " + show(this.partyMine) + " | список " + show(this.partyBefore));
+
+                if (this.party != null)
+                {
+                    // Доля второго участника (в составе он под номером 1)
+                    com.aell.layerlist.party.Parties.put(this.party.withView(1));
+                    this.recount();
+                }
+
+                wait = 4500L;
+            }
+            case 11 ->
+            {
+                String when = "Party + без опоры, доля соседа";
+                Map<String, int[]> other = this.list();
+                this.absent(other, when, "birch_hanging_sign");
+                this.check(when + ": скрытых без опоры столько же",
+                        LayerCountManager.getInstance().getBlocksHidden() == this.partyHiddenBefore,
+                        "стало " + LayerCountManager.getInstance().getBlocksHidden());
+                this.check(when + ": две доли вместе — ровно список слоя без скрытых клеток",
+                        this.partyMine != null && this.sums(this.partyMine, other, this.partyBefore),
+                        "своя " + (this.partyMine == null ? "" : show(this.partyMine)) + " | соседа " + show(other) + " | список "
+                                + show(this.partyBefore));
+                this.dropParty();
+                // Режим выключен — как с 13.10.2026: блок слоя и его опоры вне слоя (вся цепочка) в списке всегда
+                this.then(() ->
+                {
+                    server.execute(() -> command(server, set(TARGET, COLUMN_TOP, "minecraft:air")));
+                    server.execute(() -> command(server, set(TARGET, COLUMN_CEILING, "minecraft:air")));
+                    LayerListConfigs.GHOST_HIDE_UNSUPPORTED.setBooleanValue(false);
+                    LayerListConfigs.GHOST_SUPPORT_FROM_LAYERS.setBooleanValue(false);
+                    this.recount();
+                }, 4500L);
+            }
+            case 12 ->
+            {
+                Map<String, int[]> list = this.list();
+                this.check("слой, режим выключен: Party убрана — список снова общий",
+                        LayerCountManager.getInstance().getPartyShare() == null, "");
                 this.expect(list, "слой, режим выключен", "torch", 1, 1);
                 this.expect(list, "слой, режим выключен", "cobblestone", 1, 1);
                 this.expect(list, "слой, режим выключен", "birch_hanging_sign", 1, 1);
+                this.expect(list, "слой, режим выключен", "lantern", 1, 1);
+                this.expect(list, "слой, режим выключен", "iron_chain", 1, 1);
+                // Без режима за табличкой слоя тянется вся цепочка опор: табличка выше и потолок
+                this.expect(list, "слой, режим выключен", "jungle_hanging_sign", 2, 2);
+                this.expect(list, "слой, режим выключен", "birch_planks", 1, 1);
                 this.check("слой, режим выключен: скрытых нет", LayerCountManager.getInstance().getBlocksHidden() == 0L,
                         "скрыто " + LayerCountManager.getInstance().getBlocksHidden());
             }
@@ -383,6 +539,53 @@ public final class SupportListTest implements CovJob
         this.nextAt = now + (this.after != null ? SHOT_HOLD_MS : wait);
         ++this.stage;
         return false;
+    }
+
+    /** Каждая строка доли есть в списке и не больше его строки. */
+    private boolean within(Map<String, int[]> share, Map<String, int[]> whole)
+    {
+        for (Map.Entry<String, int[]> row : share.entrySet())
+        {
+            int[] full = whole.get(row.getKey());
+
+            if (full == null || row.getValue()[0] > full[0] || row.getValue()[1] > full[1])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** Две доли вместе дают список: по каждой строке и «всего», и «не хватает». */
+    private boolean sums(Map<String, int[]> mine, Map<String, int[]> other, Map<String, int[]> whole)
+    {
+        java.util.Set<String> items = new java.util.TreeSet<>(whole.keySet());
+        items.addAll(mine.keySet());
+        items.addAll(other.keySet());
+
+        for (String item : items)
+        {
+            int[] a = mine.getOrDefault(item, new int[2]);
+            int[] b = other.getOrDefault(item, new int[2]);
+            int[] full = whole.getOrDefault(item, new int[2]);
+
+            if (a[0] + b[0] != full[0] || a[1] + b[1] != full[1])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void dropParty()
+    {
+        if (this.party != null)
+        {
+            com.aell.layerlist.party.Parties.remove(this.party.id());
+            this.party = null;
+        }
     }
 
     private void recount()
@@ -504,6 +707,8 @@ public final class SupportListTest implements CovJob
     @Override
     public void close()
     {
+        this.dropParty();
+
         if (this.placement != null)
         {
             DataManager.getSchematicPlacementManager().removeSchematicPlacement(this.placement);

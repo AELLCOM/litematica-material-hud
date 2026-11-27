@@ -1,6 +1,5 @@
 package com.aell.layerlist.schematics.gui.export;
 
-import com.aell.layerlist.schematics.SchematicsState;
 import com.aell.layerlist.shaded.ui.Paint;
 import com.aell.layerlist.shaded.ui.Strings;
 import com.aell.layerlist.shaded.ui.Style;
@@ -48,6 +47,7 @@ public final class PlayerPicker extends Modal
     private static final long REFRESH_MS = 1000L;
     private static final long MESSAGE_MS = 4000L;
 
+    private final NickList store;
     private final TextInput filter;
     private final Chips chips;
     private final Button addAll;
@@ -58,9 +58,11 @@ public final class PlayerPicker extends Modal
     private @Nullable StatusLine.Message message;
     private long messageAt;
 
-    private PlayerPicker(Layers layers)
+    private PlayerPicker(Layers layers, NickList store)
     {
         super(layers, DialogText.t("picker.title"), Strings.t("close"));
+
+        this.store = store;
 
         this.width(WIDTH);
 
@@ -86,12 +88,18 @@ public final class PlayerPicker extends Modal
     /** Открыть поверх окна выгрузки; без подключения не открывается ({@code null}). */
     static @Nullable PlayerPicker open(Layers layers)
     {
+        return open(layers, NickList.COLLECTORS);
+    }
+
+    /** То же для другого списка ников (состав Party). */
+    public static @Nullable PlayerPicker open(Layers layers, NickList store)
+    {
         if (OnlinePlayers.names() == null)
         {
             return null;
         }
 
-        PlayerPicker picker = new PlayerPicker(layers);
+        PlayerPicker picker = new PlayerPicker(layers, store);
         picker.refresh(true);
         picker.open();
         // Сразу можно печатать ник: на большом сервере фильтр нужнее прокрутки
@@ -139,11 +147,11 @@ public final class PlayerPicker extends Modal
         return out;
     }
 
-    private static Set<String> added()
+    private Set<String> added()
     {
         Set<String> folded = new HashSet<>();
 
-        for (String nick : SchematicsState.get().roster())
+        for (String nick : this.store.list())
         {
             folded.add(nick.toLowerCase(Locale.ROOT));
         }
@@ -151,9 +159,9 @@ public final class PlayerPicker extends Modal
         return folded;
     }
 
-    private static boolean full()
+    private boolean full()
     {
-        return SchematicsState.get().roster().size() >= SchematicsState.ROSTER_MAX;
+        return this.store.list().size() >= this.store.max();
     }
 
     /** Видимые и ещё не добавленные — их возьмёт «Добавить всех». */
@@ -177,11 +185,11 @@ public final class PlayerPicker extends Modal
 
     private void add(String nick)
     {
-        RosterField.Added result = RosterField.addAll(List.of(nick));
+        RosterField.Added result = RosterField.addAll(this.store, List.of(nick));
 
         if (result.full())
         {
-            this.say(DialogText.f("roster.full", SchematicsState.ROSTER_MAX), Ui.C_WARN);
+            this.say(DialogText.f("roster.full", PlayerPicker.this.store.max()), Ui.C_WARN);
         }
     }
 
@@ -194,11 +202,11 @@ public final class PlayerPicker extends Modal
             return;
         }
 
-        RosterField.Added result = RosterField.addAll(nicks);
+        RosterField.Added result = RosterField.addAll(this.store, nicks);
 
         if (result.full())
         {
-            this.say(DialogText.f("roster.full", SchematicsState.ROSTER_MAX), Ui.C_WARN);
+            this.say(DialogText.f("roster.full", PlayerPicker.this.store.max()), Ui.C_WARN);
         }
         else
         {
@@ -238,7 +246,7 @@ public final class PlayerPicker extends Modal
 
         if (full())
         {
-            return new StatusLine.Message(DialogText.f("roster.full", SchematicsState.ROSTER_MAX), Ui.C_WARN);
+            return new StatusLine.Message(DialogText.f("roster.full", PlayerPicker.this.store.max()), Ui.C_WARN);
         }
 
         List<String> shown = this.shown();
@@ -503,8 +511,9 @@ public final class PlayerPicker extends Modal
             if (over)
             {
                 String tip = chip.added ? DialogText.f("roster.duplicate", chip.nick)
-                        : ! live ? DialogText.f("roster.full", SchematicsState.ROSTER_MAX)
-                        : DialogText.f("picker.add", chip.nick);
+                        : ! live ? DialogText.f("roster.full", PlayerPicker.this.store.max())
+                        : PlayerPicker.this.store == NickList.COLLECTORS ? DialogText.f("picker.add", chip.nick)
+                        : DialogText.f("picker.add.plain", chip.nick);
                 Tooltip.offer("export#picker#" + chip.nick, tip);
             }
         }

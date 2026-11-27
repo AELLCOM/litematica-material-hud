@@ -509,6 +509,54 @@ public final class SchematicLibrary
         return shared.copy();
     }
 
+    // ===== Точка привязки =====
+
+    /**
+     * Габарит блоков {@code .litematic} относительно его точки привязки: по нему видно, не потеряна ли она
+     * ({@link SchematicOrigin.Extent#far()}). Итог {@code null} — не {@code .litematic}, регионов нет или файл не
+     * прочитался (ошибку чтения карточка покажет по {@link #info}). Без кеша: спрашивает карточка выбранной схемы.
+     */
+    public CompletableFuture<SchematicOrigin.Extent> origin(SchematicEntry e)
+    {
+        if (e.directory() || e.format() != SchematicFormat.LITEMATIC)
+        {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return CompletableFuture.supplyAsync(() ->
+        {
+            try
+            {
+                return SchematicOrigin.read(e.path());
+            }
+            catch (IOException | RuntimeException error)
+            {
+                return null;
+            }
+        }, this.meta);
+    }
+
+    /**
+     * Копия схемы с точкой привязки в углу габарита ({@link SchematicOrigin#writeFixedCopy}); исходный файл не
+     * меняется. Провал — {@link CompletionException} с причиной.
+     *
+     * @return габарит исходного файла
+     */
+    public CompletableFuture<SchematicOrigin.Extent> fixOrigin(SchematicEntry e, Path target)
+    {
+        return CompletableFuture.supplyAsync(() ->
+        {
+            try
+            {
+                return SchematicOrigin.writeFixedCopy(e.path(), target);
+            }
+            catch (IOException | SchematicReadException error)
+            {
+                throw new CompletionException(error);
+            }
+        }, this.decode);
+    }
+
     // ===== Снимки =====
 
     /**
