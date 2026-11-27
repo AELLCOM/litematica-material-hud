@@ -43,8 +43,13 @@ public final class MaterialLine
     private final boolean hud;
     private final boolean verified;
     private final long need;
-    /** Сколько ещё не поставлено в мире: у сверенной схемы — {@code missing} строки, у остальных — то же, что {@link #need}. */
+    /**
+     * Что оставляет «Только недостающее»: у сверенной схемы — ещё не поставленное в мире ({@code missing} строки), у схемы,
+     * не размещённой в мире, — всё нужное за вычетом инвентаря (как «Скрыть доступные» Litematica), у остальных — {@link #need}.
+     */
     private final long lack;
+    /** Сколько ещё поставить без учёта инвентаря: у сверенной схемы — {@code missing}, у остальных — {@link #need}. */
+    private final long toPlace;
     private final long have;
     private final long shortage;
     private final Coverage coverage;
@@ -67,10 +72,10 @@ public final class MaterialLine
     private MaterialLine(MaterialRow row, boolean hud, boolean verified, LongFunction<String> number,
             List<String> replacedFrom, List<Integer> layersOff)
     {
-        this(row, hud, verified, number, replacedFrom, layersOff, false, null);
+        this(row, hud, verified, false, number, replacedFrom, layersOff, false, null);
     }
 
-    private MaterialLine(MaterialRow row, boolean hud, boolean verified, LongFunction<String> number,
+    private MaterialLine(MaterialRow row, boolean hud, boolean verified, boolean byInventory, LongFunction<String> number,
             List<String> replacedFrom, List<Integer> layersOff, boolean disabled, String disabledLabel)
     {
         this.row = row;
@@ -79,10 +84,12 @@ public final class MaterialLine
         this.disabled = disabled;
         // У отключённого числа те же, что были бы у включённого: строка не прыгает в сортировке
         this.need = Math.max(0L, hud ? row.missing() : row.total());
-        this.lack = verified ? Math.max(0L, row.missing()) : this.need;
+        this.toPlace = verified ? Math.max(0L, row.missing()) : this.need;
+        // Не размещена: сверять с миром нечем — «недостающее» по инвентарю (с шалкерами и мешками в нём), без сундуков
+        this.lack = byInventory && ! verified ? Math.max(0L, this.toPlace - Math.max(0L, row.inInventory())) : this.toPlace;
         this.have = saturatedSum(Math.max(0L, row.inInventory()), Math.max(0L, row.inChests()));
-        this.shortage = Math.max(0L, this.lack - this.have);
-        this.coverage = Coverage.of(this.lack, this.have);
+        this.shortage = Math.max(0L, this.toPlace - this.have);
+        this.coverage = Coverage.of(this.toPlace, this.have);
         this.sortName = row.name().toLowerCase(Locale.ROOT);
         this.replacedFrom = List.copyOf(replacedFrom);
         this.layersOff = List.copyOf(layersOff);
@@ -142,6 +149,17 @@ public final class MaterialLine
     }
 
     /**
+     * То же, и схема не размещена в мире: «Только недостающее» вычитает из нужного инвентарь ({@link #lack()}).
+     *
+     * @param byInventory сверять не с миром, а с инвентарём игрока
+     */
+    public static MaterialLine of(MaterialRow row, boolean hud, boolean verified, boolean byInventory,
+            LongFunction<String> number, List<String> replacedFrom, List<Integer> layersOff)
+    {
+        return new MaterialLine(row, hud, verified, byInventory, number, replacedFrom, layersOff, false, null);
+    }
+
+    /**
      * Строка блока, отключённого в схеме.
      *
      * @param row   строка с тем же счётом, что у блока до отключения
@@ -149,7 +167,7 @@ public final class MaterialLine
      */
     public static MaterialLine disabled(MaterialRow row, LongFunction<String> number, String label)
     {
-        return new MaterialLine(row, false, false, number, List.of(), List.of(), true, label);
+        return new MaterialLine(row, false, false, false, number, List.of(), List.of(), true, label);
     }
 
     /** Сравнение по числу, при равенстве — по названию (порядок не прыгает между перерисовками). */
@@ -218,10 +236,16 @@ public final class MaterialLine
         return this.verified;
     }
 
-    /** Сколько ещё не поставлено в мире; с него считаются «Не хватает» и «Только недостающее». */
+    /** Что оставляет «Только недостающее»: не поставленное в мире, а у неразмещённой схемы — нужное минус инвентарь. */
     public long lack()
     {
         return this.lack;
+    }
+
+    /** Сколько ещё поставить без учёта инвентаря — основа колонки «Не хватает». */
+    public long toPlace()
+    {
+        return this.toPlace;
     }
 
     /** Инвентарь + сундуки. */

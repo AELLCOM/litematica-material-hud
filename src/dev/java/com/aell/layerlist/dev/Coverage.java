@@ -152,6 +152,8 @@ public final class Coverage
                 case "u", "support" -> JOBS.add(new SupportTest());
                 case "listsupport" -> JOBS.add(new ListSupportTest());
                 case "listcache" -> JOBS.add(new ListCacheTest());
+                case "wrongblock" -> JOBS.add(new WrongBlockTest());
+                case "wrongtoggle" -> JOBS.add(new WrongToggleTest());
                 case "listbobby" -> JOBS.add(new ListBobbyTest());
                 case "listperf" -> JOBS.add(new ListPerfTest());
                 case "v", "invaim" -> JOBS.add(new InvAimTest());
@@ -185,6 +187,7 @@ public final class Coverage
                 case "placeworld" -> JOBS.add(new PlaceWorldTest());
                 case "selperf" -> JOBS.add(new SelPerfTest());
                 case "selslice" -> JOBS.add(new SelSliceTest());
+                case "origin" -> JOBS.add(new OriginTest());
                 case "endghost" -> JOBS.add(new EndPortalGhostTest());
                 case "y", "click" -> JOBS.add(new TransferClickTest());
                 case "transferclose" -> JOBS.add(new TransferCloseTest());
@@ -192,6 +195,9 @@ public final class Coverage
                 case "chosen" -> JOBS.add(new ChosenChestsTest());
                 case "stockhud" -> JOBS.add(new StockHudTest());
                 case "issues" -> JOBS.add(new IssuesTest());
+                case "exportstock" -> JOBS.add(new ExportStockTest());
+                case "invmissing" -> JOBS.add(new InvMissingTest());
+                case "party" -> JOBS.add(new PartyTest());
                 case "countformat" -> JOBS.add(new CountFormatTest());
                 case "escguard" -> JOBS.add(new EscGuardTest());
                 case "snow" -> JOBS.add(new SnowTest());
@@ -200,6 +206,9 @@ public final class Coverage
                 case "portals" -> JOBS.add(new PortalsTest());
                 case "hotbarlock" -> JOBS.add(new HotbarLockTest());
                 case "supportlist" -> JOBS.add(new SupportListTest());
+                case "supportmatrix" -> JOBS.add(new DumpSupportMatrix());
+                case "bannercard" -> JOBS.add(new BannerCardTest());
+                case "bannerpin" -> JOBS.add(new BannerPinTest());
                 case "statuepose" -> JOBS.add(new StatuePoseTest());
                 case "bannerstock" -> JOBS.add(new BannerStockTest());
                 case "transferbox" -> JOBS.add(new TransferBoxTest());

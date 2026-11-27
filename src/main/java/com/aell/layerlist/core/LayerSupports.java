@@ -22,8 +22,10 @@ import net.minecraft.world.level.block.state.BlockState;
  * Сыпучие блоки (песок, гравий, бетонная смесь, наковальня) по {@code canSurvive} держатся всегда,
  * но без блока снизу упадут — им опора снизу тоже нужна.
  *
- * <p>Опора, которой самой нужна опора дальше от слоя (лоза над лозой, цепь под потолком), тянет её
- * за собой — по той же стороне, до {@link #MAX_CHAIN} звеньев; сыпучая опора — только сама.
+ * <p>Опора, которой самой нужна опора дальше от слоя (лоза над лозой, табличка под табличкой), тянет её
+ * за собой — по той же стороне, до {@link #MAX_CHAIN} звеньев; сыпучая опора — только сама. Так — без
+ * «Скрывать блоки без опоры». В этом режиме ({@code deep = false}) в список идёт только клетка вплотную
+ * к слою: дальние звенья с этого слоя не поставить (правило владельца 24.11.2026).
  */
 @Environment(EnvType.CLIENT)
 public final class LayerSupports
@@ -35,10 +37,11 @@ public final class LayerSupports
     /**
      * Опоры клетки слоя {@code pos} с блоком схемы {@code state}. {@code outside} — стороны вдоль оси
      * слоёв, где соседняя клетка вне слоя (у клетки в глубине диапазона их нет). Каждая опора
-     * отдаётся в {@code out} как {@link BlockPos#asLong} один раз.
+     * отдаётся в {@code out} как {@link BlockPos#asLong} один раз. {@code deep} — тянуть ли за опорой
+     * то, на чём держится она сама.
      */
     public static void collect(BlockState state, BlockPos pos, Direction[] outside, BlockGetter schematic,
-                               LongConsumer out)
+                               boolean deep, LongConsumer out)
     {
         if (outside.length == 0 || ! stands(state, schematic, pos))
         {
@@ -67,7 +70,7 @@ public final class LayerSupports
 
             if (! support.isAir() && stands(state, GhostSupport.with(bare, near, support), pos))
             {
-                chain(near, support, side, schematic, out);
+                chain(near, support, side, schematic, deep, out);
                 any = true;
             }
         }
@@ -85,18 +88,23 @@ public final class LayerSupports
 
             if (! support.isAir())
             {
-                chain(near, support, side, schematic, out);
+                chain(near, support, side, schematic, deep, out);
             }
         }
     }
 
     /** Опора и то, на чём держится она сама, дальше от слоя по стороне {@code side}. */
     private static void chain(BlockPos first, BlockState firstState, Direction side, BlockGetter schematic,
-                              LongConsumer out)
+                              boolean deep, LongConsumer out)
     {
         BlockPos at = first.immutable();
         BlockState state = firstState;
         out.accept(at.asLong());
+
+        if (! deep)
+        {
+            return;
+        }
 
         for (int i = 0; i < MAX_CHAIN; ++i)
         {
@@ -125,11 +133,6 @@ public final class LayerSupports
     /** Устоит ли блок в клетке: {@code canSurvive}, а сыпучий — ещё и не упадёт. */
     private static boolean stands(BlockState state, BlockGetter world, BlockPos pos)
     {
-        if (! GhostSupport.survives(state, world, pos))
-        {
-            return false;
-        }
-
-        return ! (state.getBlock() instanceof FallingBlock) || ! FallingBlock.isFree(world.getBlockState(pos.below()));
+        return GhostSupport.standsAlone(state, world, pos);
     }
 }

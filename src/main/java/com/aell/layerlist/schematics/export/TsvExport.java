@@ -27,7 +27,7 @@ final class TsvExport
             line(out, List.of(
                     line.name(), Long.toString(line.row().total()), line.row().breakdown(),
                     Long.toString(line.row().inInventory()), Long.toString(line.row().inChests()),
-                    Long.toString(line.row().missing()), line.id()));
+                    Long.toString(line.missing()), line.id()));
         }
 
         return out.toString();

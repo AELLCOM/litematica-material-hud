@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "穿透方块可见",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "把区域边框画在所有东西之上，这样在建筑内部也能看到",
   "modmenu.descriptionTranslation.layerlist": "用当前渲染层的材料清单取代 Litematica 的信息面板：建造时自动更新，可用快捷键翻页，并以醒目的彩色圆点标记存有当前页方块的箱子、木桶、铜箱和潜影盒；打开容器后还会高亮对应的物品栏格子。",
-  "modmenu.summaryTranslation.layerlist": "实时显示当前建造层的材料清单，并在存放这些方块的容器上标出彩色圆点。"
+  "modmenu.summaryTranslation.layerlist": "实时显示当前建造层的材料清单，并在存放这些方块的容器上标出彩色圆点。",
+  "layerlist.config.bannerCard.name": "悬停显示旗帜配方",
+  "layerlist.config.bannerCard.tooltip": "在物品栏和任意容器中，按住 Shift 并将光标悬停在带图案的旗帜上，原本的提示框会换成一张可翻页的卡片。在“Materials”选项卡中，将光标悬停在列表里的旗帜上即可打开卡片，还可以通过行菜单把它固定在织布机旁。第一页列出所需物品：底色旗帜、染料、旗帜图案和织布机；之后每个图案占一页：之前的旗帜、染料、图案和结果。可用鼠标滚轮、← → 键或卡片上的按钮翻页。点击图案或物品即可查看获取方式：配方或获取地点。默认开启",
+  "layerlist.banner.needs": "所需物品",
+  "layerlist.banner.step": "第 %s 步，共 %s 步",
+  "layerlist.banner.patterns": "图案数：%s",
+  "layerlist.banner.over_limit": "织布机最多只能放 6 个",
+  "layerlist.banner.no_item": "不需要旗帜图案物品",
+  "layerlist.banner.needs_item": "需要物品：%s",
+  "layerlist.banner.kept": "在织布机中不会消耗",
+  "layerlist.banner.how": "获取方式",
+  "layerlist.banner.hint": "滚轮或 ← → 翻页。点击图案查看获取方式",
+  "layerlist.banner.pinned": "已固定",
+  "layerlist.banner.unknown": "暂无此图案的获取方式数据",
+  "layerlist.loom.beyond_limit": "（超出织布机 6 个图案的上限）"
 }

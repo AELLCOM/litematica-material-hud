@@ -58,5 +58,19 @@
   "layerlist.ui.gate.cutoff_off": "«Y'ye kadar say» kapalı",
   "layerlist.ui.gate.opaque": "saydamlık %0",
   "modmenu.descriptionTranslation.layerlist": "Litematica'nın bilgi paneli yerine seçili render katmanının malzeme listesini gösterir: inşa ettikçe güncellenir, kısayollarla sayfalanır ve geçerli sayfadaki blokları içeren sandıkları, fıçıları, bakır sandıkları ve shulker kutularını belirgin renkli noktalarla işaretler; kabı açtığında eşleşen yuvalar da vurgulanır.",
-  "modmenu.summaryTranslation.layerlist": "İnşa ettiğin katman için canlı malzeme listesi ve o blokları barındıran sandıklarda renkli noktalar."
+  "modmenu.summaryTranslation.layerlist": "İnşa ettiğin katman için canlı malzeme listesi ve o blokları barındıran sandıklarda renkli noktalar.",
+  "layerlist.config.bannerCard.name": "Üzerine gelince sancak tarifi",
+  "layerlist.config.bannerCard.tooltip": "Envanterde ve herhangi bir kapta Shift tuşunu basılı tutup desenli bir sancağın üzerine gelin: alışılmış ipucunun yerine sayfaları çevrilebilen bir kart açılır. «Materials» sekmesinde kart, listedeki bir sancağın üzerine gelince açılır; satır menüsünden dokuma tezgâhının yanına sabitlenebilir. İlk sayfa gerekenleri gösterir: temel sancak, boyalar, sancak desenleri ve dokuma tezgâhı. Ardından her desen için bir sayfa gelir: önceki sancak, boya, desen ve sonuç. Sayfaları fare tekerleği, ← → tuşları veya karttaki düğmelerle çevirin. Bir desene veya eşyaya tıklayarak nasıl elde edileceğini görün: tarifi ya da bulunduğu yer. Varsayılan olarak açık",
+  "layerlist.banner.needs": "Gerekenler",
+  "layerlist.banner.step": "Adım %s / %s",
+  "layerlist.banner.patterns": "Desen sayısı: %s",
+  "layerlist.banner.over_limit": "dokuma tezgâhına yalnızca 6 desen sığar",
+  "layerlist.banner.no_item": "Sancak deseni eşyası gerekmez",
+  "layerlist.banner.needs_item": "Gereken eşya: %s",
+  "layerlist.banner.kept": "Dokuma tezgâhında tükenmez",
+  "layerlist.banner.how": "Nasıl elde edilir",
+  "layerlist.banner.hint": "Sayfa çevirmek için tekerlek veya ← →. Nasıl elde edileceğini görmek için bir desene tıklayın",
+  "layerlist.banner.pinned": "Sabitlendi",
+  "layerlist.banner.unknown": "Bu desenin nereden elde edileceğine dair veri yok",
+  "layerlist.loom.beyond_limit": "(dokuma tezgâhının 6 desen sınırını aşıyor)"
 }

@@ -6,6 +6,7 @@ import com.aell.layerlist.schematics.area.AreaCapture;
 import com.aell.layerlist.schematics.area.AreaCount;
 import com.aell.layerlist.schematics.area.AreaMap;
 import com.aell.layerlist.schematics.gui.materials.TableSource;
+import com.aell.layerlist.schematics.library.SchematicOrigin;
 import com.aell.layerlist.schematics.materials.SchematicMaterials;
 import com.aell.layerlist.schematics.preview.PreviewCamera;
 import com.aell.layerlist.schematics.preview.PreviewWidget;
@@ -470,6 +471,25 @@ final class SelectionPane extends Pane
         }
 
         return resettable(selection) ? selection.getEffectiveOrigin() : null;
+    }
+
+    /**
+     * На сколько блоков своя точка привязки отстоит от выделения — до ближайшего блока общей коробки компонентов
+     * (1.0.40). 0 — своей точки нет, она в коробке или углы не заданы. Больше {@link SchematicOrigin#FAR} — точка
+     * осталась от прежнего выделения: схема, сохранённая так, встанет в Litematica в стороне от игрока.
+     */
+    static int originGap(@Nullable AreaSelection selection)
+    {
+        BlockPos origin = selection == null ? null : selection.getExplicitOrigin();
+        BoundingBox bounds = origin == null ? null : selectionBounds(selection);
+
+        if (bounds == null)
+        {
+            return 0;
+        }
+
+        return SchematicOrigin.distance(origin.getX(), origin.getY(), origin.getZ(), bounds.minX(), bounds.minY(), bounds.minZ(),
+                bounds.maxX(), bounds.maxY(), bounds.maxZ());
     }
 
     /** Строка под углами: размер и объём выбранного компонента или почему их нет. */
@@ -1691,12 +1711,20 @@ final class SelectionPane extends Pane
         Paint.midText(ctx, font, Paint.fit(font, sizeLine(selection, selectedBox()), room), c.inner(), c.sizeY(),
                 SelectionHud.SIZE_H, Ui.C_TEXT_2, false);
 
-        // «Точка привязки» (её цветом рисует frame) — с объяснением при наведении
+        // «Точка привязки» (её цветом рисует frame) — с объяснением при наведении; своя точка далеко от выделения —
+        // заметка рядом и в подсказке, чем это грозит
         int ow = font.width(Tr.t("selection.origin.title"));
+        int gap = originGap(selection);
+        boolean far = gap > SchematicOrigin.FAR;
+        int noteRight = this.explicitOrigin.x();
 
-        if (Paint.hit(mouseX, mouseY, c.inner(), c.originCaptionY(), ow, SelectionHud.CAPTION_H))
+        SelectionHud.originFar(ctx, font, c, gap, noteRight);
+
+        if (Paint.hit(mouseX, mouseY, c.inner(), c.originCaptionY(), far ? Math.max(ow, noteRight - c.inner() - Ui.PAD_REL) : ow,
+                SelectionHud.CAPTION_H))
         {
-            com.aell.layerlist.ui.kit.Tooltip.offer("selection#origin", Tr.t("selection.origin.explain"));
+            com.aell.layerlist.ui.kit.Tooltip.offer("selection#origin",
+                    far ? Tr.f("selection.origin.far.tip", Tr.num(gap)) : Tr.t("selection.origin.explain"));
         }
 
         for (Widget widget : this.widgets)
@@ -2436,8 +2464,15 @@ final class SelectionPane extends Pane
             }
 
             this.toPlayer.setEnabled(this.enabled);
-            this.grab.setEnabled(pos != null);
             boolean grabbed = pos != null && (origin ? selection.isOriginSelected() : box != null && box.getSelectedCorner() == this.corner);
+            // Точку привязки двигают в мире, только когда она своя (1.0.40): иначе первый же щелчок инструментом Litematica
+            // молча включал свою точку в месте щелчка. Уже выбранную (щелчком колеса в мире) — отпустить можно всегда
+            this.grab.setEnabled(origin ? this.enabled || grabbed : pos != null);
+
+            if (origin)
+            {
+                this.grab.tooltip(Tr.t(this.enabled || grabbed ? "selection.grab.origin.tip" : "selection.grab.origin_off.tip"));
+            }
             this.grab.style(grabbed ? Button.Style.PRIMARY : Button.Style.SECONDARY).accent(this.color).selected(grabbed);
         }
 
@@ -2547,6 +2582,13 @@ final class SelectionPane extends Pane
             if (this.corner == Corner.NONE)
             {
                 boolean on = ! selection.isOriginSelected();
+
+                // Без своей точки привязки выбирать её для щелчков в мире нельзя (см. refresh)
+                if (on && selection.getExplicitOrigin() == null)
+                {
+                    return;
+                }
+
                 selection.setOriginSelected(on);
                 selection.clearCurrentSelectedCorner();
                 return;

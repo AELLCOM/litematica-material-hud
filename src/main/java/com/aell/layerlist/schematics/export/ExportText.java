@@ -98,12 +98,17 @@ final class ExportText
         return t("summary", count(data.lines().size()), count(data.blocks()), decimal(data.shulkers()));
     }
 
-    /** Подпись «Material HUD · дата · источник [· только недостающее]». */
+    /** Подпись «Material HUD · дата · источник [· только недостающее | · с учётом склада]». */
     static String meta(ExportData data)
     {
         String base = t("meta", date(data.created()), plain(data.request().source()));
 
-        return data.request().options().onlyMissing() ? base + t("meta.missing") : base;
+        return switch (data.request().options().amount())
+        {
+            case ALL -> base;
+            case MISSING -> base + t("meta.missing");
+            case STOCK -> base + t("meta.stock");
+        };
     }
 
     static String statusTaking()

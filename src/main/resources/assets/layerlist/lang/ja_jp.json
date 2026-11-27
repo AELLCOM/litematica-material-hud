@@ -99,5 +99,19 @@
   "layerlist.zf.config.zoneSeeThrough.name": "ブロック越しに表示",
   "layerlist.zf.config.zoneSeeThrough.tooltip": "ゾーンの枠をすべての手前に描画し、建物の中からも見えるようにします",
   "modmenu.descriptionTranslation.layerlist": "Litematica の情報パネルの代わりに、選択中のレンダーレイヤーのマテリアルリストを表示します。設置に合わせて更新され、ホットキーでページ送りができ、現在のページのブロックが入ったチェスト・樽・銅のチェスト・シュルカーボックスを目立つ色付きの点で示します。コンテナを開くと該当スロットもハイライトされます。",
-  "modmenu.summaryTranslation.layerlist": "建築中のレイヤーのマテリアルリストをリアルタイム表示し、該当ブロックを収納したチェストに色付きの点を表示します。"
+  "modmenu.summaryTranslation.layerlist": "建築中のレイヤーのマテリアルリストをリアルタイム表示し、該当ブロックを収納したチェストに色付きの点を表示します。",
+  "layerlist.config.bannerCard.name": "カーソルを合わせて旗のレシピを表示",
+  "layerlist.config.bannerCard.tooltip": "インベントリやあらゆるコンテナで、Shift を押しながら模様付きの旗にカーソルを合わせると、通常のツールチップの代わりにページをめくれるカードが表示されます。「Materials」タブでは、一覧の旗にカーソルを合わせるだけでカードが開き、行のメニューから機織り機の横に固定できます。最初のページには必要なもの（元になる旗、染料、旗の模様、機織り機）が並び、続いて模様ごとに1ページずつ、加工前の旗、染料、模様、完成形が表示されます。マウスホイール、← → キー、またはカードのボタンでページをめくれます。模様やアイテムをクリックすると、入手方法（レシピまたは入手場所）が表示されます。初期設定ではオン",
+  "layerlist.banner.needs": "必要なもの",
+  "layerlist.banner.step": "手順 %s / %s",
+  "layerlist.banner.patterns": "模様：%s",
+  "layerlist.banner.over_limit": "機織り機に入るのは6つまで",
+  "layerlist.banner.no_item": "旗の模様アイテムは不要",
+  "layerlist.banner.needs_item": "必要なアイテム：%s",
+  "layerlist.banner.kept": "機織り機では消費されません",
+  "layerlist.banner.how": "入手方法",
+  "layerlist.banner.hint": "ホイールまたは ← → でページ送り。模様をクリックすると入手方法を表示",
+  "layerlist.banner.pinned": "ピン留め中",
+  "layerlist.banner.unknown": "この模様の入手方法のデータがありません",
+  "layerlist.loom.beyond_limit": "（機織り機の上限6つを超過）"
 }

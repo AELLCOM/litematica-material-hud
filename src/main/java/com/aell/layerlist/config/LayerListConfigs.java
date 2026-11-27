@@ -49,7 +49,14 @@ public class LayerListConfigs implements IConfigHandler
     public static final ConfigBoolean STOCK_CHEST_TRACKER    = new ConfigBoolean("stockChestTracker", true);
     /** 23.11.2026 (заявка #3): у открытого ткацкого станка — рецепты узорных флагов из списка материалов. */
     public static final ConfigBoolean LOOM_GUIDE             = new ConfigBoolean("loomGuide", true);
+    /** 24.11.2026: курсор на любом узорном флаге в окне с ячейками — карточка-карусель «как сделать» (hud.BannerCard). */
+    public static final ConfigBoolean BANNER_CARD            = new ConfigBoolean("bannerCard", true);
     public static final ConfigBoolean SHORTFALL_ONLY_MISSING = new ConfigBoolean("shortfallOnlyMissing", true);
+    /**
+     * 27.11.2026: при «Только пустые места» в нехватку идут ещё и места, занятые блоком другого типа («Не тот блок»
+     * проверки); не то состояние — по-прежнему нет. Режим целиком — {@code core.Shortfall}. По умолчанию выкл.
+     */
+    public static final ConfigBoolean SHORTFALL_WRONG_BLOCKS = new ConfigBoolean("shortfallWrongBlocks", false);
     public static final ConfigBoolean SHOW_SHORTFALL         = new ConfigBoolean("showShortfall", false);
     public static final ConfigBoolean SHOW_PROGRESS_BAR      = new ConfigBoolean("showProgressBar", true);
     /** Большие количества в шалкерах («1,2 SB»); по умолчанию — стопками, как в остальных строках («32x64+17»). */
@@ -188,7 +195,7 @@ public class LayerListConfigs implements IConfigHandler
      * списком — malilib сохраняет их вместе с остальными, «Сбросить всё» сбрасывает и их.
      */
     public static final List<IConfigBase> OPTIONS = ImmutableList.<IConfigBase>builder().add(
-            REPLACE_LITEMATICA_HUD, ONLY_MISSING, USE_STOCK, COUNT_CHOSEN_CHESTS, COUNT_ENDER_CHEST, STOCK_NEAR_ONLY, STOCK_RADIUS, STOCK_CHEST_TRACKER, LOOM_GUIDE, PIN_ACROSS_DIMENSIONS, COUNT_ENTITIES, SHORTFALL_ONLY_MISSING, SHOW_SHORTFALL,
+            REPLACE_LITEMATICA_HUD, ONLY_MISSING, USE_STOCK, COUNT_CHOSEN_CHESTS, COUNT_ENDER_CHEST, STOCK_NEAR_ONLY, STOCK_RADIUS, STOCK_CHEST_TRACKER, LOOM_GUIDE, BANNER_CARD, PIN_ACROSS_DIMENSIONS, COUNT_ENTITIES, SHORTFALL_ONLY_MISSING, SHORTFALL_WRONG_BLOCKS, SHOW_SHORTFALL,
             SHOW_PROGRESS_BAR, HUD_COUNT_IN_BOXES, SORT_BY_NAME,
             SHOW_SEARCH_MARKERS, SEARCH_ITEM_FRAMES, SEARCH_FOLLOWS_PAGE,
             SKIP_ITEMS_IN_INVENTORY, SEARCH_RADIUS, SEARCH_ALL_CHESTS,

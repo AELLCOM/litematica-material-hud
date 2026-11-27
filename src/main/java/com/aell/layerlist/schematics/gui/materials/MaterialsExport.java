@@ -2,6 +2,7 @@ package com.aell.layerlist.schematics.gui.materials;
 
 import com.aell.layerlist.schematics.export.ExportOptions;
 import com.aell.layerlist.schematics.export.ExportRequest;
+import com.aell.layerlist.schematics.gui.export.ExportSource;
 import com.aell.layerlist.schematics.library.SchematicEntry;
 import com.aell.layerlist.schematics.materials.MaterialRow;
 import java.util.List;
@@ -33,11 +34,15 @@ import org.jetbrains.annotations.Nullable;
  * @param disabledBlocks сколько блоков отключено в таблице (в выгрузку они не идут): окно напоминает об этом
  * @param placed      строки схемы сверены с миром (размещена): {@code missing} — что ещё не поставлено, и
  *                    {@code onlyMissing} — ровно как в таблице, а не принудительно (1.0.18)
+ * @param useStock    в таблице включено «С учётом склада» (1.0.35): окно открывается с тем же выбором, количество —
+ *                    как колонка «Не хватает»
+ * @param recount     как пересчитать строки, когда окно меняет «Считать до Y»; {@code null} — настройка на эти
+ *                    строки не действует (выделенная область)
  */
 @Environment(EnvType.CLIENT)
 public record MaterialsExport(String title, String source, List<MaterialRow> rows, int sourceRows, boolean onlyMissing,
                               ExportFormat format, @Nullable SchematicEntry entry, String fileName, boolean hud,
-                              long disabledBlocks, boolean placed)
+                              long disabledBlocks, boolean placed, boolean useStock, @Nullable ExportSource.Recount recount)
 {
     public MaterialsExport
     {
@@ -46,6 +51,14 @@ public record MaterialsExport(String title, String source, List<MaterialRow> row
         Objects.requireNonNull(format, "format");
         Objects.requireNonNull(fileName, "fileName");
         rows = List.copyOf(rows);
+    }
+
+    /** Без «С учётом склада» и пересчёта (как до 1.0.35). */
+    public MaterialsExport(String title, String source, List<MaterialRow> rows, int sourceRows, boolean onlyMissing,
+                           ExportFormat format, @Nullable SchematicEntry entry, String fileName, boolean hud,
+                           long disabledBlocks, boolean placed)
+    {
+        this(title, source, rows, sourceRows, onlyMissing, format, entry, fileName, hud, disabledBlocks, placed, false, null);
     }
 
     /** Схема без сверки с миром (как до 1.0.18). */
@@ -70,10 +83,11 @@ public record MaterialsExport(String title, String source, List<MaterialRow> row
         this(title, source, rows, sourceRows, onlyMissing, format, entry, entry != null ? entry.name() : title, false, 0L, false);
     }
 
-    /** Флажки окна по умолчанию: запомненные, но «только недостающее» — как у таблицы. */
+    /** Флажки окна по умолчанию: запомненные, но «только недостающее» и «с учётом склада» — как у таблицы. */
     public ExportOptions options(ExportOptions remembered)
     {
-        return new ExportOptions(this.onlyMissing, remembered.icons(), remembered.rawMaterials(), remembered.chart());
+        return new ExportOptions(this.onlyMissing, remembered.icons(), remembered.rawMaterials(), remembered.chart(),
+                this.useStock);
     }
 
     /** Запрос к ядру выгрузок (M26): название и флажки — из окна, строки и источник — отсюда. */

@@ -28,9 +28,10 @@ record ExportData(ExportRequest request, LocalDateTime created, List<Line> lines
      * Строка выгрузки.
      *
      * @param quantity сколько собрать: при «только недостающее» — {@code missing}, иначе
-     *                 {@code total}
+     *                 {@code total}; «с учётом склада» — недостающее за вычетом инвентаря и сундуков
+     * @param net      количество уже за вычетом склада: красить его «уже есть» не нужно
      */
-    record Line(MaterialRow row, String id, long quantity)
+    record Line(MaterialRow row, String id, long quantity, boolean net)
     {
         String name()
         {
@@ -52,25 +53,35 @@ record ExportData(ExportRequest request, LocalDateTime created, List<Line> lines
             return (double) quantity / ((double) MaterialRow.SHULKER_SLOTS * row.maxStack());
         }
 
+        /**
+         * Колонка «Не хватает» таблиц CSV и «Копировать»: недостающее в мире, а «с учётом склада» — уже за вычетом
+         * инвентаря и сундуков (как колонка «Не хватает» вкладки «Материалы»).
+         */
+        long missing()
+        {
+            return net ? quantity : row.missing();
+        }
+
         /** Сколько из нужного уже есть в инвентаре и сундуках — для цвета количества. */
         long covered()
         {
-            return Math.min(quantity, Math.max(0L, row.inInventory()) + Math.max(0L, row.inChests()));
+            return net ? 0L : Math.min(quantity, Math.max(0L, row.inInventory()) + Math.max(0L, row.inChests()));
         }
     }
 
     static ExportData of(ExportRequest request, LocalDateTime created)
     {
-        boolean onlyMissing = request.options().onlyMissing();
+        ExportOptions options = request.options();
+        boolean net = options.useStock();
         List<Line> lines = new ArrayList<>(request.rows().size());
 
         for (MaterialRow row : request.rows())
         {
-            long quantity = onlyMissing ? row.missing() : row.total();
+            long quantity = options.quantity(row);
 
             if (quantity > 0L)
             {
-                lines.add(new Line(row, idOf(row.stack()), quantity));
+                lines.add(new Line(row, idOf(row.stack()), quantity, net));
             }
         }
 

@@ -2,6 +2,8 @@ package com.aell.layerlist.dev;
 
 import com.aell.layerlist.config.LayerListConfigs;
 import com.aell.layerlist.ghost.HiddenGhosts;
+import com.aell.layerlist.ghost.PortalGhosts;
+import com.aell.layerlist.verify.LayerVerifier;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
@@ -24,6 +26,9 @@ import net.minecraft.world.phys.Vec3;
  * портала Энда с порталом внутри, портал Незера в обсидиане, врата Энда, золотой блок. По умолчанию опция выключена —
  * голограммы всех порталов на месте; включили — рамок и порталов нет, обсидиан и золото остались, прицел проходит
  * клетки порталов насквозь; выключили — всё вернулось. Снимки на каждом шаге и строка настроек.
+ * С 25.11.2026 и проверка Ctrl+B: место постройки пустое, все блоки схемы «пропущено», плюс врата Энда в мире там, где
+ * в схеме воздух («лишний»). С опцией рамок на порталах нет ни в одной категории, счёт «пропущено» меньше ровно на
+ * клетки порталов, обсидиан и золото отмечены; выключили — счёт прежний.
  */
 @Environment(EnvType.CLIENT)
 public final class PortalsTest implements CovJob
@@ -35,6 +40,11 @@ public final class PortalsTest implements CovJob
     private long nextAt;
     private boolean failed;
     private boolean hideWas;
+    private boolean missingWas;
+    private boolean extraWas;
+    private boolean verifySaved;
+    private int missingOff = -1;
+    private int extraOff = -1;
     private SchematicPlacement placement;
 
     @Override
@@ -86,6 +96,8 @@ public final class PortalsTest implements CovJob
             // Врата Энда и золотой блок — обычный блок, который должен остаться
             command(server, String.format(Locale.ROOT, "setblock %d %d %d minecraft:end_gateway", REF.getX() + 11, REF.getY() + 1, REF.getZ() + 2));
             command(server, String.format(Locale.ROOT, "setblock %d %d %d minecraft:gold_block", REF.getX() + 11, REF.getY(), REF.getZ() + 2));
+            // На месте постройки — врата Энда в клетке, где в схеме воздух: для проверки это «лишний» портал
+            command(server, String.format(Locale.ROOT, "setblock %d %d %d minecraft:end_gateway", TARGET.getX() + 5, TARGET.getY() + 2, TARGET.getZ()));
             tpViewer(server);
         });
 
@@ -140,29 +152,50 @@ public final class PortalsTest implements CovJob
                 look(mc);
                 this.cells("выкл. (по умолчанию)", false);
                 shot(mc, "portals-off");
-                LayerListConfigs.GHOST_HIDE_PORTALS.setBooleanValue(true);
-                wait = 3000L;
+                this.missingWas = LayerListConfigs.VERIFY_MISSING.getBooleanValue();
+                this.extraWas = LayerListConfigs.VERIFY_EXTRA.getBooleanValue();
+                this.verifySaved = true;
+                LayerListConfigs.VERIFY_MISSING.setBooleanValue(true);
+                LayerListConfigs.VERIFY_EXTRA.setBooleanValue(true);
+
+                if (! LayerVerifier.getInstance().isHighlighting())
+                {
+                    LayerVerifier.getInstance().toggle();
+                }
+
+                wait = 4000L;
             }
             case 2 ->
             {
                 look(mc);
-                this.cells("вкл.", true);
-                shot(mc, "portals-on");
-                LayerListConfigs.GHOST_HIDE_PORTALS.setBooleanValue(false);
+                this.verify("Ctrl+B, опция выкл.", false);
+                shot(mc, "portals-verify-off");
+                LayerListConfigs.GHOST_HIDE_PORTALS.setBooleanValue(true);
                 wait = 3000L;
             }
             case 3 ->
             {
                 look(mc);
+                this.cells("вкл.", true);
+                this.verify("Ctrl+B, опция вкл.", true);
+                shot(mc, "portals-on");
+                LayerListConfigs.GHOST_HIDE_PORTALS.setBooleanValue(false);
+                wait = 3000L;
+            }
+            case 4 ->
+            {
+                look(mc);
                 this.cells("снова выкл.", false);
+                this.verify("Ctrl+B, снова выкл.", false);
                 shot(mc, "portals-off-again");
+                LayerVerifier.getInstance().stop();
                 var screen = com.aell.layerlist.config.GuiConfigs.create(null, null);
                 mc.gui.setScreen(screen);
                 SupportTest.moveMouse(mc, 4.0D, mc.getWindow().getGuiScaledHeight() - 4.0D);
                 search(screen, "Порталы");
                 wait = 2500L;
             }
-            case 4 ->
+            case 5 ->
             {
                 shot(mc, "portals-settings");
                 wait = 500L;
@@ -206,6 +239,79 @@ public final class PortalsTest implements CovJob
         this.check(what + (wantHidden ? ": порталы спрятаны" : ": порталы видны"),
                 wantHidden ? hidden == portals.length : hidden == 0, "спрятано " + hidden + " из " + portals.length);
         this.check(what + ": обсидиан и золото видны", plainHidden == 0, "спрятано " + plainHidden);
+    }
+
+    /**
+     * Проверка Ctrl+B на пустом месте постройки: без опции «пропущено» — все блоки схемы (с порталами), «лишний» — врата
+     * Энда в мире; с опцией на порталах и рамках нет ни одной рамки, «пропущено» меньше ровно на клетки порталов схемы,
+     * «лишних» нет, обсидиан и золото отмечены.
+     */
+    private void verify(String what, boolean wantHidden)
+    {
+        LayerVerifier verifier = LayerVerifier.getInstance();
+        WorldSchematicView view = new WorldSchematicView();
+        int missing = verifier.getCount(LayerVerifier.Category.MISSING);
+        int extra = verifier.getCount(LayerVerifier.Category.EXTRA);
+        int portalMarks = 0;
+        int marks = 0;
+
+        for (var list : verifier.getVisible().values())
+        {
+            for (BlockPos pos : list)
+            {
+                ++marks;
+                portalMarks += view.portalAt(pos) ? 1 : 0;
+            }
+        }
+
+        boolean plainMarked = verifier.getVisible().get(LayerVerifier.Category.MISSING).contains(TARGET.offset(6, 0, 2))
+                && verifier.getVisible().get(LayerVerifier.Category.MISSING).contains(TARGET.offset(11, 0, 2));
+        CovOut.log("[portals] " + what + ": пропущено " + missing + ", лишних " + extra + ", рамок " + marks
+                + ", из них на порталах " + portalMarks + ", скан " + verifier.isScanning());
+        this.check(what + ": проверка идёт и закончила скан", verifier.isHighlighting() && ! verifier.isScanning(), "");
+        this.check(what + ": обсидиан и золото отмечены «пропущено»", plainMarked, "");
+
+        if (! wantHidden)
+        {
+            this.check(what + ": рамки на порталах есть", portalMarks == PORTAL_CELLS + 1,
+                    "на порталах " + portalMarks + ", ждали " + (PORTAL_CELLS + 1));
+            this.check(what + ": «лишний» — врата Энда в мире", extra == 1, "лишних " + extra);
+
+            if (this.missingOff < 0)
+            {
+                this.missingOff = missing;
+                this.extraOff = extra;
+            }
+            else
+            {
+                this.check(what + ": счёт как до включения", missing == this.missingOff && extra == this.extraOff,
+                        "пропущено " + missing + "/" + this.missingOff + ", лишних " + extra + "/" + this.extraOff);
+            }
+        }
+        else
+        {
+            this.check(what + ": на порталах рамок нет", portalMarks == 0, "на порталах " + portalMarks);
+            this.check(what + ": «лишних» нет", extra == 0, "лишних " + extra);
+            this.check(what + ": «пропущено» меньше ровно на клетки порталов", this.missingOff - missing == PORTAL_CELLS,
+                    "было " + this.missingOff + ", стало " + missing + ", разница " + (this.missingOff - missing)
+                            + ", ждали " + PORTAL_CELLS);
+        }
+    }
+
+    /** Клеток порталов в схеме: 12 рамок, 9 портала Энда, 6 портала Незера, 1 врата Энда. */
+    private static final int PORTAL_CELLS = 28;
+
+    /** Портал или рамка — в схеме или в мире (врата Энда, «лишний»). */
+    private static final class WorldSchematicView
+    {
+        private final fi.dy.masa.litematica.world.WorldSchematic schematic = fi.dy.masa.litematica.world.SchematicWorldHandler.getSchematicWorld();
+        private final net.minecraft.world.level.Level world = Minecraft.getInstance().level;
+
+        boolean portalAt(BlockPos pos)
+        {
+            return (this.schematic != null && PortalGhosts.portal(this.schematic.getBlockState(pos)))
+                    || (this.world != null && PortalGhosts.portal(this.world.getBlockState(pos)));
+        }
     }
 
     private static void look(Minecraft mc)
@@ -277,5 +383,12 @@ public final class PortalsTest implements CovJob
         }
 
         LayerListConfigs.GHOST_HIDE_PORTALS.setBooleanValue(this.hideWas);
+        LayerVerifier.getInstance().stop();
+
+        if (this.verifySaved)
+        {
+            LayerListConfigs.VERIFY_MISSING.setBooleanValue(this.missingWas);
+            LayerListConfigs.VERIFY_EXTRA.setBooleanValue(this.extraWas);
+        }
     }
 }

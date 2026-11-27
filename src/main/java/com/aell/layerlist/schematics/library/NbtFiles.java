@@ -15,6 +15,7 @@ import net.minecraft.nbt.StreamTagVisitor;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagType;
 import net.minecraft.nbt.visitors.CollectFields;
+import net.minecraft.nbt.visitors.CollectToTag;
 import net.minecraft.nbt.visitors.FieldSelector;
 import org.jetbrains.annotations.Nullable;
 
@@ -78,6 +79,61 @@ final class NbtFiles
         Tag result = collector.getResult();
 
         return result instanceof CompoundTag compound ? compound : null;
+    }
+
+    /**
+     * Положения регионов {@code .litematic} без их блоков (1.0.40): корень с одним «Regions», в каждом регионе —
+     * только «Position» и «Size». Файл пролистывается целиком, но палитры, блоки и сущности пропускаются, не занимая
+     * память, — так точку привязки можно проверить у файла любого размера.
+     *
+     * @return собранный корень; {@code null} — корень не compound
+     */
+    static @Nullable CompoundTag readRegionHeads(Path file) throws IOException
+    {
+        RegionHeads collector = new RegionHeads();
+
+        try (InputStream in = new BufferedInputStream(Files.newInputStream(file), BUFFER))
+        {
+            NbtAccounter accounter = NbtAccounter.create(QUOTA);
+
+            if (gzip(in))
+            {
+                NbtIo.parseCompressed(in, collector, accounter);
+            }
+            else
+            {
+                NbtIo.parse(new DataInputStream(in), collector, accounter);
+            }
+        }
+
+        Tag result = collector.getResult();
+
+        return result instanceof CompoundTag compound ? compound : null;
+    }
+
+    /**
+     * Сборщик «только положения регионов». Глубина — сколько контейнеров открыто: 1 — поля корня (нужен один
+     * «Regions»), 2 — сами регионы (все), 3 — поля региона (нужны «Position» и «Size»), глубже — их x, y, z.
+     */
+    private static final class RegionHeads extends CollectToTag
+    {
+        @Override
+        public StreamTagVisitor.EntryResult visitEntry(TagType<?> type, String name)
+        {
+            int depth = this.depth();
+
+            if (depth == 1 && ! "Regions".equals(name))
+            {
+                return StreamTagVisitor.EntryResult.SKIP;
+            }
+
+            if (depth == 3 && ! "Position".equals(name) && ! "Size".equals(name))
+            {
+                return StreamTagVisitor.EntryResult.SKIP;
+            }
+
+            return super.visitEntry(type, name);
+        }
     }
 
     /**

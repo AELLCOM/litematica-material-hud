@@ -346,7 +346,7 @@ public final class ListPerfTest implements CovJob
                 {
                     BlockPos pos = REF.offset(x, 1, z);
                     BlockState state = blocks.getBlockState(pos);
-                    LayerSupports.collect(state, pos, both, blocks, cell -> ++found[0]);
+                    LayerSupports.collect(state, pos, both, blocks, true, cell -> ++found[0]);
                 }
             }
 
